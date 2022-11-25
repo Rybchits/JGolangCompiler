@@ -20,25 +20,25 @@ std::list<std::string> BuiltInTypes = {
         "bool"
 };
 
-bool IdentifierAsType::isBuiltInType() {
+[[nodiscard]] bool IdentifierAsType::isBuiltInType() const {
     return std::find(BuiltInTypes.begin(), BuiltInTypes.end(), identifier) != BuiltInTypes.end();
 }
 
 
-std::list<IdentifierAsType *> IdentifierAsType::ListIdentifiersToListTypes(IdentifiersList& identifiers) {
-    auto listTypes = new std::list<IdentifierAsType *>;
+TypeList* ListIdentifiersToListTypes(IdentifiersList& identifiers) {
+    auto listTypes = new std::list<TypeAST *>;
 
-    if (identifiers.empty()) { return *listTypes; }
+    if (identifiers.empty()) { return listTypes; }
 
     for (auto id: identifiers) {
         listTypes->push_back(new IdentifierAsType(id));
     }
 
-    return *listTypes;
+    return listTypes;
 }
 
 
-std::list<IdentifiersWithType *> *IdentifiersWithType::AttachIdentifiersToListTypes(std::list<TypeAST *>& listTypes) {
+std::list<IdentifiersWithType *> *AttachIdentifiersToListTypes(TypeList& listTypes) {
     auto listIdentifiersWithType = new std::list<IdentifiersWithType *>;
 
     if (listTypes.empty()) { return listIdentifiersWithType; }

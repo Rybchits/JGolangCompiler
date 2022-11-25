@@ -1,5 +1,7 @@
 #pragma once
 
+#include "enums.h"
+
 #include <list>
 #include <string>
 
@@ -13,16 +15,22 @@ class TypeAST;
 class IdentifiersWithType;
 class ExpressionAST;
 class FunctionSignature;
+class ElementCompositeLiteral;
 
-
+// typedefs
 typedef std::list<DeclarationAST *> DeclarationList;
 typedef std::list<VariableDeclaration *> VariableDeclList;
 typedef std::list<TypeDeclaration *> TypeDeclList;
 typedef std::list<std::string> IdentifiersList;
 typedef std::list<StatementAST *> StatementList;
 typedef std::list<SwitchCaseClause *> SwitchCaseList;
-typedef std::list<ExpressionAST *> ExpressionsList;
+typedef std::list<ExpressionAST *> ExpressionList;
 typedef std::list<TypeAST *> TypeList;
+typedef std::list<ElementCompositeLiteral *> ElementCompositeLiteralList;
+
+// Functions
+std::list<IdentifiersWithType *>* AttachIdentifiersToListTypes(TypeList& listTypes);
+TypeList* ListIdentifiersToListTypes(IdentifiersList& identifiers);
 
 
 class NodeAST {
@@ -54,14 +62,15 @@ public:
 };
 
 
+
 /* -------------------------------- Declaration -------------------------------- */
 class VariableDeclaration : public DeclarationAST {
 public:
     bool isConst;
     IdentifiersWithType *identifiersWithType;
-    ExpressionsList values;
+    ExpressionList values;
 
-    VariableDeclaration(IdentifiersWithType *typedIds, ExpressionsList &values, bool isConst)
+    VariableDeclaration(IdentifiersWithType *typedIds, ExpressionList &values, bool isConst)
             : identifiersWithType(typedIds), values(values), isConst(isConst) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "VarDecl"; };
@@ -83,9 +92,9 @@ class FunctionDeclaration : public DeclarationAST {
 public:
     std::string identifier;
     FunctionSignature *signature;
-    StatementAST *block;
+    BlockStatement *block;
 
-    FunctionDeclaration(const std::string_view id, FunctionSignature *signature, StatementAST *stmt)
+    FunctionDeclaration(const std::string_view id, FunctionSignature *signature, BlockStatement *stmt)
             : identifier(id), signature(signature), block(stmt) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "FuncDecl"; };
@@ -98,11 +107,12 @@ public:
     TypeAST *receiverType;
 
     MethodDeclaration(const std::string_view id, const std::string_view recId, TypeAST *recType,
-                      FunctionSignature *signature, StatementAST *stmt) :
+                      FunctionSignature *signature, BlockStatement *stmt) :
             FunctionDeclaration(id, signature, stmt), receiverType(recType), receiverIdentifier(recId) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "MethodDecl"; };
 };
+
 
 
 /* -------------------------------- Expression -------------------------------- */
@@ -173,6 +183,7 @@ public:
 
 
 class NilExpression : public ExpressionAST {
+public:
     NilExpression() = default;
 
     [[nodiscard]] std::string name() const noexcept override { return "NilLit"; };
@@ -192,13 +203,6 @@ public:
 
 class UnaryExpression : public ExpressionAST {
 public:
-    enum UnaryExpressionEnum {
-        Not,
-        Plus,
-        Minus,
-        Variadic,
-    };
-
     UnaryExpressionEnum type;
     ExpressionAST *expression;
 
@@ -210,23 +214,6 @@ public:
 
 class BinaryExpression : public ExpressionAST {
 public:
-    enum BinaryExpressionEnum {
-        ExpTypeAddition,            // +
-        ExpTypeSubtraction,         // -
-        ExpTypeMultiplication,      // *
-        ExpTypeDivision,            // /
-        ExpTypeMod,                 // %
-        ExpTypeAnd,                 // &&
-        ExpTypeOr,                  // ||
-        ExpTypeEqual,               // ==
-        ExpTypeGreater,             // >
-        ExpTypeLess,                // <
-        ExpTypeUnaryNot,            // !
-        ExpTypeNotEqual,            // !=
-        ExpTypeLessOrEqual,         // <=
-        ExpTypeGreatOrEqual,        // >=
-    };
-
     BinaryExpressionEnum type;
     ExpressionAST *lhs;
     ExpressionAST *rhs;
@@ -242,9 +229,9 @@ public:
 class CallableExpression : public ExpressionAST {
 public:
     ExpressionAST *base;
-    ExpressionsList arguments;
+    ExpressionList arguments;
 
-    CallableExpression(ExpressionAST *base, ExpressionsList &args) : base(base), arguments(args) {};
+    CallableExpression(ExpressionAST *base, ExpressionList &args) : base(base), arguments(args) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "CallableExpr"; };
 };
@@ -252,11 +239,6 @@ public:
 
 class AccessExpression : public ExpressionAST {
 public:
-    enum AccessExpressionEnum {
-        Indexing,
-        FieldSelect,
-    };
-
     AccessExpressionEnum type;
     ExpressionAST *base;
     ExpressionAST *accessor;
@@ -292,6 +274,7 @@ public:
 };
 
 
+
 /* -------------------------------- Statement -------------------------------- */
 class StatementAST : public NodeAST {
 protected:
@@ -303,7 +286,7 @@ class BlockStatement : public StatementAST {
 public:
     StatementList body;
 
-    BlockStatement() = default;;
+    BlockStatement(StatementList list) : body(list) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "BlockStmt"; }
 };
@@ -311,12 +294,6 @@ public:
 
 class KeywordStatement : public StatementAST {
 public:
-    enum KeywordEnum {
-        Break,
-        Continue,
-        Fallthrough
-    };
-
     KeywordEnum type;
 
     explicit KeywordStatement(KeywordEnum type) : type(type) {};
@@ -337,21 +314,11 @@ public:
 
 class AssignmentStatement : public StatementAST {
 public:
-    enum AssignmentEnum {
-        SimpleAssignment,       // =
-        MinusAssignment,        // -=
-        PlusAssignment,         // +=
-        ModAssignment,          // %=
-        MulAssignment,          // *=
-        DivAssignment,          // /=
-        ShortDeclaration,       // :=
-    };
-
     AssignmentEnum type;
-    ExpressionsList *lhs;
-    ExpressionsList *rhs;
+    ExpressionList *lhs;
+    ExpressionList *rhs;
 
-    AssignmentStatement(AssignmentEnum type, ExpressionsList *lhs, ExpressionsList *rhs) : type(type), lhs(lhs),
+    AssignmentStatement(AssignmentEnum type, ExpressionList *lhs, ExpressionList *rhs) : type(type), lhs(lhs),
                                                                                            rhs(rhs) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "AssignmentStmt"; }
@@ -386,11 +353,11 @@ public:
 class ForRangeStatement : public StatementAST {
 public:
     bool hasShortDeclaration;
-    ExpressionsList initStatement;
+    ExpressionList initStatement;
     ExpressionAST *expressionValue;
     BlockStatement *block;
 
-    ForRangeStatement(ExpressionsList &init, ExpressionAST *val, BlockStatement *block, bool isShort)
+    ForRangeStatement(ExpressionList &init, ExpressionAST *val, BlockStatement *block, bool isShort)
             : initStatement(init), hasShortDeclaration(isShort), expressionValue(val), block(block) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "ForRangeStmt"; }
@@ -399,22 +366,23 @@ public:
 
 class ReturnStatement : public StatementAST {
 public:
-    ExpressionsList returnValues;
+    ExpressionList returnValues;
 
-    explicit ReturnStatement(ExpressionsList &values) : returnValues(values) {};
+    explicit ReturnStatement(ExpressionList &values) : returnValues(values) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "ReturnStmt"; }
 };
 
 
 class IfStatement : public StatementAST {
+public:
     StatementAST *preStatement;
     ExpressionAST *condition;
     BlockStatement *thenStatement;
     StatementAST *elseStatement;
 
-    IfStatement(StatementAST *pre, ExpressionAST *cond, BlockStatement *then, StatementAST *elseBlock)
-            : preStatement(pre), condition(cond), thenStatement(then), elseStatement(elseBlock) {};
+    IfStatement(StatementAST *pre, ExpressionAST *cond, BlockStatement *then, StatementAST *elseStmt)
+            : preStatement(pre), condition(cond), thenStatement(then), elseStatement(elseStmt) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "IfStmt"; }
 };
@@ -448,10 +416,11 @@ public:
 
 class DeclarationStatement : public  StatementAST {
 public:
-    DeclarationAST* declaration;
-    explicit DeclarationStatement(DeclarationAST* decl) : declaration(decl) {};
+    DeclarationList declarations;
+    explicit DeclarationStatement(DeclarationList& decls) : declarations(decls) {};
     [[nodiscard]] std::string name() const noexcept override { return "DeclStmt"; }
 };
+
 
 
 /* -------------------------------- Types -------------------------------- */
@@ -472,8 +441,6 @@ public:
     const TypeAST* type;
 
     IdentifiersWithType(IdentifiersList& ids, TypeAST* type) : identifiers(ids), type(type) {};
-
-    static std::list<IdentifiersWithType *> *AttachIdentifiersToListTypes(std::list<TypeAST *>& listTypes);
 };
 
 
@@ -518,10 +485,8 @@ public:
 
     explicit IdentifierAsType(const std::string_view id): identifier(id) {};
 
-    static std::list<IdentifierAsType *> ListIdentifiersToListTypes(IdentifiersList& identifiers);
-
     [[nodiscard]] std::string name() const noexcept override { return "TypeIdentifier"; };
 
-    bool isBuiltInType();
+    [[nodiscard]] bool isBuiltInType() const;
 };
 
