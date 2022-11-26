@@ -19,8 +19,6 @@ class ElementCompositeLiteral;
 
 // typedefs
 typedef std::list<DeclarationAST *> DeclarationList;
-typedef std::list<VariableDeclaration *> VariableDeclList;
-typedef std::list<TypeDeclaration *> TypeDeclList;
 typedef std::list<std::string> IdentifiersList;
 typedef std::list<StatementAST *> StatementList;
 typedef std::list<SwitchCaseClause *> SwitchCaseList;
@@ -38,6 +36,7 @@ private:
     inline static int64_t LastNodeId = 1;
 public:
     const int64_t nodeId;
+    virtual ~NodeAST() = default;
 protected:
     NodeAST() : nodeId(LastNodeId++) {}
     [[nodiscard]] virtual std::string name() const noexcept = 0;
@@ -286,7 +285,7 @@ class BlockStatement : public StatementAST {
 public:
     StatementList body;
 
-    BlockStatement(StatementList list) : body(list) {};
+    explicit BlockStatement(StatementList& list) : body(list) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "BlockStmt"; }
 };

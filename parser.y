@@ -68,7 +68,7 @@
 %token <stringVal> STRING_LIT
 %token <identifierVal> IDENTIFIER
 
-%token END
+%token END   0 	"end of file"
 
 %token BREAK DEFAULT FUNC CASE RETURN VAR TRUE FALSE
        MAP STRUCT ELSE PACKAGE SWITCH INTERFACE NIL
@@ -103,12 +103,6 @@
 %left INCREMENT DECREMENT           // ++ --
 
 %start Root
-
-/*
-ListOrEmpty         - 0 and more
-List                - 1 and more
-Optional            - 0 or 1 
-*/
 
 %%
     // The first statement in a Go source file must be package name

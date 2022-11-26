@@ -1,0 +1,285 @@
+%option noyywrap
+%option never-interactive
+%option c++
+%option yylineno
+
+%{
+  #include "lexer.hpp"
+%}
+
+
+LETTER                  [A-Za-z_]
+DECIMAL_DIGIT           [0-9]
+DECIMAL_DIGITS          {DECIMAL_DIGIT}(_?{DECIMAL_DIGIT})*
+
+HEX_DIGIT               [0-9A-Fa-f]
+HEX_DIGITS              {HEX_DIGIT}(_?{HEX_DIGIT})*
+
+OCT_DIGIT               [0-7]
+BIN_DIGIT               [01]
+
+DECIMAL_EXPONENT        [eE][+-]?{DECIMAL_DIGITS}
+HEX_EXPONENT            [pP][+-]?{DECIMAL_DIGITS}
+
+DECIMAL_FLOAT_LITERAL   {DECIMAL_DIGITS}\.{DECIMAL_DIGITS}?{DECIMAL_EXPONENT}?|{DECIMAL_DIGITS}{DECIMAL_EXPONENT}|\.{DECIMAL_DIGITS}{DECIMAL_EXPONENT}?
+
+HEX_MANTISSA            (_?{HEX_DIGITS}\.{HEX_DIGITS}?|_?{HEX_DIGITS}|\.{HEX_DIGITS})
+HEX_FLOAT_LITERAL       0[xX]{HEX_MANTISSA}{HEX_EXPONENT}
+
+
+HEX_BYTE_VALUE          \\x{HEX_DIGIT}{2}
+OCTAL_BYTE_VALUE        \\{OCT_DIGIT}{3}
+
+
+%x MULTILINE_COMMENT
+%x STRING_LITERAL
+%x RUNE_LITERAL
+%x ENABLE_SEMICOLON
+
+%%
+
+%{
+std::string stringLiteral;
+std::string currentComment;
+int32_t runeValue;
+long long currentInteger;
+double floatingPoint;
+%}
+
+import          { PrintKeyword(yytext); }
+interface       { PrintKeyword(yytext); }
+select          { PrintKeyword(yytext); }
+defer           { PrintKeyword(yytext); }
+go              { PrintKeyword(yytext); }
+chan            { PrintKeyword(yytext); }
+goto            { PrintKeyword(yytext); }
+default         { return yytokentype::DEFAULT;       }
+func            { return yytokentype::FUNC;          }
+case            { return yytokentype::CASE;          }
+map             { return yytokentype::MAP;           }
+struct          { return yytokentype::STRUCT;        }
+else            { return yytokentype::ELSE;          }
+package         { return yytokentype::PACKAGE;       }
+switch          { return yytokentype::SWITCH;        }
+const           { return yytokentype::CONST;         }
+if              { return yytokentype::IF;            }
+range           { return yytokentype::RANGE;         }
+type            { return yytokentype::TYPE;          }
+for             { return yytokentype::FOR;           }
+var             { return yytokentype::VAR;           }
+false           { return yytokentype::FALSE;         }
+true            { return yytokentype::TRUE;          }
+nil             { return yytokentype::NIL;           }
+break           { BEGIN(ENABLE_SEMICOLON); return yytokentype::BREAK;        }
+fallthrough     { BEGIN(ENABLE_SEMICOLON); return yytokentype::FALLTHROUGH;  }
+continue        { BEGIN(ENABLE_SEMICOLON); return yytokentype::CONTINUE;     }
+return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
+
+
+"/*"                            { currentComment.clear(); BEGIN(MULTILINE_COMMENT);     }
+<MULTILINE_COMMENT>\*+\/        { PrintComment(currentComment); BEGIN(INITIAL);         }
+<MULTILINE_COMMENT>[^\*\/]+     { currentComment += yytext;                             }
+<MULTILINE_COMMENT><<EOF>>      { PrintErrorAndExit("expected */ "); BEGIN(INITIAL);    }
+
+\/\/.* {
+    std::string tempStr = yytext;
+    PrintComment(tempStr.substr(2));
+}
+
+
+\"                                      { stringLiteral.clear(); BEGIN(STRING_LITERAL);                 }
+<STRING_LITERAL>{OCTAL_BYTE_VALUE}      { stringLiteral += char(std::stoi(yytext + 1, nullptr, 8));     }
+<STRING_LITERAL>{HEX_BYTE_VALUE}        { stringLiteral += char(std::stoi(yytext + 2, nullptr, 16));    }
+<STRING_LITERAL>[^\\\"\n#{}]+           { stringLiteral += yytext;  }
+<STRING_LITERAL>\\a                     { stringLiteral += "\a";    }
+<STRING_LITERAL>\\b                     { stringLiteral += "\b";    }
+<STRING_LITERAL>\\\\                    { stringLiteral += "\\";    }
+<STRING_LITERAL>\\t                     { stringLiteral += "\t";    }
+<STRING_LITERAL>\\n                     { stringLiteral += "\n";    }
+<STRING_LITERAL>\\f                     { stringLiteral += "\f";    }
+<STRING_LITERAL>\\r                     { stringLiteral += "\r";    }
+<STRING_LITERAL>\\v                     { stringLiteral += "\v";    }
+<STRING_LITERAL>\\\"                    { stringLiteral += "\"";    }
+<STRING_LITERAL>\\.                     { PrintErrorAndExit("unknown escape sequence"); BEGIN(INITIAL);}
+<STRING_LITERAL>\n                      { PrintErrorAndExit("newline in string"); BEGIN(INITIAL);      }
+<STRING_LITERAL><<EOF>>                 { PrintErrorAndExit("expected \" "); BEGIN(INITIAL);           }
+
+<STRING_LITERAL>\"                      { yylval.stringVal = DuplicateString(stringLiteral.c_str()); BEGIN(ENABLE_SEMICOLON);   }
+
+<ENABLE_SEMICOLON>[" "\t]+      { }
+<ENABLE_SEMICOLON><<EOF>>       { BEGIN(INITIAL); return ';'; }
+<ENABLE_SEMICOLON>\n+           { BEGIN(INITIAL); return ';'; }
+<ENABLE_SEMICOLON>""/[^\n]      { BEGIN(INITIAL); }
+
+\'                                          { runeValue = -1; BEGIN(RUNE_LITERAL); }
+
+<RUNE_LITERAL>{OCTAL_BYTE_VALUE}            { if (runeValue == -1) runeValue = std::stoi(yytext + 1, nullptr, 8);
+                                              else PrintErrorAndExit("more than one character in rune literal");
+                                            }
+
+<RUNE_LITERAL>{HEX_BYTE_VALUE}              { if (runeValue == -1) runeValue = std::stoi(yytext + 1, nullptr, 16);   
+                                              else PrintErrorAndExit("more than one character in rune literal");
+                                            }
+
+<RUNE_LITERAL>[^'\n\\]                      { if (runeValue == -1) runeValue = *yytext;                              
+                                              else PrintErrorAndExit("more than one character in rune literal");
+                                            }
+
+<RUNE_LITERAL>\\a                           { if (runeValue == -1) runeValue = '\a';                                 
+                                              else PrintErrorAndExit("more than one character in rune literal");
+                                            }
+
+<RUNE_LITERAL>\\b                           { if (runeValue == -1) runeValue = '\b';                                 
+                                              else PrintErrorAndExit("more than one character in rune literal");
+                                            }
+
+<RUNE_LITERAL>\\\\                          { if (runeValue == -1) runeValue = '\\';                                 
+                                              else PrintErrorAndExit("more than one character in rune literal");
+                                            }
+
+<RUNE_LITERAL>\\t                           { if (runeValue == -1) runeValue = '\t';                                 
+                                              else PrintErrorAndExit("more than one character in rune literal");
+                                            }
+
+<RUNE_LITERAL>\\n                           { if (runeValue == -1) runeValue = '\n';                                 
+                                              else PrintErrorAndExit("more than one character in rune literal");
+                                            }
+
+<RUNE_LITERAL>\\f                           { if (runeValue == -1) runeValue = '\f';                                 
+                                              else PrintErrorAndExit("more than one character in rune literal");
+                                            }
+
+<RUNE_LITERAL>\\r                           { if (runeValue == -1) runeValue = '\r';                                 
+                                              else PrintErrorAndExit("more than one character in rune literal");
+                                            }
+
+<RUNE_LITERAL>\\v                           { if (runeValue == -1) runeValue = '\v';                                 
+                                              else PrintErrorAndExit("more than one character in rune literal");
+                                            }
+
+<RUNE_LITERAL>\\\'                          { if (runeValue == -1) runeValue = '\'';                                 
+                                              else PrintErrorAndExit("more than one character in rune literal");
+                                            }
+
+<RUNE_LITERAL>\\.                           { PrintErrorAndExit("unknown escape sequence");    }
+<RUNE_LITERAL>\n                            { PrintErrorAndExit("newline in string");          }
+<RUNE_LITERAL><<EOF>>                       { PrintErrorAndExit("expected \" ");               }
+
+<RUNE_LITERAL>\'                            { if (runeValue == -1) PrintErrorAndExit("empty rune literal");
+                                              yylval.runeVal = runeValue;
+                                              BEGIN(INITIAL);
+                                            }
+
+
+"&&"        { return yytokentype::AND;   }
+"||"        { return yytokentype::OR;    }
+"++"        { BEGIN(ENABLE_SEMICOLON); return yytokentype::INCREMENT; }
+"--"        { BEGIN(ENABLE_SEMICOLON); return yytokentype::DECREMENT; }
+
+"&="        { PrintAssignmentOperator("&=");    }
+"&^="       { PrintAssignmentOperator("&^=");   }
+"|="        { PrintAssignmentOperator("|=");    }
+"^="        { PrintAssignmentOperator("^=");    }
+"<<="       { PrintAssignmentOperator("<<=");   }
+">>="       { PrintAssignmentOperator(">>=");   }
+
+"&"         { PrintArithmeticOperator("&");     }
+"&^"        { PrintArithmeticOperator("&^");    }
+"|"         { PrintArithmeticOperator("|");     }
+"^"         { PrintArithmeticOperator("^");     }
+"<<"        { PrintArithmeticOperator("<<");    }
+">>"        { PrintArithmeticOperator(">>");    }
+
+">="        { return yytokentype::GREATER_OR_EQUAL;          }
+"<="        { return yytokentype::LESS_OR_EQUAL;             }
+":="        { return yytokentype::SHORT_DECL_OP;             }
+"..."       { return yytokentype::VARIADIC;                  }
+
+"+="        { return yytokentype::PLUS_ASSIGNMENT;           }
+"-="        { return yytokentype::MINUS_ASSIGNMENT;          }
+"*="        { return yytokentype::MUL_ASSIGNMENT;            }
+"/="        { return yytokentype::DIV_ASSIGNMENT;            }
+"%="        { return yytokentype::MOD_ASSIGNMENT;            }
+"!="        { return yytokentype::NOT_EQUAL;                 }
+
+"=="        { return yytokentype::EQUAL;                     }
+"!"         { return yytext[0];                 }
+">"         { return yytext[0];                 }
+"<"         { return yytext[0];                 }
+"~"         { return yytext[0];                 }
+
+"="         { return yytext[0];                 }
+"+"         { return yytext[0];                 }
+"-"         { return yytext[0];                 }
+"*"         { return yytext[0];                 }
+"/"         { return yytext[0];                 }
+"%"         { return yytext[0];                 }
+
+"["         { return yytext[0];                 }
+"("         { return yytext[0];                 }
+"{"         { return yytext[0];                 }
+
+"."         { return yytext[0];                 }
+","         { return yytext[0];                 }
+";"         { return yytext[0];                 }
+":"         { return yytext[0];                 }
+
+"}"         { BEGIN(ENABLE_SEMICOLON); return yytext[0]; }
+")"         { BEGIN(ENABLE_SEMICOLON); return yytext[0]; }
+"]"         { BEGIN(ENABLE_SEMICOLON); return yytext[0]; }
+
+
+{DECIMAL_DIGITS}+ {
+    std::string tempStr = yytext;
+    tempStr.erase(std::remove(tempStr.begin(), tempStr.end(), '_'), tempStr.end());
+    currentInteger = std::stoll(tempStr);
+
+    yylval.integerVal = currentInteger;
+    BEGIN(ENABLE_SEMICOLON);
+}
+
+0[oO](_?{OCT_DIGIT})+ {
+    std::string tempStr = yytext;
+    tempStr.erase(std::remove(tempStr.begin(), tempStr.end(), '_'), tempStr.end());
+    currentInteger = std::stoll(tempStr.substr(2), nullptr, 8);
+
+    yylval.integerVal = currentInteger;
+    BEGIN(ENABLE_SEMICOLON);
+}
+
+0[xX](_?{HEX_DIGIT})+ {
+    std::string tempStr = yytext;
+    tempStr.erase(std::remove(tempStr.begin(), tempStr.end(), '_'), tempStr.end());
+    currentInteger = std::stoll(tempStr, nullptr, 16);
+
+    yylval.integerVal = currentInteger;
+    BEGIN(ENABLE_SEMICOLON);
+}
+
+0[bB](_?{BIN_DIGIT})+ {
+    std::string tempStr = yytext;
+    tempStr.erase(std::remove(tempStr.begin(), tempStr.end(), '_'), tempStr.end());
+    currentInteger = std::stoll(tempStr.substr(2), nullptr, 2);
+
+    yylval.integerVal = currentInteger;
+    BEGIN(ENABLE_SEMICOLON);
+}
+
+{DECIMAL_FLOAT_LITERAL}|{HEX_FLOAT_LITERAL} {
+    std::string tempStr = yytext;
+    tempStr.erase(std::remove(tempStr.begin(), tempStr.end(), '_'), tempStr.end());
+    floatingPoint = std::stod(tempStr.c_str());
+
+    yylval.floatVal = floatingPoint;
+    BEGIN(ENABLE_SEMICOLON);
+}
+
+
+({LETTER})({LETTER}|{DECIMAL_DIGIT})* {
+    yylval.identifierVal = DuplicateString(yytext);
+    BEGIN(ENABLE_SEMICOLON);
+}
+
+[[:space:]]+        { }
+
+.                   { PrintErrorAndExit("found bad character"); }
