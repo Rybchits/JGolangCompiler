@@ -1,17 +1,32 @@
 #include <iostream>
+#include <fstream>
+#include <sstream>
 
+#include "parser.cpp"
 #include "tree_nodes.h"
 
-extern PackageAST *Root;
-extern int yyparse();
-extern FILE* yyin;
-
-
 int main(int argc, char** argv) {
+    yydebug = 1;
+
     if (argc > 1) {
-        yyin = fopen(argv[1], "r");
+        std::ifstream ifile;
+
+        ifile.open(argv[1]);
+
+        std::string strSum;
+
+        while (!ifile.eof()){
+            std::string str;
+            getline(ifile, str);
+            strSum += str + '\n';
+        }
+
+        std::istringstream strStream(strSum);
+        lexer = new yyFlexLexer(strStream, std::cout);
         yyparse();
-        fclose(yyin);
+
+        std::cout << Root->name() << std::endl;
+        ifile.close();
     }
     else {
         std::cout << "not found file" << std::endl;

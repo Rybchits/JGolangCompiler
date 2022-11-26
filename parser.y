@@ -1,12 +1,16 @@
 %{
     #include "tree_nodes.h"
+    #include "lexer.cpp"
+
+    yyFlexLexer* lexer;
     PackageAST *Root;
 
-    extern int yylex();
-    extern int yylineno;
+    int yylex() {
+        return lexer->yylex();
+    }
 
     void yyerror(char const *s) {
-        fprintf(stderr, "Error: %s on line %d\n", s, yylineno);
+        fprintf(stderr, "Error: %s", s);
         exit(1);
     }
 %}

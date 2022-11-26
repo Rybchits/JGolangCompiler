@@ -4,6 +4,7 @@
 %option yylineno
 
 %{
+  #include "tree_nodes.h"
   #include "lexer.hpp"
 %}
 
@@ -87,7 +88,7 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
 }
 
 
-\"                                      { stringLiteral.clear(); BEGIN(STRING_LITERAL);                 }
+\"                                      { stringLiteral.clear(); BEGIN(STRING_LITERAL); return yytokentype::STRING_LIT; }
 <STRING_LITERAL>{OCTAL_BYTE_VALUE}      { stringLiteral += char(std::stoi(yytext + 1, nullptr, 8));     }
 <STRING_LITERAL>{HEX_BYTE_VALUE}        { stringLiteral += char(std::stoi(yytext + 2, nullptr, 16));    }
 <STRING_LITERAL>[^\\\"\n#{}]+           { stringLiteral += yytext;  }
@@ -168,6 +169,7 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
 <RUNE_LITERAL>\'                            { if (runeValue == -1) PrintErrorAndExit("empty rune literal");
                                               yylval.runeVal = runeValue;
                                               BEGIN(INITIAL);
+                                              return yytokentype::RUNE_LIT;
                                             }
 
 
@@ -236,6 +238,7 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
 
     yylval.integerVal = currentInteger;
     BEGIN(ENABLE_SEMICOLON);
+    return yytokentype::INT_LIT;
 }
 
 0[oO](_?{OCT_DIGIT})+ {
@@ -245,6 +248,7 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
 
     yylval.integerVal = currentInteger;
     BEGIN(ENABLE_SEMICOLON);
+    return yytokentype::INT_LIT;
 }
 
 0[xX](_?{HEX_DIGIT})+ {
@@ -254,6 +258,7 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
 
     yylval.integerVal = currentInteger;
     BEGIN(ENABLE_SEMICOLON);
+    return yytokentype::INT_LIT;
 }
 
 0[bB](_?{BIN_DIGIT})+ {
@@ -263,6 +268,7 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
 
     yylval.integerVal = currentInteger;
     BEGIN(ENABLE_SEMICOLON);
+    return yytokentype::INT_LIT;
 }
 
 {DECIMAL_FLOAT_LITERAL}|{HEX_FLOAT_LITERAL} {
@@ -272,12 +278,14 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
 
     yylval.floatVal = floatingPoint;
     BEGIN(ENABLE_SEMICOLON);
+    return yytokentype::FLOAT_LIT;
 }
 
 
 ({LETTER})({LETTER}|{DECIMAL_DIGIT})* {
     yylval.identifierVal = DuplicateString(yytext);
     BEGIN(ENABLE_SEMICOLON);
+    return yytokentype::IDENTIFIER;
 }
 
 [[:space:]]+        { }
