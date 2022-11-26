@@ -4,7 +4,7 @@
 %option yylineno
 
 %{
-  #include "tree_nodes.h"
+  #include "ast.h"
   #include "lexer.hpp"
 %}
 

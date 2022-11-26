@@ -1,5 +1,5 @@
 %{
-    #include "tree_nodes.h"
+    #include "ast.h"
     #include "lexer.cpp"
 
     yyFlexLexer* lexer;
@@ -264,8 +264,8 @@
 	;
     
     VariableSpec: IdentifiersWithType '=' ExpressionList                            { $$ = new VariableDeclaration($1, *$3, false); }
-	            | IdentifiersWithType                                               { $$ = new VariableDeclaration($1, *(new ExpressionList()), false); }
-	            | IdentifiersList '=' ExpressionList                                { $$ = new VariableDeclaration(new IdentifiersWithType(*$1, nullptr), *$3, false); }
+		| IdentifiersWithType                                               { $$ = new VariableDeclaration($1, *(new ExpressionList()), false); }
+		| IdentifiersList '=' ExpressionList                                { $$ = new VariableDeclaration(new IdentifiersWithType(*$1, nullptr), *$3, false); }
 	;
 
 // Constants Declarations
@@ -321,8 +321,8 @@
     ;
 
     BasicLiteral: INT_LIT                                                           { $$ = new IntegerExpression($1);     }
-			    | FLOAT_LIT                                                         { $$ = new FloatExpression($1);       }
-			    | RUNE_LIT                                                          { $$ = new RuneExpression($1);        }
+		| FLOAT_LIT                                                         { $$ = new FloatExpression($1);       }
+		| RUNE_LIT                                                          { $$ = new RuneExpression($1);        }
                 | STRING_LIT                                                        { $$ = new StringExpression($1);      }
                 | FALSE                                                             { $$ = new BooleanExpression(false);  }
                 | TRUE                                                              { $$ = new BooleanExpression(true);   }
@@ -384,7 +384,7 @@
     ;
 
     Arguments: '(' ExpressionList ',' ')'                                           { $$ = $2; }
-	            | '(' ExpressionList ')'                                            { $$ = $2; }
+		| '(' ExpressionList ')'                                            { $$ = $2; }
                 | '(' ')'                                                           { $$ = new ExpressionList(); }
 	;
 
@@ -393,7 +393,7 @@
     ;
 
     ExpressionList: Expression                                                      { $$ = new ExpressionList({$1}); }
-			    | ExpressionList ',' Expression                                     { $$ = $1; $$ -> push_back($3); }
+		| ExpressionList ',' Expression                                     { $$ = $1; $$ -> push_back($3); }
     ;
 
 /* -------------------------------- Statements -------------------------------- */
@@ -484,7 +484,7 @@
                 | ExprCaseClauseList ExprCaseClause                                 { $$ = $1; $$ -> push_back($2); }
     ;
 
-    ExprCaseClauseListOrEmpty: /* empty */                                          { $$ = nullptr; }
+    ExprCaseClauseListOrEmpty: /* empty */                                          { $$ = new SwitchCaseList(); }
                 | ExprCaseClauseList                                                { $$ = $1; }
     ;
 %%

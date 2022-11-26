@@ -3,7 +3,7 @@
 #include <sstream>
 
 #include "parser.cpp"
-#include "tree_nodes.h"
+#include "ast.h"
 
 int main(int argc, char** argv) {
     yydebug = 1;

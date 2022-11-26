@@ -1,4 +1,4 @@
-#include "tree_nodes.h"
+#include "ast.h"
 
 /* -------------------------------- Types -------------------------------- */
 std::list<std::string> BuiltInTypes = {
