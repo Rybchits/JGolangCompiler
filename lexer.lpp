@@ -78,17 +78,18 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
 
 
 "/*"                            { currentComment.clear(); BEGIN(MULTILINE_COMMENT);     }
-<MULTILINE_COMMENT>\*+\/        { PrintComment(currentComment); BEGIN(INITIAL);         }
+<MULTILINE_COMMENT>\*+\/        { PrintComment(currentComment); BEGIN(ENABLE_SEMICOLON);}
 <MULTILINE_COMMENT>[^\*\/]+     { currentComment += yytext;                             }
 <MULTILINE_COMMENT><<EOF>>      { PrintErrorAndExit("expected */ "); BEGIN(INITIAL);    }
 
 \/\/.* {
     std::string tempStr = yytext;
     PrintComment(tempStr.substr(2));
+    BEGIN(ENABLE_SEMICOLON);
 }
 
 
-\"                                      { stringLiteral.clear(); BEGIN(STRING_LITERAL); return yytokentype::STRING_LIT; }
+\"                                      { stringLiteral.clear(); BEGIN(STRING_LITERAL); }
 <STRING_LITERAL>{OCTAL_BYTE_VALUE}      { stringLiteral += char(std::stoi(yytext + 1, nullptr, 8));     }
 <STRING_LITERAL>{HEX_BYTE_VALUE}        { stringLiteral += char(std::stoi(yytext + 2, nullptr, 16));    }
 <STRING_LITERAL>[^\\\"\n#{}]+           { stringLiteral += yytext;  }
@@ -105,7 +106,10 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
 <STRING_LITERAL>\n                      { PrintErrorAndExit("newline in string"); BEGIN(INITIAL);      }
 <STRING_LITERAL><<EOF>>                 { PrintErrorAndExit("expected \" "); BEGIN(INITIAL);           }
 
-<STRING_LITERAL>\"                      { yylval.stringVal = DuplicateString(stringLiteral.c_str()); BEGIN(ENABLE_SEMICOLON);   }
+<STRING_LITERAL>\"                      {   yylval.stringVal = DuplicateString(stringLiteral.c_str());
+                                            BEGIN(ENABLE_SEMICOLON);
+                                            return yytokentype::STRING_LIT;
+                                        }
 
 <ENABLE_SEMICOLON>[" "\t]+      { }
 <ENABLE_SEMICOLON><<EOF>>       { BEGIN(INITIAL); return ';'; }

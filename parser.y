@@ -263,9 +263,19 @@
                 | VariableSpec ';'                                                  { $$ = new DeclarationList({$1}); }
 	;
     
-    VariableSpec: IdentifiersWithType '=' ExpressionList                            { $$ = new VariableDeclaration($1, *$3, false); }
+    VariableSpec: IdentifiersWithType '=' ExpressionList                            {
+    											if ($1->identifiers.size() != $3->size())
+    												yyerror("Assignment count mismatch");
+    											$$ = new VariableDeclaration($1, *$3, false);
+    										    }
+
 		| IdentifiersWithType                                               { $$ = new VariableDeclaration($1, *(new ExpressionList()), false); }
-		| IdentifiersList '=' ExpressionList                                { $$ = new VariableDeclaration(new IdentifiersWithType(*$1, nullptr), *$3, false); }
+
+		| IdentifiersList '=' ExpressionList                                {
+											if ($1->size() != $3->size())
+												yyerror("Assignment count mismatch");
+											$$ = new VariableDeclaration(new IdentifiersWithType(*$1, nullptr), *$3, false);
+										    }
 	;
 
 // Constants Declarations
@@ -281,8 +291,17 @@
                 | ConstSpecList ConstSpec ';'                                       { $$ = $1; $$ -> push_back($2); }
     ;
 
-    ConstSpec: IdentifiersWithType '=' ExpressionList                               { $$ = new VariableDeclaration($1, *$3, true); }
-                | IdentifiersList '=' ExpressionList                                { $$ = new VariableDeclaration(new IdentifiersWithType(*$1, nullptr), *$3, true); }
+    ConstSpec: IdentifiersWithType '=' ExpressionList                               {
+    											if ($1->identifiers.size() != $3->size())
+                                                                                        	yyerror("Assignment count mismatch");
+    											$$ = new VariableDeclaration($1, *$3, true);
+    										    }
+
+                | IdentifiersList '=' ExpressionList                                {
+                									if ($1->size() != $3->size())
+                                                                                        	yyerror("Assignment count mismatch");
+                									$$ = new VariableDeclaration(new IdentifiersWithType(*$1, nullptr), *$3, true);
+                								    }
     ;
 
 // Function declarations
@@ -398,27 +417,35 @@
 
 /* -------------------------------- Statements -------------------------------- */
 
-    Assignment: Expression PLUS_ASSIGNMENT Expression                               { $$ = new AssignmentStatement(AssignmentEnum::PlusAssign, new ExpressionList({$1}), new ExpressionList({$3}));     }
-                | Expression MINUS_ASSIGNMENT Expression                            { $$ = new AssignmentStatement(AssignmentEnum::MinusAssign, new ExpressionList({$1}), new ExpressionList({$3}));    }
-                | Expression MUL_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentEnum::MulAssign, new ExpressionList({$1}), new ExpressionList({$3}));      }
-                | Expression DIV_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentEnum::DivAssign, new ExpressionList({$1}), new ExpressionList({$3}));      }
-                | Expression MOD_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentEnum::ModAssign, new ExpressionList({$1}), new ExpressionList({$3}));      }
-                | ExpressionList '=' ExpressionList                                 { $$ = new AssignmentStatement(AssignmentEnum::SimpleAssign, $1, $3); }
+    Assignment: Expression PLUS_ASSIGNMENT Expression                               { $$ = new AssignmentStatement(AssignmentEnum::PlusAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));     }
+                | Expression MINUS_ASSIGNMENT Expression                            { $$ = new AssignmentStatement(AssignmentEnum::MinusAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));    }
+                | Expression MUL_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentEnum::MulAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));      }
+                | Expression DIV_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentEnum::DivAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));      }
+                | Expression MOD_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentEnum::ModAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));      }
+                | ExpressionList '=' ExpressionList                                 {
+                									if ($1->size() != $3->size())
+                                                                                        	yyerror("Assignment count mismatch");
+                									$$ = new AssignmentStatement(AssignmentEnum::SimpleAssign, *$1, *$3);
+                								    }
     ;
 
-    ShortVarDecl: ExpressionList SHORT_DECL_OP ExpressionList                       { $$ = new AssignmentStatement(AssignmentEnum::ShortDeclaration, $1, $3); }
+    ShortVarDecl: ExpressionList SHORT_DECL_OP ExpressionList                       {
+    											if ($1->size() != $3->size())
+                                                                                        	yyerror("Assignment count mismatch");
+     											$$ = new AssignmentStatement(AssignmentEnum::ShortDeclaration, *$1, *$3);
+     										    }
     ;
 
     Statement: Declaration                                                          { $$ = new DeclarationStatement(*$1); }
-                | Block                                                             { $$ = $1; }
-                | SimpleStmt                                                        { $$ = $1; }
-                | ReturnStmt                                                        { $$ = $1; }
-                | BREAK                                                             { $$ = new KeywordStatement(KeywordEnum::Break);        }
-                | CONTINUE                                                          { $$ = new KeywordStatement(KeywordEnum::Continue);     }
-                | FALLTHROUGH                                                       { $$ = new KeywordStatement(KeywordEnum::Fallthrough);  }
-                | IfStmt                                                            { $$ = $1; }
-                | ForStmt                                                           { $$ = $1; }
-                | SwitchStmt                                                        { $$ = $1; }
+                | Block ';'                                                         { $$ = $1; }
+                | SimpleStmt ';'                                                    { $$ = $1; }
+                | ReturnStmt ';'                                                    { $$ = $1; }
+                | BREAK ';'                                                         { $$ = new KeywordStatement(KeywordEnum::Break);        }
+                | CONTINUE ';'                                                      { $$ = new KeywordStatement(KeywordEnum::Continue);     }
+                | FALLTHROUGH ';'                                                   { $$ = new KeywordStatement(KeywordEnum::Fallthrough);  }
+                | IfStmt ';'                                                        { $$ = $1; }
+                | ForStmt ';'                                                       { $$ = $1; }
+                | SwitchStmt ';'                                                    { $$ = $1; }
     ;
 
     // Increment / decrement statement
@@ -443,15 +470,15 @@
 
 /* -------------------------------- Blocks -------------------------------- */
 
-    Block: '{' StatementListOrEmpty '}'                                             { $$ = new BlockStatement(*$2); }
+    Block: '{' StatementListOrEmpty '}'						    { $$ = new BlockStatement(*$2); }
     ;
 
     StatementListOrEmpty: /* empty */                                               { $$ = new StatementList(); }
                 | StatementList                                                     { $$ = $1; }
     ;
 
-    StatementList: Statement ';'                                                    { $$ = new StatementList({$1}); }
-                | StatementList Statement ';'                                       { $$ = $1; $$ -> push_back($2); }
+    StatementList: Statement                                                        { $$ = new StatementList({$1}); }
+                | StatementList Statement                                           { $$ = $1; $$ -> push_back($2); }
     ;
 
     // If statements
@@ -459,6 +486,8 @@
                 | IF Expression Block ELSE IfStmt                                   { $$ = new IfStatement(nullptr, $2, $3, $5); }
                 | IF SimpleStmt ';' Expression Block ELSE Block                     { $$ = new IfStatement($2, $4, $5, $7); }
                 | IF Expression Block ELSE Block                                    { $$ = new IfStatement(nullptr, $2, $3, $5); }
+                | IF SimpleStmt ';' Expression Block				    { $$ = new IfStatement($2, $4, $5, nullptr); }
+                | IF Expression Block						    { $$ = new IfStatement(nullptr, $2, $3, nullptr); }
     ;
 
     // For statement
@@ -466,6 +495,7 @@
                 | FOR SimpleStmtOptional ';' ExpressionOptional ';' SimpleStmtOptional Block        { $$ = new ForStatement($2, $4, $6, $7); }
                 | FOR ExpressionList '=' RANGE Expression Block                                     { $$ = new ForRangeStatement(*$2, $5, $6, false); }
                 | FOR ExpressionList SHORT_DECL_OP RANGE Expression Block                           { $$ = new ForRangeStatement(*$2, $5, $6, true); }
+                | FOR Block									    { $$ = new WhileStatement(new BooleanExpression(true), $2); }
     ;
 
     // Switch statements
