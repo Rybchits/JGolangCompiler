@@ -37,6 +37,8 @@ private:
 public:
     const int64_t nodeId;
     virtual ~NodeAST() = default;
+    [[maybe_unused]] virtual void toDot(std::ostream& out) const noexcept = 0;
+
 protected:
     NodeAST() : nodeId(LastNodeId++) {}
     [[nodiscard]] virtual std::string name() const noexcept = 0;
@@ -52,12 +54,14 @@ public:
     const std::list<DeclarationAST *> *topDeclarations;
 
     [[nodiscard]] std::string name() const noexcept override { return "Package"; }
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
 class DeclarationAST : public NodeAST {
 public:
     [[nodiscard]] std::string name() const noexcept override = 0;
+    void toDot(std::ostream &out) const noexcept override = 0;
 };
 
 
@@ -73,6 +77,7 @@ public:
             : identifiersWithType(typedIds), values(values), isConst(isConst) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "VarDecl"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -84,6 +89,7 @@ public:
     TypeDeclaration(const std::string_view id, TypeAST *type) : alias(id), declType(type) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "TypeDecl"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -97,6 +103,7 @@ public:
             : identifier(id), signature(signature), block(stmt) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "FuncDecl"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -110,6 +117,7 @@ public:
             FunctionDeclaration(id, signature, stmt), receiverType(recType), receiverIdentifier(recId) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "MethodDecl"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -118,6 +126,7 @@ public:
 class ExpressionAST : public NodeAST {
 public:
     [[nodiscard]] std::string name() const noexcept override = 0;
+    void toDot(std::ostream &out) const noexcept override = 0;
 };
 
 
@@ -128,6 +137,7 @@ public:
     explicit IdentifierAsExpression(const std::string_view id) : identifier(id) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "IdExpr"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -138,6 +148,7 @@ public:
     explicit IntegerExpression(long long i) : intLit(i) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "IntegerLit"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -148,6 +159,7 @@ public:
     explicit BooleanExpression(long long boolean) : boolLit(boolean) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "BooleanLit"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -158,6 +170,7 @@ public:
     explicit FloatExpression(double floating) : floatLit(floating) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "FloatLit"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -168,6 +181,7 @@ public:
     explicit StringExpression(const std::string_view string) : stringLit(string) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "StringLit"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -178,6 +192,7 @@ public:
     explicit RuneExpression(int32_t rune) : runeLit(rune) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "RuneLit"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -186,6 +201,7 @@ public:
     NilExpression() = default;
 
     [[nodiscard]] std::string name() const noexcept override { return "NilLit"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -197,6 +213,7 @@ public:
     FunctionLitExpression(FunctionSignature *signature, BlockStatement *block) : signature(signature), block(block) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "FunctionLit"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -207,7 +224,8 @@ public:
 
     explicit UnaryExpression(UnaryExpressionEnum type, ExpressionAST *expr) : type(type), expression(expr) {};
 
-    [[nodiscard]] std::string name() const noexcept override { return "UnaryExpr"; };
+    [[nodiscard]] std::string name() const noexcept override;
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -220,7 +238,8 @@ public:
     BinaryExpression(BinaryExpressionEnum type, ExpressionAST *lhs, ExpressionAST *rhs)
             : type(type), lhs(lhs), rhs(rhs) {};
 
-    [[nodiscard]] std::string name() const noexcept override { return "BinaryExpr"; };
+    [[nodiscard]] std::string name() const noexcept override;
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -233,6 +252,7 @@ public:
     CallableExpression(ExpressionAST *base, ExpressionList &args) : base(base), arguments(args) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "CallableExpr"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -245,39 +265,45 @@ public:
     AccessExpression(AccessExpressionEnum type, ExpressionAST *base, ExpressionAST *accessor)
             : type(type), base(base), accessor(accessor) {};
 
-    [[nodiscard]] std::string name() const noexcept override { return "AccessExpr"; };
+    [[nodiscard]] std::string name() const noexcept override;
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
-class ElementCompositeLiteral {
+class ElementCompositeLiteral : public NodeAST {
 public:
     ExpressionAST *key;
 
-    std::variant<ExpressionAST *, std::list<ElementCompositeLiteral *>> value;
+    std::variant<ExpressionAST *, ElementCompositeLiteralList> value;
 
     ElementCompositeLiteral(ExpressionAST *key, ExpressionAST *value) : key(key), value(value) {};
 
-    ElementCompositeLiteral(ExpressionAST *key, std::list<ElementCompositeLiteral *> &value)
+    ElementCompositeLiteral(ExpressionAST *key, ElementCompositeLiteralList &value)
             : key(key), value(value) {};
+
+    [[nodiscard]] std::string name() const noexcept override { return "ElementComposite"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
 class CompositeLiteral : public ExpressionAST {
 public:
     TypeAST *type;
-    std::list<ElementCompositeLiteral *> elements;
+    ElementCompositeLiteralList elements;
 
     CompositeLiteral(TypeAST *type, std::list<ElementCompositeLiteral *> &elems) : type(type), elements(elems) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "CompositeLit"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
 
 /* -------------------------------- Statement -------------------------------- */
 class StatementAST : public NodeAST {
-protected:
+public:
     [[nodiscard]] std::string name() const noexcept override = 0;
+    void toDot(std::ostream &out) const noexcept override = 0;
 };
 
 
@@ -288,6 +314,7 @@ public:
     explicit BlockStatement(StatementList& list) : body(list) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "BlockStmt"; }
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -297,7 +324,8 @@ public:
 
     explicit KeywordStatement(KeywordEnum type) : type(type) {};
 
-    [[nodiscard]] std::string name() const noexcept override { return "Keyword"; }
+    [[nodiscard]] std::string name() const noexcept override;
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -308,19 +336,21 @@ public:
     explicit ExpressionStatement(ExpressionAST *expr) : expression(expr) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "ExprStmt"; }
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
 class AssignmentStatement : public StatementAST {
 public:
     AssignmentEnum type;
-    ExpressionList *lhs;
-    ExpressionList *rhs;
+    ExpressionList lhs;
+    ExpressionList rhs;
 
-    AssignmentStatement(AssignmentEnum type, ExpressionList *lhs, ExpressionList *rhs) : type(type), lhs(lhs),
+    AssignmentStatement(AssignmentEnum type, ExpressionList& lhs, ExpressionList& rhs) : type(type), lhs(lhs),
                                                                                            rhs(rhs) {};
 
-    [[nodiscard]] std::string name() const noexcept override { return "AssignmentStmt"; }
+    [[nodiscard]] std::string name() const noexcept override;
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -335,6 +365,7 @@ public:
             : initStatement(init), conditionExpression(cond), iterationStatement(next), block(block) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "ForStmt"; }
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -346,6 +377,7 @@ public:
     WhileStatement(ExpressionAST *cond, BlockStatement *block) : conditionExpression(cond), block(block) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "WhileStmt"; }
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -360,6 +392,7 @@ public:
             : initStatement(init), hasShortDeclaration(isShort), expressionValue(val), block(block) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "ForRangeStmt"; }
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -370,6 +403,7 @@ public:
     explicit ReturnStatement(ExpressionList &values) : returnValues(values) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "ReturnStmt"; }
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -384,6 +418,7 @@ public:
             : preStatement(pre), condition(cond), thenStatement(then), elseStatement(elseStmt) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "IfStmt"; }
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -395,6 +430,7 @@ public:
     SwitchCaseClause(ExpressionAST *key, StatementList &stmts) : expressionCase(key), statementsList(stmts) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "CaseStmt"; }
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -410,6 +446,7 @@ public:
             : statement(init), expression(expr), clauseList(cases), defaultStatement(defaultCase) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "SwitchStmt"; }
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -417,29 +454,34 @@ class DeclarationStatement : public  StatementAST {
 public:
     DeclarationList declarations;
     explicit DeclarationStatement(DeclarationList& decls) : declarations(decls) {};
+
     [[nodiscard]] std::string name() const noexcept override { return "DeclStmt"; }
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
 
 /* -------------------------------- Types -------------------------------- */
-class TypeAST : NodeAST {
+class TypeAST : public NodeAST {
 public:
     bool isVariadic;
     bool isPointer;
     [[nodiscard]] std::string name() const noexcept override = 0;
+    void toDot(std::ostream &out) const noexcept override = 0;
 
 protected:
     explicit TypeAST(bool isVariadic = false, bool isPointer = false) : isPointer(isPointer), isVariadic(isVariadic) {}
 };
 
 
-class IdentifiersWithType {
+class IdentifiersWithType : public NodeAST {
 public:
     const IdentifiersList identifiers;
     const TypeAST* type;
 
     IdentifiersWithType(IdentifiersList& ids, TypeAST* type) : identifiers(ids), type(type) {};
+    [[nodiscard]] std::string name() const noexcept override { return "TypedIds"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -452,6 +494,7 @@ public:
             : idsAndTypesArgs(args), idsAndTypesResults(results) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "TypeFunction"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -465,6 +508,7 @@ public:
     explicit ArraySignature(TypeAST *type): arrayElementType(type), dimensions(-1) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "TypeArray"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -475,6 +519,7 @@ public:
     explicit StructSignature(std::list<IdentifiersWithType *>& members): structMembers(members) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "TypeStruct"; };
+    void toDot(std::ostream &out) const noexcept override;
 };
 
 
@@ -485,6 +530,7 @@ public:
     explicit IdentifierAsType(const std::string_view id): identifier(id) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "TypeIdentifier"; };
+    void toDot(std::ostream &out) const noexcept override;
 
     [[nodiscard]] bool isBuiltInType() const;
 };

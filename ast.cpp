@@ -51,3 +51,94 @@ std::list<IdentifiersWithType *> *AttachIdentifiersToListTypes(TypeList& listTyp
 }
 
 
+std::string UnaryExpression::name() const noexcept {
+    switch (this->type) {
+        case UnaryNot:
+            return "UnaryNot";
+        case UnaryPlus:
+            return "UnaryPlus";
+        case UnaryMinus:
+            return "UnaryMinus";
+        case Increment:
+            return "Increment";
+        case Decrement:
+            return "Decrement";
+        case Variadic:
+            return "Variadic";
+    }
+    return "UnaryExpr";
+}
+
+std::string BinaryExpression::name() const noexcept {
+    switch (type) {
+        case Addition:
+            return "Addition";
+        case Subtraction:
+            return "Subtraction";
+        case Multiplication:
+            return "Multiplication";
+        case Division:
+            return "Division";
+        case Mod:
+            return "Mod";
+        case And:
+            return "And";
+        case Or:
+            return "Or";
+        case Equal:
+            return "Equal";
+        case Greater:
+            return "Greater";
+        case Less:
+            return "Less";
+        case NotEqual:
+            return "NotEqual";
+        case LessOrEqual:
+            return "LessOrEqual";
+        case GreatOrEqual:
+            return "GreatOrEqual";
+    }
+    return "BinaryExpr";
+}
+
+std::string KeywordStatement::name() const noexcept {
+    switch (type) {
+        case Break:
+            return "BreakStmt";
+        case Continue:
+            return "ContinueStmt";
+        case Fallthrough:
+            return "FallthroughStmt";
+    }
+    return "KeywordStmt";
+}
+
+std::string AssignmentStatement::name() const noexcept {
+    switch (type) {
+        case SimpleAssign:
+            return "Op =";
+        case MinusAssign:
+            return "Op -=";
+        case PlusAssign:
+            return "Op +=";
+        case ModAssign:
+            return "Op %=";
+        case MulAssign:
+            return "Op *=";
+        case DivAssign:
+            return "Op /=";
+        case ShortDeclaration:
+            return "Op :=";
+    }
+    return "AssignmentStmt";
+}
+
+std::string AccessExpression::name() const noexcept {
+    switch (type) {
+        case Indexing:
+            return "Indexing";
+        case FieldSelect:
+            return "FieldSelect";
+    }
+    return "AccessExpr";
+}
