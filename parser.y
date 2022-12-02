@@ -50,9 +50,9 @@
 %type <expressionList> ExpressionList Arguments
 %type <switchCaseClauseList> ExprCaseClauseList ExprCaseClauseListOrEmpty
 %type <statementList> StatementList StatementListOrEmpty ExprDefaultClauseOptional
-%type <identifiersWithTypeList> FieldDeclList FieldDeclListOrEmpty Result Parameters NamedArgsList
+%type <identifiersWithTypeList> FieldDeclList Result Parameters NamedArgsList
 %type <elementsCompositeLiteral> CompositeLiteralBody ElementList
-%type <declarationList> VariableDecl VariableSpecListOrEmpty VariableSpecList ConstDecl ConstSpecList ConstSpecListOrEmpty TypeDefList TypeDefListOrEmpty TypeDecl
+%type <declarationList> VariableDecl VariableSpecList ConstDecl ConstSpecList TypeDefList TypeDecl
 
 %type <blockStatementNode> Block
 %type <functionSignature> Signature
@@ -110,7 +110,7 @@
 
 %%
     // The first statement in a Go source file must be package name
-    Root: PACKAGE IDENTIFIER SC TopLevelDeclListOrEmpty                           { Root = new PackageAST($2, $4); }
+    Root: PACKAGE IDENTIFIER SCs TopLevelDeclListOrEmpty                           { Root = new PackageAST($2, $4); }
     ;
 
     TopLevelDeclListOrEmpty: TopLevelDeclList                                       { $$ = $1; }
@@ -155,17 +155,15 @@
     ;
 
     // Struct types
-    StructType: STRUCT '{' FieldDeclListOrEmpty '}'                                 { $$ = new StructSignature(*$3); }
+    StructType: STRUCT '{' FieldDeclList '}'                                        { $$ = new StructSignature(*$3); }
+                | STRUCT '{' FieldDeclList SCs '}'                                  { $$ = new StructSignature(*$3); }
+                | STRUCT '{' IdentifiersWithType '}'                                { $$ = new StructSignature(*(new std::list<IdentifiersWithType *>({$3}))); }
+                | STRUCT '{' IdentifiersWithType SCs '}'                            { $$ = new StructSignature(*(new std::list<IdentifiersWithType *>({$3}))); }
     ;
 
-    FieldDeclListOrEmpty: FieldDeclList                                             { $$ = $1; }
-                | /* empty */                                                       { $$ = new std::list<IdentifiersWithType *>(); }
+    FieldDeclList: IdentifiersWithType SCs IdentifiersWithType                      { $$ = new std::list<IdentifiersWithType *>({$1, $3}); }
+                | FieldDeclList SCs IdentifiersWithType                             { $$ = $1; $$ -> push_back($3); }
     ;
-
-    FieldDeclList: IdentifiersWithType SC                                          { $$ = new std::list<IdentifiersWithType *>({$1}); }
-                | FieldDeclList IdentifiersWithType SC                             { $$ = $1; $$ -> push_back($2); }
-    ;
-
 
     SliceDeclType: '[' ']' Type                                                     { $$ = new ArraySignature($3); }
     ;
@@ -251,83 +249,65 @@
     ;
 
 // Variable Declarations
-    VariableDecl: VAR VariableSpec SC                                              { $$ = new DeclarationList({$2}); }
-                | VAR '(' VariableSpecListOrEmpty ')' SC                           { $$ = $3; }
-    ;
-
-    VariableSpecListOrEmpty: /* empty */                                            { $$ = new DeclarationList(); }
-                | VariableSpecList                                                  { $$ = $1; }
+    VariableDecl: VAR VariableSpec SCs                                              { $$ = new DeclarationList({$2}); }
+                | VAR '(' VariableSpecList ')' SCs                                  { $$ = $3; }
+                | VAR '(' VariableSpecList SCs ')' SCs                              { $$ = $3; }
+                | VAR '(' VariableSpec ')' SCs                                      { $$ = new DeclarationList({$3}); }
+                | VAR '(' VariableSpec SCs ')' SCs                                  { $$ = new DeclarationList({$3}); }
+                | VAR '(' ')' SCs                                                   { $$ = new DeclarationList(); }
     ;
     
-    VariableSpecList: VariableSpecList VariableSpec SC                             { $$ = $1; $$ -> push_back($2); }
-                | VariableSpec SC                                                  { $$ = new DeclarationList({$1}); }
+    VariableSpecList: VariableSpecList SCs VariableSpec                             { $$ = $1; $$ -> push_back($3); }
+                | VariableSpec SCs VariableSpec                                     { $$ = new DeclarationList({$1, $3}); }
 	;
     
-    VariableSpec: IdentifiersWithType '=' ExpressionList                            {
-    											if ($1->identifiers.size() != $3->size())
-    												yyerror("Assignment count mismatch");
-    											$$ = new VariableDeclaration($1, *$3, false);
-    										    }
-
-		| IdentifiersWithType                                               { $$ = new VariableDeclaration($1, *(new ExpressionList()), false); }
-
-		| IdentifiersList '=' ExpressionList                                {
-											if ($1->size() != $3->size())
-												yyerror("Assignment count mismatch");
-											$$ = new VariableDeclaration(new IdentifiersWithType(*$1, nullptr), *$3, false);
-										    }
+    VariableSpec: IdentifiersWithType '=' ExpressionList                            { $$ = new VariableDeclaration($1, *$3, false); }
+		| IdentifiersWithType                                                       { $$ = new VariableDeclaration($1, *(new ExpressionList()), false); }
+		| IdentifiersList '=' ExpressionList                                        { $$ = new VariableDeclaration(new IdentifiersWithType(*$1, nullptr), *$3, false); }
 	;
 
 // Constants Declarations
-    ConstDecl: CONST ConstSpec SC                                                  { $$ = new DeclarationList({$2}); }
-                | CONST '(' ConstSpecListOrEmpty ')' SC				   { $$ = $3; }
+    ConstDecl: CONST ConstSpec SCs                                                  { $$ = new DeclarationList({$2}); }
+                | CONST '(' ConstSpecList ')' SCs                                   { $$ = $3; }
+                | CONST '(' ConstSpecList SCs ')' SCs                               { $$ = $3; }
+                | CONST '(' ConstSpec ')' SCs                                       { $$ = new DeclarationList({$3}); }
+                | CONST '(' ConstSpec SCs ')' SCs                                   { $$ = new DeclarationList({$3}); }
+                | CONST '(' ')' SCs                                                 { $$ = new DeclarationList(); }
     ;
     
-    ConstSpecListOrEmpty: /* empty */                                               { $$ = new DeclarationList(); }
-                | ConstSpecList                                                     { $$ = $1; }
-    ;
     
-    ConstSpecList: ConstSpec SC                                                    { $$ = new DeclarationList({$1}); }
-                | ConstSpecList ConstSpec SC                                       { $$ = $1; $$ -> push_back($2); }
+    ConstSpecList: ConstSpec SCs ConstSpec                                          { $$ = new DeclarationList({$1, $3}); }
+                | ConstSpecList SCs ConstSpec                                       { $$ = $1; $$ -> push_back($3); }
     ;
 
-    ConstSpec: IdentifiersWithType '=' ExpressionList                               {
-    											if ($1->identifiers.size() != $3->size())
-                                                                                        	yyerror("Assignment count mismatch");
-    											$$ = new VariableDeclaration($1, *$3, true);
-    										    }
-
-                | IdentifiersList '=' ExpressionList                                {
-                									if ($1->size() != $3->size())
-                                                                                        	yyerror("Assignment count mismatch");
-                									$$ = new VariableDeclaration(new IdentifiersWithType(*$1, nullptr), *$3, true);
-                								    }
+    ConstSpec: IdentifiersWithType '=' ExpressionList                               { $$ = new VariableDeclaration($1, *$3, true); }
+                | IdentifiersList '=' ExpressionList                                { $$ = new VariableDeclaration(new IdentifiersWithType(*$1, nullptr), *$3, true); }
     ;
 
 // Function declarations
-    FunctionDecl: FUNC IDENTIFIER Signature Block SC                                { $$ = new FunctionDeclaration($2, $3, $4); }
-                | FUNC IDENTIFIER Signature SC                                     { $$ = new FunctionDeclaration($2, $3, nullptr); }
+    FunctionDecl: FUNC IDENTIFIER Signature Block SCs                                { $$ = new FunctionDeclaration($2, $3, $4); }
+                | FUNC IDENTIFIER Signature SCs                                      { $$ = new FunctionDeclaration($2, $3, nullptr); }
     ;
 
 // Method declaration
-    MethodDecl: FUNC '(' IDENTIFIER Type ')' IDENTIFIER Signature Block SC        { $$ = new MethodDeclaration($6, $3, $4, $7, $8); }
-                | FUNC '(' IDENTIFIER Type ')' IDENTIFIER Signature SC             { $$ = new MethodDeclaration($6, $3, $4, $7, nullptr); }
+    MethodDecl: FUNC '(' IDENTIFIER Type ')' IDENTIFIER Signature Block SCs         { $$ = new MethodDeclaration($6, $3, $4, $7, $8); }
+                | FUNC '(' IDENTIFIER Type ')' IDENTIFIER Signature SCs             { $$ = new MethodDeclaration($6, $3, $4, $7, nullptr); }
     ;
 
 // Type declaration
-    TypeDecl: TYPE TypeDef                                                          { $$ = new DeclarationList({$2}); }
-                | TYPE '(' TypeDefListOrEmpty ')' SC                               { $$ = $3; }
-    ;
-
-    TypeDefListOrEmpty: /* empty */                                                 { $$ = new DeclarationList(); }
-                | TypeDefList                                                       { $$ = $1; }
+    TypeDecl: TYPE TypeDef SCs                                                      { $$ = new DeclarationList({$2}); }
+                | TYPE '(' TypeDefList ')' SCs                                      { $$ = $3; }
+                | TYPE '(' TypeDefList SCs ')' SCs                                  { $$ = $3; }
+                | TYPE '(' TypeDef ')' SCs                                          { $$ = new DeclarationList({$3}); }
+                | TYPE '(' TypeDef SCs ')' SCs                                      { $$ = new DeclarationList({$3}); }
+                | TYPE '(' ')' SCs                                                  { $$ = new DeclarationList(); }
     ;
     
-    TypeDefList: TypeDef                                                            { $$ = new DeclarationList({$1}); }
-                | TypeDefList TypeDef                                               { $$ = $1; $$ -> push_back($2); }
+    TypeDefList: TypeDef SCs TypeDef                                                { $$ = new DeclarationList({$1, $3}); }
+                | TypeDefList SCs TypeDef                                           { $$ = $1; $$ -> push_back($3); }
     ;
 
-    TypeDef: IDENTIFIER Type SC                                                    { $$ = new TypeDeclaration($1, $2); }
+    TypeDef: IDENTIFIER Type                                                        { $$ = new TypeDeclaration($1, $2); }
     ;
 
 /* -------------------------------- Expressions -------------------------------- */
@@ -340,8 +320,8 @@
     ;
 
     BasicLiteral: INT_LIT                                                           { $$ = new IntegerExpression($1);     }
-		| FLOAT_LIT                                                         { $$ = new FloatExpression($1);       }
-		| RUNE_LIT                                                          { $$ = new RuneExpression($1);        }
+		        | FLOAT_LIT                                                         { $$ = new FloatExpression($1);       }
+		        | RUNE_LIT                                                          { $$ = new RuneExpression($1);        }
                 | STRING_LIT                                                        { $$ = new StringExpression($1);      }
                 | FALSE                                                             { $$ = new BooleanExpression(false);  }
                 | TRUE                                                              { $$ = new BooleanExpression(true);   }
@@ -403,7 +383,7 @@
     ;
 
     Arguments: '(' ExpressionList ',' ')'                                           { $$ = $2; }
-		| '(' ExpressionList ')'                                            { $$ = $2; }
+		| '(' ExpressionList ')'                                                    { $$ = $2; }
                 | '(' ')'                                                           { $$ = new ExpressionList(); }
 	;
 
@@ -412,7 +392,7 @@
     ;
 
     ExpressionList: Expression                                                      { $$ = new ExpressionList({$1}); }
-		| ExpressionList ',' Expression                                     { $$ = $1; $$ -> push_back($3); }
+		| ExpressionList ',' Expression                                             { $$ = $1; $$ -> push_back($3); }
     ;
 
 /* -------------------------------- Statements -------------------------------- */
@@ -422,30 +402,22 @@
                 | Expression MUL_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentEnum::MulAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));      }
                 | Expression DIV_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentEnum::DivAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));      }
                 | Expression MOD_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentEnum::ModAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));      }
-                | ExpressionList '=' ExpressionList                                 {
-                									if ($1->size() != $3->size())
-                                                                                        	yyerror("Assignment count mismatch");
-                									$$ = new AssignmentStatement(AssignmentEnum::SimpleAssign, *$1, *$3);
-                								    }
+                | ExpressionList '=' ExpressionList                                 { $$ = new AssignmentStatement(AssignmentEnum::SimpleAssign, *$1, *$3); }
     ;
 
-    ShortVarDecl: ExpressionList SHORT_DECL_OP ExpressionList                       {
-    											if ($1->size() != $3->size())
-                                                                                        	yyerror("Assignment count mismatch");
-     											$$ = new AssignmentStatement(AssignmentEnum::ShortDeclaration, *$1, *$3);
-     										    }
+    ShortVarDecl: ExpressionList SHORT_DECL_OP ExpressionList                       { $$ = new AssignmentStatement(AssignmentEnum::ShortDeclaration, *$1, *$3); }
     ;
 
     Statement: Declaration                                                          { $$ = new DeclarationStatement(*$1); }
-                | Block SC                                                         { $$ = $1; }
-                | SimpleStmt SC                                                    { $$ = $1; }
-                | ReturnStmt SC                                                    { $$ = $1; }
-                | BREAK SC                                                         { $$ = new KeywordStatement(KeywordEnum::Break);        }
-                | CONTINUE SC                                                      { $$ = new KeywordStatement(KeywordEnum::Continue);     }
-                | FALLTHROUGH SC                                                   { $$ = new KeywordStatement(KeywordEnum::Fallthrough);  }
-                | IfStmt SC                                                        { $$ = $1; }
-                | ForStmt SC                                                       { $$ = $1; }
-                | SwitchStmt SC                                                    { $$ = $1; }
+                | Block SCs                                                         { $$ = $1; }
+                | SimpleStmt SCs                                                    { $$ = $1; }
+                | ReturnStmt SCs                                                    { $$ = $1; }
+                | BREAK SCs                                                         { $$ = new KeywordStatement(KeywordEnum::Break);        }
+                | CONTINUE SCs                                                      { $$ = new KeywordStatement(KeywordEnum::Continue);     }
+                | FALLTHROUGH SCs                                                   { $$ = new KeywordStatement(KeywordEnum::Fallthrough);  }
+                | IfStmt SCs                                                        { $$ = $1; }
+                | ForStmt SCs                                                       { $$ = $1; }
+                | SwitchStmt SCs                                                    { $$ = $1; }
     ;
 
     // Increment / decrement statement
@@ -470,7 +442,7 @@
 
 /* -------------------------------- Blocks -------------------------------- */
 
-    Block: '{' StatementListOrEmpty '}'						    { $$ = new BlockStatement(*$2); }
+    Block: '{' StatementListOrEmpty '}'						                        { $$ = new BlockStatement(*$2); }
     ;
 
     StatementListOrEmpty: /* empty */                                               { $$ = new StatementList(); }
@@ -486,8 +458,8 @@
                 | IF Expression Block ELSE IfStmt                                   { $$ = new IfStatement(nullptr, $2, $3, $5); }
                 | IF SimpleStmt ';' Expression Block ELSE Block                     { $$ = new IfStatement($2, $4, $5, $7); }
                 | IF Expression Block ELSE Block                                    { $$ = new IfStatement(nullptr, $2, $3, $5); }
-                | IF SimpleStmt ';' Expression Block				    { $$ = new IfStatement($2, $4, $5, nullptr); }
-                | IF Expression Block						    { $$ = new IfStatement(nullptr, $2, $3, nullptr); }
+                | IF SimpleStmt ';' Expression Block				                { $$ = new IfStatement($2, $4, $5, nullptr); }
+                | IF Expression Block						                        { $$ = new IfStatement(nullptr, $2, $3, nullptr); }
     ;
 
     // For statement
@@ -495,7 +467,7 @@
                 | FOR SimpleStmtOptional ';' ExpressionOptional ';' SimpleStmtOptional Block        { $$ = new ForStatement($2, $4, $6, $7); }
                 | FOR ExpressionList '=' RANGE Expression Block                                     { $$ = new ForRangeStatement(*$2, $5, $6, false); }
                 | FOR ExpressionList SHORT_DECL_OP RANGE Expression Block                           { $$ = new ForRangeStatement(*$2, $5, $6, true); }
-                | FOR Block									    { $$ = new WhileStatement(new BooleanExpression(true), $2); }
+                | FOR Block									                                        { $$ = new WhileStatement(new BooleanExpression(true), $2); }
     ;
 
     // Switch statements
@@ -518,7 +490,7 @@
                 | ExprCaseClauseList                                                { $$ = $1; }
     ;
 
-    SC: ';'                                                                         { }
-                | SC ';'                                                            { }
+    SCs: ';'                                                                        { }
+                | SCs ';'                                                           { }
 %%
 

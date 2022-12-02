@@ -2,6 +2,7 @@
 %option never-interactive
 %option c++
 %option yylineno
+%option stack
 
 %{
   #include "ast.h"
@@ -71,25 +72,24 @@ var             { return yytokentype::VAR;           }
 false           { return yytokentype::FALSE;         }
 true            { return yytokentype::TRUE;          }
 nil             { return yytokentype::NIL;           }
-break           { BEGIN(ENABLE_SEMICOLON); return yytokentype::BREAK;        }
-fallthrough     { BEGIN(ENABLE_SEMICOLON); return yytokentype::FALLTHROUGH;  }
-continue        { BEGIN(ENABLE_SEMICOLON); return yytokentype::CONTINUE;     }
-return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
+break           { yy_push_state(ENABLE_SEMICOLON); return yytokentype::BREAK;        }
+fallthrough     { yy_push_state(ENABLE_SEMICOLON); return yytokentype::FALLTHROUGH;  }
+continue        { yy_push_state(ENABLE_SEMICOLON); return yytokentype::CONTINUE;     }
+return          { yy_push_state(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
 
 
-"/*"                            { currentComment.clear(); BEGIN(MULTILINE_COMMENT);     }
-<MULTILINE_COMMENT>\*+\/        { PrintComment(currentComment); BEGIN(ENABLE_SEMICOLON);}
+"/*"                            { currentComment.clear(); yy_push_state(MULTILINE_COMMENT);     }
+<MULTILINE_COMMENT>\*+\/        { PrintComment(currentComment); yy_pop_state();}
 <MULTILINE_COMMENT>[^\*\/]+     { currentComment += yytext;                             }
-<MULTILINE_COMMENT><<EOF>>      { PrintErrorAndExit("expected */ "); BEGIN(INITIAL);    }
+<MULTILINE_COMMENT><<EOF>>      { PrintErrorAndExit("expected */ "); yy_pop_state();    }
 
 \/\/.* {
     std::string tempStr = yytext;
     PrintComment(tempStr.substr(2));
-    BEGIN(ENABLE_SEMICOLON);
 }
 
 
-\"                                      { stringLiteral.clear(); BEGIN(STRING_LITERAL); }
+\"                                      { stringLiteral.clear(); yy_push_state(STRING_LITERAL); }
 <STRING_LITERAL>{OCTAL_BYTE_VALUE}      { stringLiteral += char(std::stoi(yytext + 1, nullptr, 8));     }
 <STRING_LITERAL>{HEX_BYTE_VALUE}        { stringLiteral += char(std::stoi(yytext + 2, nullptr, 16));    }
 <STRING_LITERAL>[^\\\"\n#{}]+           { stringLiteral += yytext;  }
@@ -102,21 +102,23 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
 <STRING_LITERAL>\\r                     { stringLiteral += "\r";    }
 <STRING_LITERAL>\\v                     { stringLiteral += "\v";    }
 <STRING_LITERAL>\\\"                    { stringLiteral += "\"";    }
-<STRING_LITERAL>\\.                     { PrintErrorAndExit("unknown escape sequence"); BEGIN(INITIAL);}
-<STRING_LITERAL>\n                      { PrintErrorAndExit("newline in string"); BEGIN(INITIAL);      }
-<STRING_LITERAL><<EOF>>                 { PrintErrorAndExit("expected \" "); BEGIN(INITIAL);           }
+<STRING_LITERAL>\\.                     { PrintErrorAndExit("unknown escape sequence"); yy_pop_state();}
+<STRING_LITERAL>\n                      { PrintErrorAndExit("newline in string"); yy_pop_state();      }
+<STRING_LITERAL><<EOF>>                 { PrintErrorAndExit("expected \" "); yy_pop_state();           }
 
 <STRING_LITERAL>\"                      {   yylval.stringVal = DuplicateString(stringLiteral.c_str());
-                                            BEGIN(ENABLE_SEMICOLON);
+                                            yy_push_state(ENABLE_SEMICOLON);
                                             return yytokentype::STRING_LIT;
                                         }
 
 <ENABLE_SEMICOLON>[" "\t]+      { }
+<ENABLE_SEMICOLON>\/\/.*        { std::string tempStr = yytext; PrintComment(tempStr.substr(2)); }
+<ENABLE_SEMICOLON>"/*"          { currentComment.clear(); yy_push_state(MULTILINE_COMMENT); }
 <ENABLE_SEMICOLON><<EOF>>       { BEGIN(INITIAL); return ';'; }
 <ENABLE_SEMICOLON>\n+           { BEGIN(INITIAL); return ';'; }
 <ENABLE_SEMICOLON>""/[^\n]      { BEGIN(INITIAL); }
 
-\'                                          { runeValue = -1; BEGIN(RUNE_LITERAL); }
+\'                                          { runeValue = -1; yy_push_state(RUNE_LITERAL); }
 
 <RUNE_LITERAL>{OCTAL_BYTE_VALUE}            { if (runeValue == -1) runeValue = std::stoi(yytext + 1, nullptr, 8);
                                               else PrintErrorAndExit("more than one character in rune literal");
@@ -172,15 +174,15 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
 
 <RUNE_LITERAL>\'                            { if (runeValue == -1) PrintErrorAndExit("empty rune literal");
                                               yylval.runeVal = runeValue;
-                                              BEGIN(INITIAL);
+                                              yy_pop_state();
                                               return yytokentype::RUNE_LIT;
                                             }
 
 
 "&&"        { return yytokentype::AND;   }
 "||"        { return yytokentype::OR;    }
-"++"        { BEGIN(ENABLE_SEMICOLON); return yytokentype::INCREMENT; }
-"--"        { BEGIN(ENABLE_SEMICOLON); return yytokentype::DECREMENT; }
+"++"        { yy_push_state(ENABLE_SEMICOLON); return yytokentype::INCREMENT; }
+"--"        { yy_push_state(ENABLE_SEMICOLON); return yytokentype::DECREMENT; }
 
 "&="        { PrintAssignmentOperator("&=");    }
 "&^="       { PrintAssignmentOperator("&^=");   }
@@ -230,9 +232,9 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
 ";"         { return yytext[0];                 }
 ":"         { return yytext[0];                 }
 
-"}"         { BEGIN(ENABLE_SEMICOLON); return yytext[0]; }
-")"         { BEGIN(ENABLE_SEMICOLON); return yytext[0]; }
-"]"         { BEGIN(ENABLE_SEMICOLON); return yytext[0]; }
+"}"         { yy_push_state(ENABLE_SEMICOLON); return yytext[0]; }
+")"         { yy_push_state(ENABLE_SEMICOLON); return yytext[0]; }
+"]"         { yy_push_state(ENABLE_SEMICOLON); return yytext[0]; }
 
 
 {DECIMAL_DIGITS}+ {
@@ -241,7 +243,7 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
     currentInteger = std::stoll(tempStr);
 
     yylval.integerVal = currentInteger;
-    BEGIN(ENABLE_SEMICOLON);
+    yy_push_state(ENABLE_SEMICOLON);
     return yytokentype::INT_LIT;
 }
 
@@ -251,7 +253,7 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
     currentInteger = std::stoll(tempStr.substr(2), nullptr, 8);
 
     yylval.integerVal = currentInteger;
-    BEGIN(ENABLE_SEMICOLON);
+    yy_push_state(ENABLE_SEMICOLON);
     return yytokentype::INT_LIT;
 }
 
@@ -261,7 +263,7 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
     currentInteger = std::stoll(tempStr, nullptr, 16);
 
     yylval.integerVal = currentInteger;
-    BEGIN(ENABLE_SEMICOLON);
+    yy_push_state(ENABLE_SEMICOLON);
     return yytokentype::INT_LIT;
 }
 
@@ -271,7 +273,7 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
     currentInteger = std::stoll(tempStr.substr(2), nullptr, 2);
 
     yylval.integerVal = currentInteger;
-    BEGIN(ENABLE_SEMICOLON);
+    yy_push_state(ENABLE_SEMICOLON);
     return yytokentype::INT_LIT;
 }
 
@@ -281,17 +283,18 @@ return          { BEGIN(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
     floatingPoint = std::stod(tempStr.c_str());
 
     yylval.floatVal = floatingPoint;
-    BEGIN(ENABLE_SEMICOLON);
+    yy_push_state(ENABLE_SEMICOLON);
     return yytokentype::FLOAT_LIT;
 }
 
 
 ({LETTER})({LETTER}|{DECIMAL_DIGIT})* {
     yylval.identifierVal = DuplicateString(yytext);
-    BEGIN(ENABLE_SEMICOLON);
+    yy_push_state(ENABLE_SEMICOLON);
     return yytokentype::IDENTIFIER;
 }
 
 [[:space:]]+        { }
 
 .                   { PrintErrorAndExit("found bad character"); }
+
