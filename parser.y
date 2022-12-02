@@ -110,7 +110,7 @@
 
 %%
     // The first statement in a Go source file must be package name
-    Root: PACKAGE IDENTIFIER ';'  TopLevelDeclListOrEmpty                           { Root = new PackageAST($2, $4); }
+    Root: PACKAGE IDENTIFIER SC TopLevelDeclListOrEmpty                           { Root = new PackageAST($2, $4); }
     ;
 
     TopLevelDeclListOrEmpty: TopLevelDeclList                                       { $$ = $1; }
@@ -162,8 +162,8 @@
                 | /* empty */                                                       { $$ = new std::list<IdentifiersWithType *>(); }
     ;
 
-    FieldDeclList: IdentifiersWithType ';'                                          { $$ = new std::list<IdentifiersWithType *>({$1}); }
-                | FieldDeclList IdentifiersWithType ';'                             { $$ = $1; $$ -> push_back($2); }
+    FieldDeclList: IdentifiersWithType SC                                          { $$ = new std::list<IdentifiersWithType *>({$1}); }
+                | FieldDeclList IdentifiersWithType SC                             { $$ = $1; $$ -> push_back($2); }
     ;
 
 
@@ -251,16 +251,16 @@
     ;
 
 // Variable Declarations
-    VariableDecl: VAR VariableSpec ';'                                              { $$ = new DeclarationList({$2}); }
-                | VAR '(' VariableSpecListOrEmpty ')' ';'                           { $$ = $3; }
+    VariableDecl: VAR VariableSpec SC                                              { $$ = new DeclarationList({$2}); }
+                | VAR '(' VariableSpecListOrEmpty ')' SC                           { $$ = $3; }
     ;
 
     VariableSpecListOrEmpty: /* empty */                                            { $$ = new DeclarationList(); }
                 | VariableSpecList                                                  { $$ = $1; }
     ;
     
-    VariableSpecList: VariableSpecList VariableSpec ';'                             { $$ = $1; $$ -> push_back($2); }
-                | VariableSpec ';'                                                  { $$ = new DeclarationList({$1}); }
+    VariableSpecList: VariableSpecList VariableSpec SC                             { $$ = $1; $$ -> push_back($2); }
+                | VariableSpec SC                                                  { $$ = new DeclarationList({$1}); }
 	;
     
     VariableSpec: IdentifiersWithType '=' ExpressionList                            {
@@ -279,16 +279,16 @@
 	;
 
 // Constants Declarations
-    ConstDecl: CONST ConstSpec ';'                                                  { $$ = new DeclarationList({$2}); }
-                |  CONST '(' ConstSpecListOrEmpty ')' ';'                           { $$ = $3; }
+    ConstDecl: CONST ConstSpec SC                                                  { $$ = new DeclarationList({$2}); }
+                | CONST '(' ConstSpecListOrEmpty ')' SC				   { $$ = $3; }
     ;
     
     ConstSpecListOrEmpty: /* empty */                                               { $$ = new DeclarationList(); }
                 | ConstSpecList                                                     { $$ = $1; }
     ;
     
-    ConstSpecList: ConstSpec ';'                                                    { $$ = new DeclarationList({$1}); }
-                | ConstSpecList ConstSpec ';'                                       { $$ = $1; $$ -> push_back($2); }
+    ConstSpecList: ConstSpec SC                                                    { $$ = new DeclarationList({$1}); }
+                | ConstSpecList ConstSpec SC                                       { $$ = $1; $$ -> push_back($2); }
     ;
 
     ConstSpec: IdentifiersWithType '=' ExpressionList                               {
@@ -305,18 +305,18 @@
     ;
 
 // Function declarations
-    FunctionDecl: FUNC IDENTIFIER Signature Block ';'                               { $$ = new FunctionDeclaration($2, $3, $4); }
-                | FUNC IDENTIFIER Signature ';'                                     { $$ = new FunctionDeclaration($2, $3, nullptr); }
+    FunctionDecl: FUNC IDENTIFIER Signature Block SC                                { $$ = new FunctionDeclaration($2, $3, $4); }
+                | FUNC IDENTIFIER Signature SC                                     { $$ = new FunctionDeclaration($2, $3, nullptr); }
     ;
 
 // Method declaration
-    MethodDecl: FUNC '(' IDENTIFIER Type ')' IDENTIFIER Signature Block ';'         { $$ = new MethodDeclaration($6, $3, $4, $7, $8); }
-                | FUNC '(' IDENTIFIER Type ')' IDENTIFIER Signature ';'             { $$ = new MethodDeclaration($6, $3, $4, $7, nullptr); }
+    MethodDecl: FUNC '(' IDENTIFIER Type ')' IDENTIFIER Signature Block SC        { $$ = new MethodDeclaration($6, $3, $4, $7, $8); }
+                | FUNC '(' IDENTIFIER Type ')' IDENTIFIER Signature SC             { $$ = new MethodDeclaration($6, $3, $4, $7, nullptr); }
     ;
 
 // Type declaration
     TypeDecl: TYPE TypeDef                                                          { $$ = new DeclarationList({$2}); }
-                | TYPE '(' TypeDefListOrEmpty ')' ';'                               { $$ = $3; }
+                | TYPE '(' TypeDefListOrEmpty ')' SC                               { $$ = $3; }
     ;
 
     TypeDefListOrEmpty: /* empty */                                                 { $$ = new DeclarationList(); }
@@ -327,7 +327,7 @@
                 | TypeDefList TypeDef                                               { $$ = $1; $$ -> push_back($2); }
     ;
 
-    TypeDef: IDENTIFIER Type ';'                                                    { $$ = new TypeDeclaration($1, $2); }
+    TypeDef: IDENTIFIER Type SC                                                    { $$ = new TypeDeclaration($1, $2); }
     ;
 
 /* -------------------------------- Expressions -------------------------------- */
@@ -437,15 +437,15 @@
     ;
 
     Statement: Declaration                                                          { $$ = new DeclarationStatement(*$1); }
-                | Block ';'                                                         { $$ = $1; }
-                | SimpleStmt ';'                                                    { $$ = $1; }
-                | ReturnStmt ';'                                                    { $$ = $1; }
-                | BREAK ';'                                                         { $$ = new KeywordStatement(KeywordEnum::Break);        }
-                | CONTINUE ';'                                                      { $$ = new KeywordStatement(KeywordEnum::Continue);     }
-                | FALLTHROUGH ';'                                                   { $$ = new KeywordStatement(KeywordEnum::Fallthrough);  }
-                | IfStmt ';'                                                        { $$ = $1; }
-                | ForStmt ';'                                                       { $$ = $1; }
-                | SwitchStmt ';'                                                    { $$ = $1; }
+                | Block SC                                                         { $$ = $1; }
+                | SimpleStmt SC                                                    { $$ = $1; }
+                | ReturnStmt SC                                                    { $$ = $1; }
+                | BREAK SC                                                         { $$ = new KeywordStatement(KeywordEnum::Break);        }
+                | CONTINUE SC                                                      { $$ = new KeywordStatement(KeywordEnum::Continue);     }
+                | FALLTHROUGH SC                                                   { $$ = new KeywordStatement(KeywordEnum::Fallthrough);  }
+                | IfStmt SC                                                        { $$ = $1; }
+                | ForStmt SC                                                       { $$ = $1; }
+                | SwitchStmt SC                                                    { $$ = $1; }
     ;
 
     // Increment / decrement statement
@@ -517,5 +517,8 @@
     ExprCaseClauseListOrEmpty: /* empty */                                          { $$ = new SwitchCaseList(); }
                 | ExprCaseClauseList                                                { $$ = $1; }
     ;
+
+    SC: ';'                                                                         { }
+                | SC ';'                                                            { }
 %%
 

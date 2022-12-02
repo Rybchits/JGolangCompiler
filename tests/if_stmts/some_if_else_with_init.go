@@ -11,7 +11,7 @@ func main() {
 		} else if b > c {
 			println("Biggest is b")
 		}
-	} else if a = 7; b > c {
+	} else if a,b = 7,8; b > c*2 || false {
 		println("Biggest is b")
 	} else {
 		println("Biggest is c")
