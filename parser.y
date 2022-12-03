@@ -46,15 +46,15 @@
 }
 
 %type <identifierList> IdentifiersList
-%type <functionList> InterfaceMemberList
+%type <functionList> InterfaceMembersMoreTwo
 %type <typeList> TypesWithIdentifiersList
 %type <expressionList> ExpressionList Arguments
+%type <statementList> StatementMoreTwo ExprDefaultClauseOptional
 %type <switchCaseClauseList> ExprCaseClauseList ExprCaseClauseListOrEmpty
 %type <declarationList> Declaration TopLevelDecl TopLevelDeclList TopLevelDeclListOrEmpty
-%type <statementList> StatementList StatementListOrEmpty ExprDefaultClauseOptional
-%type <identifiersWithTypeList> FieldDeclList Result Parameters NamedArgsList
+%type <identifiersWithTypeList> FieldDeclMoreTwo Result Parameters NamedArgsList
 %type <elementsCompositeLiteral> CompositeLiteralBody ElementList
-%type <declarationList> VariableDecl VariableSpecList ConstDecl ConstSpecList TypeDefList TypeDecl
+%type <declarationList> VariableDecl VariableSpecMoreTwo ConstDecl ConstSpecMoreTwo TypeDefMoreTwo TypeDecl
 
 %type <blockStatementNode> Block
 %type <functionSignature> Signature
@@ -119,8 +119,8 @@
                 | /* empty */                                                       { $$ = new DeclarationList(); }
     ;
 
-    TopLevelDeclList: TopLevelDecl                                                  { $$ = $1; }
-                | TopLevelDeclList TopLevelDecl                                     { $$ = $1; $$->insert($$->end(), $2->begin(), $2->end()); }
+    TopLevelDeclList: TopLevelDecl SCs                                              { $$ = $1; }
+                | TopLevelDeclList TopLevelDecl SCs                                 { $$ = $1; $$->insert($$->end(), $2->begin(), $2->end()); }
     ;
 
     TopLevelDecl: Declaration                                                       { $$ = $1; }
@@ -158,8 +158,8 @@
     ;
 
     // Struct types
-    StructType: STRUCT '{' FieldDeclList '}'                                        { $$ = new StructSignature(*$3); }
-                | STRUCT '{' FieldDeclList SCs '}'                                  { $$ = new StructSignature(*$3); }
+    StructType: STRUCT '{' FieldDeclMoreTwo '}'                                     { $$ = new StructSignature(*$3); }
+                | STRUCT '{' FieldDeclMoreTwo SCs '}'                               { $$ = new StructSignature(*$3); }
                 | STRUCT '{' IdentifiersWithType '}'                                { $$ = new StructSignature(*(new std::list<IdentifiersWithType *>({$3}))); }
                 | STRUCT '{' IdentifiersWithType SCs '}'                            { $$ = new StructSignature(*(new std::list<IdentifiersWithType *>({$3}))); }
 
@@ -176,9 +176,9 @@
                                                                                     }
     ;
 
-    FieldDeclList: IdentifiersWithType SCs IdentifiersWithType                      { $$ = new std::list<IdentifiersWithType *>({$1, $3}); }
-                | FieldDeclList SCs IdentifiersWithType                             { $$ = $1; $$ -> push_back($3); }
-                | FieldDeclList SCs IDENTIFIER                                      { $$ = $1; $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3))); }
+    FieldDeclMoreTwo: IdentifiersWithType SCs IdentifiersWithType                   { $$ = new std::list<IdentifiersWithType *>({$1, $3}); }
+                | FieldDeclMoreTwo SCs IdentifiersWithType                             { $$ = $1; $$ -> push_back($3); }
+                | FieldDeclMoreTwo SCs IDENTIFIER                                      { $$ = $1; $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3))); }
 
                 | IDENTIFIER SCs IdentifiersWithType                                { 
                                                                                         $$ = new std::list<IdentifiersWithType *>();
@@ -202,11 +202,11 @@
     InterfaceType: INTERFACE '{' '}'                                                { $$ = new InterfaceType(*(new FunctionList())); }
                 | INTERFACE '{' IDENTIFIER Signature '}'                            { $$ = new InterfaceType(*(new FunctionList({new FunctionDeclaration($3, $4, nullptr)}))); }
                 | INTERFACE '{' IDENTIFIER Signature SCs '}'                        { $$ = new InterfaceType(*(new FunctionList({new FunctionDeclaration($3, $4, nullptr)}))); }
-                | INTERFACE '{' InterfaceMemberList '}'                             { $$ = new InterfaceType(*$3); }
-                | INTERFACE '{' InterfaceMemberList SCs '}'                         { $$ = new InterfaceType(*$3); }
+                | INTERFACE '{' InterfaceMembersMoreTwo '}'                         { $$ = new InterfaceType(*$3); }
+                | INTERFACE '{' InterfaceMembersMoreTwo SCs '}'                     { $$ = new InterfaceType(*$3); }
 
-    InterfaceMemberList: IDENTIFIER Signature SCs IDENTIFIER Signature              { $$ = new FunctionList({new FunctionDeclaration($1, $2, nullptr), new FunctionDeclaration($4, $5, nullptr)}); }
-                | InterfaceMemberList SCs IDENTIFIER Signature                      { $$ = $1; $$ -> push_back(new FunctionDeclaration($3, $4, nullptr)); }
+    InterfaceMembersMoreTwo: IDENTIFIER Signature SCs IDENTIFIER Signature          { $$ = new FunctionList({new FunctionDeclaration($1, $2, nullptr), new FunctionDeclaration($4, $5, nullptr)}); }
+                | InterfaceMembersMoreTwo SCs IDENTIFIER Signature                  { $$ = $1; $$ -> push_back(new FunctionDeclaration($3, $4, nullptr)); }
 
     SliceDeclType: '[' ']' Type                                                     { $$ = new ArraySignature($3); }
     ;
@@ -292,15 +292,15 @@
     ;
 
 // Variable Declarations
-    VariableDecl: VAR VariableSpec SCs                                              { $$ = new DeclarationList({$2}); }
-                | VAR '(' VariableSpecList ')' SCs                                  { $$ = $3; }
-                | VAR '(' VariableSpecList SCs ')' SCs                              { $$ = $3; }
-                | VAR '(' VariableSpec ')' SCs                                      { $$ = new DeclarationList({$3}); }
-                | VAR '(' VariableSpec SCs ')' SCs                                  { $$ = new DeclarationList({$3}); }
-                | VAR '(' ')' SCs                                                   { $$ = new DeclarationList(); }
+    VariableDecl: VAR VariableSpec                                                  { $$ = new DeclarationList({$2}); }
+                | VAR '(' VariableSpecMoreTwo ')'                                   { $$ = $3; }
+                | VAR '(' VariableSpecMoreTwo SCs ')'                               { $$ = $3; }
+                | VAR '(' VariableSpec ')'                                          { $$ = new DeclarationList({$3}); }
+                | VAR '(' VariableSpec SCs ')'                                      { $$ = new DeclarationList({$3}); }
+                | VAR '(' ')'                                                       { $$ = new DeclarationList(); }
     ;
     
-    VariableSpecList: VariableSpecList SCs VariableSpec                             { $$ = $1; $$ -> push_back($3); }
+    VariableSpecMoreTwo: VariableSpecMoreTwo SCs VariableSpec                       { $$ = $1; $$ -> push_back($3); }
                 | VariableSpec SCs VariableSpec                                     { $$ = new DeclarationList({$1, $3}); }
 	;
     
@@ -310,17 +310,17 @@
 	;
 
 // Constants Declarations
-    ConstDecl: CONST ConstSpec SCs                                                  { $$ = new DeclarationList({$2}); }
-                | CONST '(' ConstSpecList ')' SCs                                   { $$ = $3; }
-                | CONST '(' ConstSpecList SCs ')' SCs                               { $$ = $3; }
-                | CONST '(' ConstSpec ')' SCs                                       { $$ = new DeclarationList({$3}); }
-                | CONST '(' ConstSpec SCs ')' SCs                                   { $$ = new DeclarationList({$3}); }
-                | CONST '(' ')' SCs                                                 { $$ = new DeclarationList(); }
+    ConstDecl: CONST ConstSpec                                                      { $$ = new DeclarationList({$2}); }
+                | CONST '(' ConstSpecMoreTwo ')'                                    { $$ = $3; }
+                | CONST '(' ConstSpecMoreTwo SCs ')'                                { $$ = $3; }
+                | CONST '(' ConstSpec ')'                                           { $$ = new DeclarationList({$3}); }
+                | CONST '(' ConstSpec SCs ')'                                       { $$ = new DeclarationList({$3}); }
+                | CONST '(' ')'                                                     { $$ = new DeclarationList(); }
     ;
     
     
-    ConstSpecList: ConstSpec SCs ConstSpec                                          { $$ = new DeclarationList({$1, $3}); }
-                | ConstSpecList SCs ConstSpec                                       { $$ = $1; $$ -> push_back($3); }
+    ConstSpecMoreTwo: ConstSpec SCs ConstSpec                                       { $$ = new DeclarationList({$1, $3}); }
+                | ConstSpecMoreTwo SCs ConstSpec                                    { $$ = $1; $$ -> push_back($3); }
     ;
 
     ConstSpec: IdentifiersWithType '=' ExpressionList                               { $$ = new VariableDeclaration($1, *$3, true); }
@@ -328,26 +328,26 @@
     ;
 
 // Function declarations
-    FunctionDecl: FUNC IDENTIFIER Signature Block SCs                                { $$ = new FunctionDeclaration($2, $3, $4); }
-                | FUNC IDENTIFIER Signature SCs                                      { $$ = new FunctionDeclaration($2, $3, nullptr); }
+    FunctionDecl: FUNC IDENTIFIER Signature Block                                   { $$ = new FunctionDeclaration($2, $3, $4); }
+                | FUNC IDENTIFIER Signature                                         { $$ = new FunctionDeclaration($2, $3, nullptr); }
     ;
 
 // Method declaration
-    MethodDecl: FUNC '(' IDENTIFIER Type ')' IDENTIFIER Signature Block SCs         { $$ = new MethodDeclaration($6, $3, $4, $7, $8); }
-                | FUNC '(' IDENTIFIER Type ')' IDENTIFIER Signature SCs             { $$ = new MethodDeclaration($6, $3, $4, $7, nullptr); }
+    MethodDecl: FUNC '(' IDENTIFIER Type ')' IDENTIFIER Signature Block             { $$ = new MethodDeclaration($6, $3, $4, $7, $8); }
+                | FUNC '(' IDENTIFIER Type ')' IDENTIFIER Signature                 { $$ = new MethodDeclaration($6, $3, $4, $7, nullptr); }
     ;
 
 // Type declaration
-    TypeDecl: TYPE TypeDef SCs                                                      { $$ = new DeclarationList({$2}); }
-                | TYPE '(' TypeDefList ')' SCs                                      { $$ = $3; }
-                | TYPE '(' TypeDefList SCs ')' SCs                                  { $$ = $3; }
-                | TYPE '(' TypeDef ')' SCs                                          { $$ = new DeclarationList({$3}); }
-                | TYPE '(' TypeDef SCs ')' SCs                                      { $$ = new DeclarationList({$3}); }
-                | TYPE '(' ')' SCs                                                  { $$ = new DeclarationList(); }
+    TypeDecl: TYPE TypeDef                                                          { $$ = new DeclarationList({$2}); }
+                | TYPE '(' TypeDefMoreTwo ')'                                       { $$ = $3; }
+                | TYPE '(' TypeDefMoreTwo SCs ')'                                   { $$ = $3; }
+                | TYPE '(' TypeDef ')'                                              { $$ = new DeclarationList({$3}); }
+                | TYPE '(' TypeDef SCs ')'                                          { $$ = new DeclarationList({$3}); }
+                | TYPE '(' ')'                                                      { $$ = new DeclarationList(); }
     ;
     
-    TypeDefList: TypeDef SCs TypeDef                                                { $$ = new DeclarationList({$1, $3}); }
-                | TypeDefList SCs TypeDef                                           { $$ = $1; $$ -> push_back($3); }
+    TypeDefMoreTwo: TypeDef SCs TypeDef                                             { $$ = new DeclarationList({$1, $3}); }
+                | TypeDefMoreTwo SCs TypeDef                                        { $$ = $1; $$ -> push_back($3); }
     ;
 
     TypeDef: IDENTIFIER Type                                                        { $$ = new TypeDeclaration($1, $2); }
@@ -426,7 +426,7 @@
     ;
 
     Arguments: '(' ExpressionList ',' ')'                                           { $$ = $2; }
-		| '(' ExpressionList ')'                                                    { $$ = $2; }
+		        | '(' ExpressionList ')'                                            { $$ = $2; }
                 | '(' ')'                                                           { $$ = new ExpressionList(); }
 	;
 
@@ -452,15 +452,15 @@
     ;
 
     Statement: Declaration                                                          { $$ = new DeclarationStatement(*$1); }
-                | Block SCs                                                         { $$ = $1; }
-                | SimpleStmt SCs                                                    { $$ = $1; }
-                | ReturnStmt SCs                                                    { $$ = $1; }
-                | BREAK SCs                                                         { $$ = new KeywordStatement(KeywordEnum::Break);        }
-                | CONTINUE SCs                                                      { $$ = new KeywordStatement(KeywordEnum::Continue);     }
-                | FALLTHROUGH SCs                                                   { $$ = new KeywordStatement(KeywordEnum::Fallthrough);  }
-                | IfStmt SCs                                                        { $$ = $1; }
-                | ForStmt SCs                                                       { $$ = $1; }
-                | SwitchStmt SCs                                                    { $$ = $1; }
+                | Block                                                             { $$ = $1; }
+                | SimpleStmt                                                        { $$ = $1; }
+                | ReturnStmt                                                        { $$ = $1; }
+                | BREAK                                                             { $$ = new KeywordStatement(KeywordEnum::Break);        }
+                | CONTINUE                                                          { $$ = new KeywordStatement(KeywordEnum::Continue);     }
+                | FALLTHROUGH                                                       { $$ = new KeywordStatement(KeywordEnum::Fallthrough);  }
+                | IfStmt                                                            { $$ = $1; }
+                | ForStmt                                                           { $$ = $1; }
+                | SwitchStmt                                                        { $$ = $1; }
     ;
 
     // Increment / decrement statement
@@ -485,15 +485,15 @@
 
 /* -------------------------------- Blocks -------------------------------- */
 
-    Block: '{' StatementListOrEmpty '}'						                        { $$ = new BlockStatement(*$2); }
+    Block: '{' StatementMoreTwo '}'                                                 { $$ = new BlockStatement(*$2); }
+                | '{' StatementMoreTwo SCs '}'                                      { $$ = new BlockStatement(*$2); }
+                | '{' Statement '}'                                                 { $$ = new BlockStatement(*(new StatementList({$2}))); }
+                | '{' Statement SCs '}'                                             { $$ = new BlockStatement(*(new StatementList({$2}))); }
+                | '{' '}'                                                           { $$ = new BlockStatement(*(new StatementList())); }
     ;
 
-    StatementListOrEmpty: /* empty */                                               { $$ = new StatementList(); }
-                | StatementList                                                     { $$ = $1; }
-    ;
-
-    StatementList: Statement                                                        { $$ = new StatementList({$1}); }
-                | StatementList Statement                                           { $$ = $1; $$ -> push_back($2); }
+    StatementMoreTwo: Statement SCs Statement                                       { $$ = new StatementList({$1, $3}); }
+                | StatementMoreTwo SCs Statement                                    { $$ = $1; $$ -> push_back($3); }
     ;
 
     // If statements
@@ -519,10 +519,12 @@
     ;
 
     ExprDefaultClauseOptional: /* empty */                                          { $$ = new StatementList(); }
-                | DEFAULT ':' StatementList                                         { $$ = $3; }
+                | DEFAULT ':' StatementMoreTwo SCs                                  { $$ = $3; }
+                | DEFAULT ':' Statement SCs                                         { $$ = new StatementList({$3}); }
     ;
 
-    ExprCaseClause: CASE Expression ':' StatementList                               { $$ = new SwitchCaseClause($2, *$4); }
+    ExprCaseClause: CASE Expression ':' StatementMoreTwo  SCs                       { $$ = new SwitchCaseClause($2, *$4); }
+                | CASE Expression ':' Statement SCs                                 { $$ = new SwitchCaseClause($2, *(new StatementList({$4}))); }
     ;
 
     ExprCaseClauseList: ExprCaseClause                                              { $$ = new SwitchCaseList({$1}); }
