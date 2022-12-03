@@ -375,6 +375,7 @@
     CompositeLiteral: SliceDeclType CompositeLiteralBody                            { $$ = new CompositeLiteral($1, *$2); }
                 | ArrayDeclType CompositeLiteralBody                                { $$ = new CompositeLiteral($1, *$2); }
                 | StructType CompositeLiteralBody                                   { $$ = new CompositeLiteral($1, *$2); }
+                | IDENTIFIER CompositeLiteralBody                                   { $$ = new CompositeLiteral(new IdentifierAsType($1), *$2); }
     ;
 
     CompositeLiteralBody: '{' ElementList '}'                                       { $$ = $2; }
@@ -497,25 +498,24 @@
     ;
 
     // If statements
-    IfStmt: IF SimpleStmt ';' Expression Block ELSE IfStmt                          { $$ = new IfStatement($2, $4, $5, $7); }
-                | IF Expression Block ELSE IfStmt                                   { $$ = new IfStatement(nullptr, $2, $3, $5); }
-                | IF SimpleStmt ';' Expression Block ELSE Block                     { $$ = new IfStatement($2, $4, $5, $7); }
-                | IF Expression Block ELSE Block                                    { $$ = new IfStatement(nullptr, $2, $3, $5); }
-                | IF SimpleStmt ';' Expression Block				                { $$ = new IfStatement($2, $4, $5, nullptr); }
-                | IF Expression Block						                        { $$ = new IfStatement(nullptr, $2, $3, nullptr); }
+    IfStmt: IF '(' SimpleStmt ';' Expression ')' Block ELSE IfStmt                  { $$ = new IfStatement($3, $5, $7, $9); }
+                | IF '(' Expression ')' Block ELSE IfStmt                           { $$ = new IfStatement(nullptr, $3, $5, $7); }
+                | IF '(' SimpleStmt ';' Expression ')' Block ELSE Block             { $$ = new IfStatement($3, $5, $7, $9); }
+                | IF '(' Expression ')' Block ELSE Block                            { $$ = new IfStatement(nullptr, $3, $5, $7); }
+                | IF '(' SimpleStmt ';' Expression ')' Block                        { $$ = new IfStatement($3, $5, $7, nullptr); }
+                | IF '(' Expression ')' Block                                       { $$ = new IfStatement(nullptr, $3, $5, nullptr); }
     ;
 
     // For statement
-    ForStmt: FOR Expression Block                                                                   { $$ = new WhileStatement($2, $3); }
-                | FOR SimpleStmtOptional ';' ExpressionOptional ';' SimpleStmtOptional Block        { $$ = new ForStatement($2, $4, $6, $7); }
-                | FOR ExpressionList '=' RANGE Expression Block                                     { $$ = new ForRangeStatement(*$2, $5, $6, false); }
-                | FOR ExpressionList SHORT_DECL_OP RANGE Expression Block                           { $$ = new ForRangeStatement(*$2, $5, $6, true); }
-                | FOR Block									                                        { $$ = new WhileStatement(new BooleanExpression(true), $2); }
+    ForStmt: FOR '(' Expression ')' Block                                                               { $$ = new WhileStatement($3, $5); }
+                | FOR '(' SimpleStmtOptional ';' ExpressionOptional ';' SimpleStmtOptional ')' Block    { $$ = new ForStatement($3, $5, $7, $9); }
+                | FOR '(' ExpressionList '=' RANGE Expression ')' Block                                 { $$ = new ForRangeStatement(*$3, $6, $8, false); }
+                | FOR '(' ExpressionList SHORT_DECL_OP RANGE Expression ')' Block                       { $$ = new ForRangeStatement(*$3, $6, $8, true); }
     ;
 
     // Switch statements
-    SwitchStmt: SWITCH SimpleStmt ';' ExpressionOptional '{' ExprCaseClauseListOrEmpty ExprDefaultClauseOptional '}'        { $$ = new SwitchStatement($2, $4, *$6, *$7); }
-                | SWITCH ExpressionOptional '{' ExprCaseClauseListOrEmpty ExprDefaultClauseOptional '}'                     { $$ = new SwitchStatement(nullptr, $2, *$4, *$5); }
+    SwitchStmt: SWITCH '(' SimpleStmt ';' ExpressionOptional ')' '{' ExprCaseClauseListOrEmpty ExprDefaultClauseOptional '}'    { $$ = new SwitchStatement($3, $5, *$8, *$9); }
+                | SWITCH '(' ExpressionOptional ')' '{' ExprCaseClauseListOrEmpty ExprDefaultClauseOptional '}'                 { $$ = new SwitchStatement(nullptr, $3, *$6, *$7); }
     ;
 
     ExprDefaultClauseOptional: /* empty */                                          { $$ = new StatementList(); }
