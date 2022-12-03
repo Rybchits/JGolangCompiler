@@ -35,6 +35,7 @@
     FunctionSignature *functionSignature;
     
     DeclarationList *declarationList;
+    FunctionList *functionList;
     ExpressionList *expressionList;
     StatementList *statementList;
     IdentifiersList *identifierList;
@@ -45,10 +46,11 @@
 }
 
 %type <identifierList> IdentifiersList
-%type <declarationList> Declaration TopLevelDecl TopLevelDeclList TopLevelDeclListOrEmpty
+%type <functionList> InterfaceMemberList
 %type <typeList> TypesWithIdentifiersList
 %type <expressionList> ExpressionList Arguments
 %type <switchCaseClauseList> ExprCaseClauseList ExprCaseClauseListOrEmpty
+%type <declarationList> Declaration TopLevelDecl TopLevelDeclList TopLevelDeclListOrEmpty
 %type <statementList> StatementList StatementListOrEmpty ExprDefaultClauseOptional
 %type <identifiersWithTypeList> FieldDeclList Result Parameters NamedArgsList
 %type <elementsCompositeLiteral> CompositeLiteralBody ElementList
@@ -63,7 +65,7 @@
 %type <declarationNode> FunctionDecl MethodDecl TypeDef
 %type <statementNode> Statement SimpleStmt SimpleStmtOptional Assignment ShortVarDecl IncDecStmt ReturnStmt IfStmt ForStmt SwitchStmt
 %type <expressionNode> Expression ExpressionOptional Operand BasicLiteral CompositeLiteral FunctionLiteral AccessExpression
-%type <typeNode> Type TypeOnly LiteralType StructType SliceDeclType ArrayDeclType FunctionType VariadicType
+%type <typeNode> Type TypeOnly LiteralType StructType SliceDeclType ArrayDeclType FunctionType VariadicType InterfaceType
 
 
 %token <integerVal>INT_LIT
@@ -151,6 +153,7 @@
                 | FunctionType                                                      { $$ = $1; }
                 | ArrayDeclType                                                     { $$ = $1; }
                 | StructType                                                        { $$ = $1; }
+                | InterfaceType                                                     { $$ = $1; }
                 | '*' Type %prec POINTER                                            { $$ = $2; $$ -> isPointer = true; }
     ;
 
@@ -159,11 +162,51 @@
                 | STRUCT '{' FieldDeclList SCs '}'                                  { $$ = new StructSignature(*$3); }
                 | STRUCT '{' IdentifiersWithType '}'                                { $$ = new StructSignature(*(new std::list<IdentifiersWithType *>({$3}))); }
                 | STRUCT '{' IdentifiersWithType SCs '}'                            { $$ = new StructSignature(*(new std::list<IdentifiersWithType *>({$3}))); }
+
+                | STRUCT '{' IDENTIFIER '}'                                         {
+                                                                                        auto typedIds = new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3));
+                                                                                        auto fields = new std::list<IdentifiersWithType *>({typedIds});
+                                                                                        $$ = new StructSignature(*fields); 
+                                                                                    }
+
+                | STRUCT '{' IDENTIFIER SCs '}'                                     {
+                                                                                        auto typedIds = new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3));
+                                                                                        auto fields = new std::list<IdentifiersWithType *>({typedIds});
+                                                                                        $$ = new StructSignature(*fields); 
+                                                                                    }
     ;
 
     FieldDeclList: IdentifiersWithType SCs IdentifiersWithType                      { $$ = new std::list<IdentifiersWithType *>({$1, $3}); }
                 | FieldDeclList SCs IdentifiersWithType                             { $$ = $1; $$ -> push_back($3); }
+                | FieldDeclList SCs IDENTIFIER                                      { $$ = $1; $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3))); }
+
+                | IDENTIFIER SCs IdentifiersWithType                                { 
+                                                                                        $$ = new std::list<IdentifiersWithType *>();
+                                                                                        $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($1)));
+                                                                                        $$ -> push_back($3);
+                                                                                    }
+
+                | IdentifiersWithType SCs IDENTIFIER                                {
+                                                                                        $$ = new std::list<IdentifiersWithType *>();
+                                                                                        $$ -> push_back($1); 
+                                                                                        $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3)));
+                                                                                    }
+
+                | IDENTIFIER SCs IDENTIFIER                                         {
+                                                                                        $$ = new std::list<IdentifiersWithType *>();
+                                                                                        $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($1)));
+                                                                                        $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3)));
+                                                                                    }
     ;
+
+    InterfaceType: INTERFACE '{' '}'                                                { $$ = new InterfaceType(*(new FunctionList())); }
+                | INTERFACE '{' IDENTIFIER Signature '}'                            { $$ = new InterfaceType(*(new FunctionList({new FunctionDeclaration($3, $4, nullptr)}))); }
+                | INTERFACE '{' IDENTIFIER Signature SCs '}'                        { $$ = new InterfaceType(*(new FunctionList({new FunctionDeclaration($3, $4, nullptr)}))); }
+                | INTERFACE '{' InterfaceMemberList '}'                             { $$ = new InterfaceType(*$3); }
+                | INTERFACE '{' InterfaceMemberList SCs '}'                         { $$ = new InterfaceType(*$3); }
+
+    InterfaceMemberList: IDENTIFIER Signature SCs IDENTIFIER Signature              { $$ = new FunctionList({new FunctionDeclaration($1, $2, nullptr), new FunctionDeclaration($4, $5, nullptr)}); }
+                | InterfaceMemberList SCs IDENTIFIER Signature                      { $$ = $1; $$ -> push_back(new FunctionDeclaration($3, $4, nullptr)); }
 
     SliceDeclType: '[' ']' Type                                                     { $$ = new ArraySignature($3); }
     ;

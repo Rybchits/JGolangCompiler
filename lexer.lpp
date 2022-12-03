@@ -49,12 +49,12 @@ double floatingPoint;
 %}
 
 import          { PrintKeyword(yytext); }
-interface       { PrintKeyword(yytext); }
 select          { PrintKeyword(yytext); }
 defer           { PrintKeyword(yytext); }
 go              { PrintKeyword(yytext); }
 chan            { PrintKeyword(yytext); }
 goto            { PrintKeyword(yytext); }
+interface       { return yytokentype::INTERFACE;     }
 default         { return yytokentype::DEFAULT;       }
 func            { return yytokentype::FUNC;          }
 case            { return yytokentype::CASE;          }

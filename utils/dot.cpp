@@ -46,7 +46,12 @@ void FunctionSignature::toDot(std::ostream &out) const noexcept {
 void StructSignature::toDot(std::ostream &out) const noexcept {
     out << MakeNode(nodeId, name());
     for (auto member : structMembers) {
-        out << MakeConnection(nodeId, member->nodeId);
+        std::string connection;
+        if (member->identifiers.size() == 1 && member->identifiers.front() == "") {
+            connection = "composition";
+        }
+
+        out << MakeConnection(nodeId, member->nodeId, connection);
         member->toDot(out);
     }
 }
@@ -367,8 +372,10 @@ void FunctionDeclaration::toDot(std::ostream &out) const noexcept {
     out << MakeConnection(nodeId, signature->nodeId);
     signature->toDot(out);
 
-    out << MakeConnection(nodeId, block->nodeId);
-    block->toDot(out);
+    if (block != nullptr ) {
+        out << MakeConnection(nodeId, block->nodeId);
+        block->toDot(out);
+    }
 }
 
 void TypeDeclaration::toDot(std::ostream &out) const noexcept {
@@ -400,4 +407,13 @@ void IdentifierAsType::toDot(std::ostream &out) const noexcept {
         label += "\n Pointer";
 
     out << MakeNode(nodeId, label);
+}
+
+void InterfaceType::toDot(std::ostream &out) const noexcept {
+    out << MakeNode(nodeId, name());
+
+    for (auto func : functions) {
+        out << MakeConnection(nodeId, func->nodeId);
+        func->toDot(out);
+    }
 }

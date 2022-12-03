@@ -12,6 +12,7 @@ class StatementAST;
 class BlockStatement;
 class SwitchCaseClause;
 class TypeAST;
+class FunctionDeclaration;
 class IdentifiersWithType;
 class ExpressionAST;
 class FunctionSignature;
@@ -25,6 +26,7 @@ typedef std::list<SwitchCaseClause *> SwitchCaseList;
 typedef std::list<ExpressionAST *> ExpressionList;
 typedef std::list<TypeAST *> TypeList;
 typedef std::list<ElementCompositeLiteral *> ElementCompositeLiteralList;
+typedef std::list<FunctionDeclaration *> FunctionList;
 
 // Functions
 std::list<IdentifiersWithType *>* AttachIdentifiersToListTypes(TypeList& listTypes);
@@ -535,3 +537,13 @@ public:
     [[nodiscard]] bool isBuiltInType() const;
 };
 
+
+class InterfaceType : public TypeAST {
+public:
+    FunctionList functions;
+
+    InterfaceType(FunctionList& list) : functions(list) {};
+
+    [[nodiscard]] std::string name() const noexcept override { return "InterfaceType"; };
+    void toDot(std::ostream &out) const noexcept override;
+};
