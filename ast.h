@@ -4,6 +4,9 @@
 
 #include <list>
 #include <string>
+#include <string_view>
+#include <variant>
+#include <algorithm>
 
 class NodeAST;
 class DeclarationAST;

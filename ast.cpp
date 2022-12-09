@@ -20,7 +20,7 @@ std::list<std::string> BuiltInTypes = {
 
 template <typename T>
 T* As(NodeAST* node) {
-    return std::dynamic_pointer_cast<T>(node);
+    return dynamic_cast<T>(node);
 }
 
 [[nodiscard]] bool IdentifierAsType::isBuiltInType() const {
