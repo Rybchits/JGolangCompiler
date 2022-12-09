@@ -18,6 +18,11 @@ std::list<std::string> BuiltInTypes = {
         "bool"
 };
 
+template <typename T>
+T* As(NodeAST* node) {
+    return std::dynamic_pointer_cast<T>(node);
+}
+
 [[nodiscard]] bool IdentifierAsType::isBuiltInType() const {
     return std::find(BuiltInTypes.begin(), BuiltInTypes.end(), identifier) != BuiltInTypes.end();
 }

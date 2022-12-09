@@ -5,6 +5,7 @@
 #include <list>
 #include <string>
 
+class NodeAST;
 class DeclarationAST;
 class VariableDeclaration;
 class TypeDeclaration;
@@ -32,6 +33,8 @@ typedef std::list<FunctionDeclaration *> FunctionList;
 std::list<IdentifiersWithType *>* AttachIdentifiersToListTypes(TypeList& listTypes);
 TypeList* ListIdentifiersToListTypes(IdentifiersList& identifiers);
 
+template <typename T>
+T* As(NodeAST* node);
 
 class NodeAST {
 private:
