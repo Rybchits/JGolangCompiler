@@ -1,24 +1,27 @@
 #include <iostream>
 #include "semantic.h"
 
-void Semantic::analyze() {
+bool Semantic::analyze() {
     if (root == nullptr) {
         errors.emplace_back("Root node is empty");
         return;
     }
 
-    analyzeGlobalClasses();
+    analyzePackageScope();
 }
 
-void Semantic::analyzeGlobalClasses() {
+void Semantic::analyzePackageScope() {
     std::vector<MethodDeclaration> methods;
 
-    // пройти по всем верхним объявлениям
-
-        // Если это объявление типа - добавить
-        // Если объявление функции
-        // объявление или
+    // Collect gloabal type
     for (auto decl : *root->topDeclarations) {
-        As<MethodDeclaration>(decl)->block;
+        auto casted = As<TypeDeclaration>(decl);
+
+        if (decl == nullptr)
+            continue;
+
+        globalAliases.insert(casted->alias, casted->declType);
     }
 }
+
+
