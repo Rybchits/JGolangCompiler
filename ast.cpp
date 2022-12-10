@@ -33,7 +33,7 @@ TypeList* ListIdentifiersToListTypes(IdentifiersList& identifiers) {
 
     if (identifiers.empty()) { return listTypes; }
 
-    for (auto id: identifiers) {
+    for (const auto& id: identifiers) {
         listTypes->push_back(new IdentifierAsType(id));
     }
 
@@ -146,4 +146,299 @@ std::string AccessExpression::name() const noexcept {
             return "FieldSelect";
     }
     return "AccessExpr";
+}
+
+/* -------------------------------- Visitors -------------------------------- */
+void PackageAST::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    for (auto* decl : *topDeclarations) {
+        decl->acceptVisitor(visitor);
+    }
+}
+
+void VariableDeclaration::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    identifiersWithType->acceptVisitor(visitor);
+
+    for (auto* expr : values ) {
+        expr->acceptVisitor(visitor);
+    }
+}
+
+void TypeDeclaration::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    declType->acceptVisitor(visitor);
+}
+
+void FunctionDeclaration::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    if (block != nullptr) {
+        block->acceptVisitor(visitor);
+    }
+
+    signature->acceptVisitor(visitor);
+}
+
+void MethodDeclaration::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    signature->acceptVisitor(visitor);
+
+    if (receiverType != nullptr) {
+        receiverType->acceptVisitor(visitor);
+    }
+
+    if (block != nullptr) {
+        block->acceptVisitor(visitor);
+    }
+}
+
+void IdentifierAsExpression::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+}
+
+void IntegerExpression::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+}
+
+void BooleanExpression::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+}
+
+void FloatExpression::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+}
+
+void StringExpression::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+}
+
+void RuneExpression::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+}
+
+void NilExpression::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+}
+
+void FunctionLitExpression::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    signature->acceptVisitor(visitor);
+    block->acceptVisitor(visitor);
+}
+
+void UnaryExpression::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    expression->acceptVisitor(visitor);
+}
+
+void BinaryExpression::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    lhs->acceptVisitor(visitor);
+    rhs->acceptVisitor(visitor);
+}
+
+void CallableExpression::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    base->acceptVisitor(visitor);
+
+    for (auto* arg : arguments ) {
+        arg->acceptVisitor(visitor);
+    }
+}
+
+void AccessExpression::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    base->acceptVisitor(visitor);
+    accessor->acceptVisitor(visitor);
+}
+
+void ElementCompositeLiteral::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+
+    if (key != nullptr) {
+        key->acceptVisitor(visitor);
+    }
+
+    if (std::holds_alternative<ExpressionAST *>(value)) {
+        std::get<ExpressionAST *>(value)->acceptVisitor(visitor);
+
+    } else if (std::holds_alternative<std::list<ElementCompositeLiteral *>>(value)) {
+        for (auto el : std::get<std::list<ElementCompositeLiteral *>>(value)) {
+            el->acceptVisitor(visitor);
+        }
+    }
+}
+
+void CompositeLiteral::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+
+    if (type != nullptr) {
+        type->acceptVisitor(visitor);
+    }
+
+    for (auto el : elements) {
+        el->acceptVisitor(visitor);
+    }
+}
+
+void BlockStatement::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    for (auto stmt : body) {
+        stmt->acceptVisitor(visitor);
+    }
+}
+
+void KeywordStatement::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+}
+
+void ExpressionStatement::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    expression->acceptVisitor(visitor);
+}
+
+void AssignmentStatement::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+
+    for (auto expr : lhs) {
+        expr->acceptVisitor(visitor);
+    }
+
+    for (auto expr : rhs) {
+        expr->acceptVisitor(visitor);
+    }
+}
+
+void ForStatement::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+
+    if (initStatement != nullptr) {
+        initStatement->acceptVisitor(visitor);
+    }
+
+    if (conditionExpression != nullptr) {
+        conditionExpression->acceptVisitor(visitor);
+    }
+
+    if (iterationStatement != nullptr) {
+        iterationStatement->acceptVisitor(visitor);
+    }
+
+    block->acceptVisitor(visitor);
+}
+
+void WhileStatement::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    conditionExpression->acceptVisitor(visitor);
+    block->acceptVisitor(visitor);
+}
+
+void ForRangeStatement::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    expressionValue->acceptVisitor(visitor);
+    block->acceptVisitor(visitor);
+
+    for (auto expr : initStatement) {
+        expr->acceptVisitor(visitor);
+    }
+}
+
+void ReturnStatement::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    for (auto expr : returnValues) {
+        expr->acceptVisitor(visitor);
+    }
+}
+
+void IfStatement::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    condition->acceptVisitor(visitor);
+    thenStatement->acceptVisitor(visitor);
+
+    if (preStatement != nullptr) {
+        preStatement->acceptVisitor(visitor);
+    }
+
+    if (elseStatement) {
+        elseStatement->acceptVisitor(visitor);
+    }
+}
+
+void SwitchCaseClause::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    expressionCase->acceptVisitor(visitor);
+    for (auto statement : statementsList) {
+        statement->acceptVisitor(visitor);
+    }
+}
+
+void SwitchStatement::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+
+    if (statement != nullptr) {
+        statement->acceptVisitor(visitor);
+    }
+
+    expression->acceptVisitor(visitor);
+
+    for (auto caseClause : clauseList) {
+        caseClause->acceptVisitor(visitor);
+    }
+
+    for (auto defaultStmt : defaultStatement) {
+        defaultStmt->acceptVisitor(visitor);
+    }
+}
+
+void DeclarationStatement::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+
+    for (auto decl : declarations) {
+        decl->acceptVisitor(visitor);
+    }
+}
+
+void IdentifiersWithType::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+
+    if (type != nullptr) {
+        type->acceptVisitor(visitor);
+    }
+}
+
+void FunctionSignature::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+
+    for (auto arg : idsAndTypesArgs) {
+        arg->acceptVisitor(visitor);
+    }
+
+    for (auto result : idsAndTypesResults) {
+        result->acceptVisitor(visitor);
+    }
+}
+
+void ArraySignature::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+    arrayElementType->acceptVisitor(visitor);
+}
+
+void StructSignature::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+
+    for (auto member : structMembers) {
+        member->acceptVisitor(visitor);
+    }
+}
+
+void IdentifierAsType::acceptVisitor(Visitor* visitor) const noexcept {
+    visitor->visit(this);
+}
+
+void InterfaceType::acceptVisitor(Visitor *visitor) const noexcept {
+    visitor->visit(this);
+
+    for (auto fn : this->functions) {
+        fn->acceptVisitor(visitor);
+    }
 }

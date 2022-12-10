@@ -3,6 +3,7 @@
 #include <sstream>
 
 #include "../ast.h"
+#include "./dot_visitor.h"
 
 using namespace std::filesystem;
 
@@ -29,7 +30,9 @@ bool CreateDotFile(NodeAST* node) {
     {
         std::fstream treeOut;
         treeOut.open(dotFile, std::ios_base::out);
-        node->toDot(treeOut);
+
+        auto dotVisitor = new DotConvertVisitor(treeOut);
+        dotVisitor->convert(node);
     }
 
     return true;

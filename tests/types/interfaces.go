@@ -33,7 +33,7 @@ func (l dog) walk() {
 }
 
 func main() {
-	/*var a animal
+	var a animal
 
 	a = lion{age: 10}
 	a.breathe()
@@ -41,5 +41,5 @@ func main() {
 
 	a = dog{age: 5}
 	a.breathe()
-	a.walk()*/
+	a.walk()
 }
