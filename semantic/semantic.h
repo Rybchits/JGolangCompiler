@@ -11,12 +11,15 @@
 class Semantic {
 private:
     static const std::string GlobalClassName;
+    static bool isGeneratedName(const std::string_view name);
+
     PackageAST* root;
 
     std::unordered_map<std::string, JavaClass> classes = { {GlobalClassName,JavaClass(nullptr)} };
     std::vector<JavaVariable> globals;
 
     void analyzePackageScope();
+    void findAnonymousClass();
 
 public:
     explicit Semantic(PackageAST* package): root(package) {};

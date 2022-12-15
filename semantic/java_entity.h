@@ -67,14 +67,16 @@ public:
 
 
 class JavaClass {
-private:
-    TypeAST* typeNode;
-
+public:
     enum class TypeJavaClass {
         Class,
         Interface,
         Alias,
-    } typeJavaClass;
+    };
+
+private:
+    TypeAST* typeNode;
+    TypeJavaClass typeJavaClass;
 
     std::vector<JavaVariable> fields;
     std::vector<JavaMethod> methods;

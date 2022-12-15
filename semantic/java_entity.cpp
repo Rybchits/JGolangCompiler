@@ -26,7 +26,20 @@ JavaType::JavaType(JavaArraySignature array) {
     this->value = array;
 }
 
-JavaClass::JavaClass(TypeAST *node): typeNode(node) {}
+JavaClass::JavaClass(TypeAST *node): typeNode(node) {
+    if (auto structType = dynamic_cast<StructSignature*>(node)) {
+        typeJavaClass = JavaClass::TypeJavaClass::Class;
+        
+    } else if (auto arrayType = dynamic_cast<ArraySignature*>(node)) {
+        typeJavaClass = JavaClass::TypeJavaClass::Alias;
+
+    } else if (auto identifierType = dynamic_cast<IdentifierAsType*>(node)) {
+        typeJavaClass = JavaClass::TypeJavaClass::Alias;
+
+    } else if (auto interfaceType = dynamic_cast<InterfaceType*>(node)) {
+        typeJavaClass = JavaClass::TypeJavaClass::Interface;
+    } 
+}
 
 void JavaClass::addMethod(JavaMethod&& method) { methods.push_back(method); }
 

@@ -60,7 +60,7 @@ public:
     const std::string packageName;
     const std::list<DeclarationAST *> *topDeclarations;
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward)noexcept override;
+    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "Package"; }
 };
 

@@ -1,4 +1,6 @@
 #include "semantic.h"
+#include "classes_node_visitor.h"
+
 #include <iostream>
 
 bool Semantic::analyze() {
@@ -6,12 +8,20 @@ bool Semantic::analyze() {
         errors.emplace_back("Root node is empty");
         return false;
     }
-
+    findAnonymousClass();
     analyzePackageScope();
     return true;
 }
 
 const std::string Semantic::GlobalClassName = "$GLOBAL";
+
+bool Semantic::isGeneratedName(const std::string_view name) { return !name.empty() && name[0] == '$'; };
+
+void Semantic::findAnonymousClass() {
+    auto visitor = new ClassesNodeVisitor();
+    root->acceptVisitor(visitor, TraversalMethod::Upward);
+    classes.insert(visitor->classes.begin(), visitor->classes.end());
+}
 
 void Semantic::analyzePackageScope() {
     std::vector<MethodDeclaration*> methods;
@@ -20,15 +30,12 @@ void Semantic::analyzePackageScope() {
 
         if (auto typeDeclaration = dynamic_cast<TypeDeclaration*>(decl)) {
             classes[typeDeclaration->alias] = JavaClass(typeDeclaration->declType);
-            //std::cout << "Class " << typeDeclaration->alias << std::endl;
 
         } else if (auto methodDeclaration = dynamic_cast<MethodDeclaration*>(decl)) {
             methods.push_back(methodDeclaration);
-            //std::cout << "Method " << methodDeclaration->identifier << std::endl;
 
         } else if (auto functionDeclaration = dynamic_cast<FunctionDeclaration*>(decl)) {
             classes[GlobalClassName].addMethod(functionDeclaration);
-            //std::cout << "Function " << functionDeclaration->identifier << std::endl;
         }
     }
 
@@ -41,25 +48,6 @@ void Semantic::analyzePackageScope() {
             }
         } else {
             errors.push_back("Invalid receiver type at method " + method->identifier);
-        }
-    }
-
-    for (const auto& [ key, value ] : classes) {
-        
-    }
-
-    for () {
-        if (auto structType = dynamic_cast<StructSignature*>(typeNode)) {
-            typeJavaClass = TypeJavaClass::Class;
-            
-        } else if (auto arrayType = dynamic_cast<ArraySignature*>(typeNode)) {
-            typeJavaClass = TypeJavaClass::Alias;
-
-        } else if (auto identifierType = dynamic_cast<IdentifierAsType*>(typeNode)) {
-            typeJavaClass = TypeJavaClass::Alias;
-
-        } else if (auto interfaceType = dynamic_cast<InterfaceType*>(typeNode)) {
-            typeJavaClass = TypeJavaClass::Interface;
         }
     }
 }

@@ -146,7 +146,7 @@ void PackageAST::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
         visitor->visit(this);
 
     for (auto* decl : *topDeclarations) {
-        decl->acceptVisitor(visitor);
+        decl->acceptVisitor(visitor, way);
     }
 
     if (way == TraversalMethod::Upward)

@@ -1,12 +1,12 @@
-package loops
+package main
 
 type Person struct {
 	name string
+	array []int
 }
 
 func main() {
-	strings := []Person{Person{"Mike"}, Person{"Stas"}}
-	for i, s := range strings {
+	for i, s := range (Person{"name", []int{1,2,3}}).array {
 		println(i, s)
 	}
 }
