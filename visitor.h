@@ -83,3 +83,9 @@ public:
     virtual void visit(const IntegerExpression* node) = 0;
     virtual ~Visitor() = default;;
 };
+
+
+// thin/empty implementation
+// not inheriting std exceptions
+// and not inheritable
+struct ProcessingInterrupted final {};

@@ -1,4 +1,3 @@
-#include <iostream>
 #include "dot_visitor.h"
 
 [[nodiscard]] std::string DotConvertVisitor::MakeNode(const std::size_t id, const std::string_view name) {

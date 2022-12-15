@@ -39,9 +39,6 @@ typedef std::list<FunctionDeclaration *> FunctionList;
 std::list<IdentifiersWithType *>* AttachIdentifiersToListTypes(TypeList& listTypes);
 TypeList* ListIdentifiersToListTypes(IdentifiersList& identifiers);
 
-template <typename T>
-T* As(NodeAST* node);
-
 class NodeAST {
 private:
     inline static int64_t LastNodeId = 1;
@@ -459,7 +456,7 @@ public:
 };
 
 
-class DeclarationStatement : public  StatementAST {
+class DeclarationStatement : public StatementAST {
 public:
     DeclarationList declarations;
     explicit DeclarationStatement(DeclarationList& decls) : declarations(decls) {};

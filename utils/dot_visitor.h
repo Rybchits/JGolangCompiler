@@ -1,6 +1,8 @@
 #pragma once
 #include "../visitor.h"
 
+#include <iostream>
+
 class DotConvertVisitor : public Visitor {
     std::ostream& out;
 
@@ -49,6 +51,6 @@ class DotConvertVisitor : public Visitor {
 public:
     explicit DotConvertVisitor(std::ostream &out) : out(out) {};
     void convert(NodeAST* node);
-    ~DotConvertVisitor() override = default;;
+    ~DotConvertVisitor() override = default;
 };
 

@@ -7,10 +7,6 @@ std::list<std::string> BuiltInTypes = {
         "int16",
         "int32",
         "int64",
-        "uint8",
-        "uint16",
-        "uint32",
-        "uint64",
         "float32",
         "float64",
         "string",
@@ -18,10 +14,6 @@ std::list<std::string> BuiltInTypes = {
         "bool"
 };
 
-template <typename T>
-T* As(NodeAST* node) {
-    return dynamic_cast<T*>(node);
-}
 
 [[nodiscard]] bool IdentifierAsType::isBuiltInType() const {
     return std::find(BuiltInTypes.begin(), BuiltInTypes.end(), identifier) != BuiltInTypes.end();
