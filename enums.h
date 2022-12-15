@@ -46,3 +46,8 @@ enum AssignmentEnum {
     DivAssign,          // /=
     ShortDeclaration,   // :=
 };
+
+enum TraversalMethod {
+    Upward,
+    Downward
+};

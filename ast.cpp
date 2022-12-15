@@ -141,296 +141,426 @@ std::string AccessExpression::name() const noexcept {
 }
 
 /* -------------------------------- Visitors -------------------------------- */
-void PackageAST::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
+void PackageAST::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+
     for (auto* decl : *topDeclarations) {
         decl->acceptVisitor(visitor);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void VariableDeclaration::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
-    identifiersWithType->acceptVisitor(visitor);
+void VariableDeclaration::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+
+    identifiersWithType->acceptVisitor(visitor, way);
 
     for (auto* expr : values ) {
-        expr->acceptVisitor(visitor);
+        expr->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void TypeDeclaration::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
-    declType->acceptVisitor(visitor);
+void TypeDeclaration::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
+    declType->acceptVisitor(visitor, way);
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void FunctionDeclaration::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
+void FunctionDeclaration::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
     if (block != nullptr) {
-        block->acceptVisitor(visitor);
+        block->acceptVisitor(visitor, way);
     }
 
-    signature->acceptVisitor(visitor);
+    signature->acceptVisitor(visitor, way);
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void MethodDeclaration::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
-    signature->acceptVisitor(visitor);
+void MethodDeclaration::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
+    signature->acceptVisitor(visitor, way);
 
     if (receiverType != nullptr) {
-        receiverType->acceptVisitor(visitor);
+        receiverType->acceptVisitor(visitor, way);
     }
 
     if (block != nullptr) {
-        block->acceptVisitor(visitor);
+        block->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void IdentifierAsExpression::acceptVisitor(Visitor* visitor) const noexcept {
+void IdentifierAsExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     visitor->visit(this);
 }
 
-void IntegerExpression::acceptVisitor(Visitor* visitor) const noexcept {
+void IntegerExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     visitor->visit(this);
 }
 
-void BooleanExpression::acceptVisitor(Visitor* visitor) const noexcept {
+void BooleanExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     visitor->visit(this);
 }
 
-void FloatExpression::acceptVisitor(Visitor* visitor) const noexcept {
+void FloatExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     visitor->visit(this);
 }
 
-void StringExpression::acceptVisitor(Visitor* visitor) const noexcept {
+void StringExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     visitor->visit(this);
 }
 
-void RuneExpression::acceptVisitor(Visitor* visitor) const noexcept {
+void RuneExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     visitor->visit(this);
 }
 
-void NilExpression::acceptVisitor(Visitor* visitor) const noexcept {
+void NilExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     visitor->visit(this);
 }
 
-void FunctionLitExpression::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
-    signature->acceptVisitor(visitor);
-    block->acceptVisitor(visitor);
+void FunctionLitExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
+    signature->acceptVisitor(visitor, way);
+    block->acceptVisitor(visitor, way);
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void UnaryExpression::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
-    expression->acceptVisitor(visitor);
+void UnaryExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
+    expression->acceptVisitor(visitor, way);
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void BinaryExpression::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
-    lhs->acceptVisitor(visitor);
-    rhs->acceptVisitor(visitor);
+void BinaryExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
+    lhs->acceptVisitor(visitor, way);
+    rhs->acceptVisitor(visitor, way);
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void CallableExpression::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
-    base->acceptVisitor(visitor);
+void CallableExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
+    base->acceptVisitor(visitor, way);
 
     for (auto* arg : arguments ) {
-        arg->acceptVisitor(visitor);
+        arg->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void AccessExpression::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
-    base->acceptVisitor(visitor);
-    accessor->acceptVisitor(visitor);
+void AccessExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
+    base->acceptVisitor(visitor, way);
+    accessor->acceptVisitor(visitor, way);
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void ElementCompositeLiteral::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
+void ElementCompositeLiteral::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
 
     if (key != nullptr) {
-        key->acceptVisitor(visitor);
+        key->acceptVisitor(visitor, way);
     }
 
     if (std::holds_alternative<ExpressionAST *>(value)) {
-        std::get<ExpressionAST *>(value)->acceptVisitor(visitor);
+        std::get<ExpressionAST *>(value)->acceptVisitor(visitor, way);
 
     } else if (std::holds_alternative<std::list<ElementCompositeLiteral *>>(value)) {
         for (auto el : std::get<std::list<ElementCompositeLiteral *>>(value)) {
-            el->acceptVisitor(visitor);
+            el->acceptVisitor(visitor, way);
         }
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void CompositeLiteral::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
+void CompositeLiteral::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
 
     if (type != nullptr) {
-        type->acceptVisitor(visitor);
+        type->acceptVisitor(visitor, way);
     }
 
     for (auto el : elements) {
-        el->acceptVisitor(visitor);
+        el->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void BlockStatement::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
+void BlockStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
     for (auto stmt : body) {
-        stmt->acceptVisitor(visitor);
+        stmt->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void KeywordStatement::acceptVisitor(Visitor* visitor) const noexcept {
+void KeywordStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     visitor->visit(this);
 }
 
-void ExpressionStatement::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
-    expression->acceptVisitor(visitor);
+void ExpressionStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
+    expression->acceptVisitor(visitor, way);
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void AssignmentStatement::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
+void AssignmentStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
 
     for (auto expr : lhs) {
-        expr->acceptVisitor(visitor);
+        expr->acceptVisitor(visitor, way);
     }
 
     for (auto expr : rhs) {
-        expr->acceptVisitor(visitor);
+        expr->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void ForStatement::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
+void ForStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
 
     if (initStatement != nullptr) {
-        initStatement->acceptVisitor(visitor);
+        initStatement->acceptVisitor(visitor, way);
     }
 
     if (conditionExpression != nullptr) {
-        conditionExpression->acceptVisitor(visitor);
+        conditionExpression->acceptVisitor(visitor, way);
     }
 
     if (iterationStatement != nullptr) {
-        iterationStatement->acceptVisitor(visitor);
+        iterationStatement->acceptVisitor(visitor, way);
     }
 
-    block->acceptVisitor(visitor);
+    block->acceptVisitor(visitor, way);
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void WhileStatement::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
-    conditionExpression->acceptVisitor(visitor);
-    block->acceptVisitor(visitor);
+void WhileStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
+    conditionExpression->acceptVisitor(visitor, way);
+    block->acceptVisitor(visitor, way);
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void ForRangeStatement::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
-    expressionValue->acceptVisitor(visitor);
-    block->acceptVisitor(visitor);
+void ForRangeStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
+    expressionValue->acceptVisitor(visitor, way);
+    block->acceptVisitor(visitor, way);
 
     for (auto expr : initStatement) {
-        expr->acceptVisitor(visitor);
+        expr->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void ReturnStatement::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
+void ReturnStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
     for (auto expr : returnValues) {
-        expr->acceptVisitor(visitor);
+        expr->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void IfStatement::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
-    condition->acceptVisitor(visitor);
-    thenStatement->acceptVisitor(visitor);
+void IfStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
+    condition->acceptVisitor(visitor, way);
+    thenStatement->acceptVisitor(visitor, way);
 
     if (preStatement != nullptr) {
-        preStatement->acceptVisitor(visitor);
+        preStatement->acceptVisitor(visitor, way);
     }
 
     if (elseStatement) {
-        elseStatement->acceptVisitor(visitor);
+        elseStatement->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void SwitchCaseClause::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
-    expressionCase->acceptVisitor(visitor);
+void SwitchCaseClause::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
+    expressionCase->acceptVisitor(visitor, way);
     for (auto statement : statementsList) {
-        statement->acceptVisitor(visitor);
+        statement->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void SwitchStatement::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
+void SwitchStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
 
     if (statement != nullptr) {
-        statement->acceptVisitor(visitor);
+        statement->acceptVisitor(visitor, way);
     }
 
-    expression->acceptVisitor(visitor);
+    expression->acceptVisitor(visitor, way);
 
     for (auto caseClause : clauseList) {
-        caseClause->acceptVisitor(visitor);
+        caseClause->acceptVisitor(visitor, way);
     }
 
     for (auto defaultStmt : defaultStatement) {
-        defaultStmt->acceptVisitor(visitor);
+        defaultStmt->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void DeclarationStatement::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
+void DeclarationStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
 
     for (auto decl : declarations) {
-        decl->acceptVisitor(visitor);
+        decl->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void IdentifiersWithType::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
+void IdentifiersWithType::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
 
     if (type != nullptr) {
-        type->acceptVisitor(visitor);
+        type->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void FunctionSignature::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
+void FunctionSignature::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
 
     for (auto arg : idsAndTypesArgs) {
-        arg->acceptVisitor(visitor);
+        arg->acceptVisitor(visitor, way);
     }
 
     for (auto result : idsAndTypesResults) {
-        result->acceptVisitor(visitor);
+        result->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void ArraySignature::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
-    arrayElementType->acceptVisitor(visitor);
+void ArraySignature::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
+        
+    arrayElementType->acceptVisitor(visitor, way);
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void StructSignature::acceptVisitor(Visitor* visitor) const noexcept {
-    visitor->visit(this);
+void StructSignature::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
 
     for (auto member : structMembers) {
-        member->acceptVisitor(visitor);
+        member->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
 
-void IdentifierAsType::acceptVisitor(Visitor* visitor) const noexcept {
+void IdentifierAsType::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     visitor->visit(this);
 }
 
-void InterfaceType::acceptVisitor(Visitor *visitor) const noexcept {
-    visitor->visit(this);
+void InterfaceType::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
+    if (way == TraversalMethod::Downward)
+        visitor->visit(this);
 
     for (auto fn : this->functions) {
-        fn->acceptVisitor(visitor);
+        fn->acceptVisitor(visitor, way);
     }
+
+    if (way == TraversalMethod::Upward)
+        visitor->visit(this);
 }
