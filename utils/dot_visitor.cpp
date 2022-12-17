@@ -1,16 +1,26 @@
 #include "dot_visitor.h"
 
+bool DotConvertVisitor::hasConnection(size_t id1, size_t id2) {
+    return std::find(connections[id1].begin(), connections[id1].end(), id2) != connections[id1].end();
+}
+
 [[nodiscard]] std::string DotConvertVisitor::MakeNode(const std::size_t id, const std::string_view name) {
     return "Id" + std::to_string(id) + " [label=\"" + std::string{name} + "\"]\n";
 }
 
 [[nodiscard]] std::string DotConvertVisitor::MakeConnection(const size_t id1, const size_t id2, std::string_view note) {
-    auto res = "Id" + std::to_string(id1) + " -> " + "Id" + std::to_string(id2);
+    std::string res = "";
 
-    if (!note.empty())
-        res += " [label=\"" + std::string{note} + "\"]";
+    if (!hasConnection(id1, id2)) {
+        res = "Id" + std::to_string(id1) + " -> " + "Id" + std::to_string(id2);
 
-    res += "\n";
+        if (!note.empty())
+            res += " [label=\"" + std::string{note} + "\"]";
+
+        res += "\n";
+        connections[id1].push_back(id2);
+    }
+    
     return res;
 }
 
@@ -140,13 +150,20 @@ void DotConvertVisitor::visit(AssignmentStatement *node) {
     out << MakeNode(node->nodeId, node->name());
 
     int index = 0;
+    auto indexIterator = node->indexes.begin();
     for (auto leftExpr: node->lhs) {
-        out << MakeConnection(node->nodeId, leftExpr->nodeId, std::to_string(index++));
+        out << MakeConnection(node->nodeId, leftExpr->nodeId, "l" + std::to_string(index));
+
+        if (*indexIterator != nullptr)
+            out << MakeConnection(node->nodeId, (*indexIterator)->nodeId, "index " + std::to_string(index));
+
+        index++;
+        indexIterator++;
     }
 
     index = 0;
     for (auto rightExpr: node->rhs) {
-        out << MakeConnection(node->nodeId, rightExpr->nodeId, std::to_string(index++));
+        out << MakeConnection(node->nodeId, rightExpr->nodeId, "r" + std::to_string(index++));
     }
 }
 

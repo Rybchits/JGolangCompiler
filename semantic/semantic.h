@@ -10,19 +10,24 @@
 
 class Semantic {
 private:
+    Semantic(PackageAST* package): root(package) {};
+    static Semantic* instance;
+
+    Semantic(Semantic &other) = delete;
+    void operator=(const Semantic &) = delete;
+
     static const std::string GlobalClassName;
-    static bool isGeneratedName(const std::string_view name);
+    bool isGeneratedName(const std::string_view name);
 
     PackageAST* root;
-
-    std::unordered_map<std::string, JavaClass> classes = { {GlobalClassName,JavaClass(nullptr)} };
+    std::unordered_map<std::string, JavaClass> classes = { {GlobalClassName, JavaClass(nullptr)} };
     std::vector<JavaVariable> globals;
 
     void analyzePackageScope();
-    void findAnonymousClass();
+    void transformRoot();
 
 public:
-    explicit Semantic(PackageAST* package): root(package) {};
+    static Semantic *GetInstance(PackageAST* package);
 
     bool analyze();
     std::vector<std::string> errors;

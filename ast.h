@@ -79,7 +79,7 @@ public:
     IdentifiersWithType *identifiersWithType;
     ExpressionList values;
 
-    VariableDeclaration(IdentifiersWithType *typedIds, ExpressionList &values, bool isConst)
+    VariableDeclaration(IdentifiersWithType *typedIds, ExpressionList &values, bool isConst = false)
             : identifiersWithType(typedIds), values(values), isConst(isConst) {};
 
     void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward)noexcept override;
@@ -352,8 +352,11 @@ public:
     ExpressionList lhs;
     ExpressionList rhs;
 
-    AssignmentStatement(AssignmentEnum type, ExpressionList& lhs, ExpressionList& rhs) : type(type), lhs(lhs),
-                                                                                           rhs(rhs) {};
+    ExpressionList indexes;
+
+    AssignmentStatement(AssignmentEnum type, ExpressionAST* lExp, ExpressionAST* rExp);
+
+    AssignmentStatement(AssignmentEnum type, ExpressionList& lhs, ExpressionList& rhs);
 
     [[nodiscard]] std::string name() const noexcept override;
     void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
@@ -460,6 +463,7 @@ class DeclarationStatement : public StatementAST {
 public:
     DeclarationList declarations;
     explicit DeclarationStatement(DeclarationList& decls) : declarations(decls) {};
+    explicit DeclarationStatement(DeclarationAST* decl) : declarations(*(new DeclarationList{ decl })) {};
 
     void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "DeclStmt"; }
@@ -490,6 +494,7 @@ public:
     [[nodiscard]] std::string name() const noexcept override { return "TypedIds"; };
 
     IdentifiersWithType(IdentifiersList& ids, TypeAST* type) : identifiers(ids), type(type) {};
+    IdentifiersWithType(std::string id, TypeAST* type): identifiers( *(new IdentifiersList({ id })) ), type(type) {};
 };
 
 

@@ -2,12 +2,16 @@
 #include "../visitor.h"
 
 #include <iostream>
+#include <unordered_map>
+#include <vector>
 
 class DotConvertVisitor : public Visitor {
     std::ostream& out;
+    std::unordered_map<std::size_t, std::vector<std::size_t>> connections;
 
-    static std::string MakeNode(std::size_t id, std::string_view name);
-    static std::string MakeConnection(size_t id1, size_t id2, std::string_view note = "");
+    bool hasConnection(size_t id1, size_t id2);
+    std::string MakeNode(std::size_t id, std::string_view name);
+    std::string MakeConnection(size_t id1, size_t id2, std::string_view note = "");
 
     void visit(NodeAST* node) override;
     void visit(PackageAST* node) override;

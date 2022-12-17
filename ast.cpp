@@ -130,6 +130,7 @@ std::string AssignmentStatement::name() const noexcept {
     return "AssignmentStmt";
 }
 
+
 std::string AccessExpression::name() const noexcept {
     switch (type) {
         case Indexing:
@@ -139,6 +140,43 @@ std::string AccessExpression::name() const noexcept {
     }
     return "AccessExpr";
 }
+
+// If there is an indexing, we decompose the left part of the assignment
+AssignmentStatement::AssignmentStatement(AssignmentEnum type, ExpressionAST* lExp, ExpressionAST* rExp) {
+    this->type = type;
+    
+    AccessExpression* leftIndexingElement = dynamic_cast<AccessExpression*>(lExp);
+
+    if (leftIndexingElement != nullptr && leftIndexingElement->type == AccessExpressionEnum::Indexing) {
+        indexes.push_back(leftIndexingElement->accessor);
+        lhs.push_back(leftIndexingElement->base);
+    } else {
+        indexes.push_back(nullptr);
+        lhs.push_back(lExp);
+    }
+    
+    rhs.push_back(rExp);
+}
+
+
+AssignmentStatement::AssignmentStatement(AssignmentEnum type, ExpressionList& lExpList, ExpressionList& rExpList) {
+    this->type = type;
+
+    for (auto left : lExpList) {
+        AccessExpression* leftIndexingElement = dynamic_cast<AccessExpression*>(left);
+
+        if (leftIndexingElement != nullptr && leftIndexingElement->type == AccessExpressionEnum::Indexing) {
+            indexes.push_back(leftIndexingElement->accessor);
+            lhs.push_back(leftIndexingElement->base);
+        } else {
+            indexes.push_back(nullptr);
+            lhs.push_back(left);
+        }
+    }
+
+    rhs = rExpList;
+}
+
 
 /* -------------------------------- Visitors -------------------------------- */
 void PackageAST::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
@@ -170,7 +208,7 @@ void VariableDeclaration::acceptVisitor(Visitor* visitor, TraversalMethod way) n
 void TypeDeclaration::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     declType->acceptVisitor(visitor, way);
 
     if (way == TraversalMethod::Upward)
@@ -180,7 +218,7 @@ void TypeDeclaration::acceptVisitor(Visitor* visitor, TraversalMethod way) noexc
 void FunctionDeclaration::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     if (block != nullptr) {
         block->acceptVisitor(visitor, way);
     }
@@ -194,7 +232,7 @@ void FunctionDeclaration::acceptVisitor(Visitor* visitor, TraversalMethod way) n
 void MethodDeclaration::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     signature->acceptVisitor(visitor, way);
 
     if (receiverType != nullptr) {
@@ -240,7 +278,7 @@ void NilExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcep
 void FunctionLitExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     signature->acceptVisitor(visitor, way);
     block->acceptVisitor(visitor, way);
 
@@ -251,7 +289,7 @@ void FunctionLitExpression::acceptVisitor(Visitor* visitor, TraversalMethod way)
 void UnaryExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     expression->acceptVisitor(visitor, way);
 
     if (way == TraversalMethod::Upward)
@@ -261,7 +299,7 @@ void UnaryExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexc
 void BinaryExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     lhs->acceptVisitor(visitor, way);
     rhs->acceptVisitor(visitor, way);
 
@@ -272,7 +310,7 @@ void BinaryExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noex
 void CallableExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     base->acceptVisitor(visitor, way);
 
     for (auto* arg : arguments ) {
@@ -286,7 +324,7 @@ void CallableExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) no
 void AccessExpression::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     base->acceptVisitor(visitor, way);
     accessor->acceptVisitor(visitor, way);
 
@@ -334,7 +372,7 @@ void CompositeLiteral::acceptVisitor(Visitor* visitor, TraversalMethod way) noex
 void BlockStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     for (auto stmt : body) {
         stmt->acceptVisitor(visitor, way);
     }
@@ -350,7 +388,7 @@ void KeywordStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noex
 void ExpressionStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     expression->acceptVisitor(visitor, way);
 
     if (way == TraversalMethod::Upward)
@@ -369,9 +407,16 @@ void AssignmentStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) n
         expr->acceptVisitor(visitor, way);
     }
 
+    for (auto expr : indexes) {
+        if (expr != nullptr) {
+            expr->acceptVisitor(visitor, way);
+        }
+    }
+
     if (way == TraversalMethod::Upward)
         visitor->visit(this);
 }
+
 
 void ForStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
@@ -398,7 +443,7 @@ void ForStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept
 void WhileStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     conditionExpression->acceptVisitor(visitor, way);
     block->acceptVisitor(visitor, way);
 
@@ -409,7 +454,7 @@ void WhileStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexce
 void ForRangeStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     expressionValue->acceptVisitor(visitor, way);
     block->acceptVisitor(visitor, way);
 
@@ -424,7 +469,7 @@ void ForRangeStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noe
 void ReturnStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     for (auto expr : returnValues) {
         expr->acceptVisitor(visitor, way);
     }
@@ -436,7 +481,7 @@ void ReturnStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexc
 void IfStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     condition->acceptVisitor(visitor, way);
     thenStatement->acceptVisitor(visitor, way);
 
@@ -455,7 +500,7 @@ void IfStatement::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept 
 void SwitchCaseClause::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     expressionCase->acceptVisitor(visitor, way);
     for (auto statement : statementsList) {
         statement->acceptVisitor(visitor, way);
@@ -530,7 +575,7 @@ void FunctionSignature::acceptVisitor(Visitor* visitor, TraversalMethod way) noe
 void ArraySignature::acceptVisitor(Visitor* visitor, TraversalMethod way) noexcept {
     if (way == TraversalMethod::Downward)
         visitor->visit(this);
-        
+
     arrayElementType->acceptVisitor(visitor, way);
 
     if (way == TraversalMethod::Upward)

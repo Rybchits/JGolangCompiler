@@ -582,6 +582,7 @@
                 | FOR SimpleStmtWithWrapCompositeObjOptional ';' ExprWithWrapCompositeObjOptional ';' SimpleStmtWithWrapCompositeObjOptional Block      { $$ = new ForStatement($2, $4, $6, $7); }
                 | FOR ExprWithWrapCompositeObjList '=' RANGE ExprWithWrapCompositeObj Block                                                             { $$ = new ForRangeStatement(*$2, $5, $6, false); }
                 | FOR ExprWithWrapCompositeObjList SHORT_DECL_OP RANGE ExprWithWrapCompositeObj Block                                                   { $$ = new ForRangeStatement(*$2, $5, $6, true); }
+                | FOR RANGE ExprWithWrapCompositeObj Block                                                                                              { $$ = new ForRangeStatement(*(new ExpressionList()), $3, $4, false); }
                 | FOR Block									                                                                                            { $$ = new WhileStatement(new BooleanExpression(true), $2); }
     ;
 

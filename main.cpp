@@ -14,8 +14,8 @@ int main(int argc, char** argv) {
         std::istringstream iStringStream = StreamLinesFromFile(argv[1]);
         lexer = new yyFlexLexer(iStringStream, std::cout);
         yyparse();
-        auto semantic = Semantic(Root);
-        semantic.analyze();
+        auto semantic = Semantic::GetInstance(Root);
+        semantic->analyze();
         CreateDotFile(Root);
     }
     else {

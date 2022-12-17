@@ -1,22 +1,26 @@
 #include "../visitor.h"
 #include "java_entity.h"
+#include "semantic.h"
 
 #include <unordered_map>
 
-class ClassesNodeVisitor : public Visitor {
+class TreeTransformationVisitor : public Visitor {
 private:
+    Semantic* semantic;
     size_t indexClassInDeclaration;
-
-    std::string getNameCurrentClass();
-
-public:
     std::unordered_map<std::string, JavaClass> classes;
 
-    void visit(NodeAST* node) override;
+    std::string getNameCurrentClass();
+    StatementList transformForToWhile(ForStatement* forStmt);
+    StatementList transformForRangeToWhile(ForRangeStatement* forRangeStmt);
+
+public:
     void visit(IdentifiersWithType* node) override;
     void visit(ArraySignature* node) override;
     void visit(CompositeLiteral* node) override;
+    void visit(BlockStatement* node) override;
 
+    void visit(NodeAST* node) override {};
     void visit(PackageAST* node) override {};
     void visit(VariableDeclaration* node) override {};
     void visit(TypeDeclaration* node) override {};
@@ -34,7 +38,6 @@ public:
     void visit(BinaryExpression* node) override {};
     void visit(CallableExpression* node) override {};
     void visit(AccessExpression* node) override {};
-    void visit(BlockStatement* node) override {};
     void visit(KeywordStatement* node) override {};
     void visit(ExpressionStatement* node) override {};
     void visit(AssignmentStatement* node) override {};
@@ -53,6 +56,7 @@ public:
     void visit(ElementCompositeLiteral* node) override {};
 
 public:
-    explicit ClassesNodeVisitor(): indexClassInDeclaration(0) {};
-    ~ClassesNodeVisitor() override = default;
+    std::unordered_map<std::string, JavaClass> transform(PackageAST* packageAst);
+    explicit TreeTransformationVisitor(Semantic* semantic): indexClassInDeclaration(0), semantic(semantic) {};
+    ~TreeTransformationVisitor() override = default;
 };

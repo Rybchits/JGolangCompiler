@@ -1,27 +1,22 @@
 #include "semantic.h"
-#include "classes_node_visitor.h"
-
-#include <iostream>
+#include "transformation_visitor.h"
 
 bool Semantic::analyze() {
     if (root == nullptr) {
         errors.emplace_back("Root node is empty");
         return false;
     }
-    findAnonymousClass();
+    transformRoot();
     analyzePackageScope();
     return true;
 }
 
-const std::string Semantic::GlobalClassName = "$GLOBAL";
-
-bool Semantic::isGeneratedName(const std::string_view name) { return !name.empty() && name[0] == '$'; };
-
-void Semantic::findAnonymousClass() {
-    auto visitor = new ClassesNodeVisitor();
-    root->acceptVisitor(visitor, TraversalMethod::Upward);
-    classes.insert(visitor->classes.begin(), visitor->classes.end());
+void Semantic::transformRoot() {
+    auto visitor = new TreeTransformationVisitor(this);
+    std::unordered_map<std::string, JavaClass> classesFromTransform = visitor->transform(root);
+    classes.insert(classesFromTransform.begin(), classesFromTransform.end());
 }
+
 
 void Semantic::analyzePackageScope() {
     std::vector<MethodDeclaration*> methods;
@@ -52,6 +47,15 @@ void Semantic::analyzePackageScope() {
     }
 }
 
-// 1) Собрать все классы
-// StructSignature -> JavaClass
-// MethodSignature -> JavaMethod
+Semantic* Semantic::instance = nullptr;
+
+Semantic *Semantic::GetInstance(PackageAST *package) {
+    if (instance == nullptr) {
+        instance = new Semantic(package);
+    }
+    return instance;
+}
+
+const std::string Semantic::GlobalClassName = "$GLOBAL";
+
+bool Semantic::isGeneratedName(const std::string_view name) { return !name.empty() && name[0] == '$'; };
