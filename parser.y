@@ -115,7 +115,7 @@
 
 %%
     // The first statement in a Go source file must be package name
-    Root: PACKAGE IDENTIFIER SCs TopLevelDeclListOrEmpty                           { Root = new PackageAST($2, $4); }
+    Root: PACKAGE IDENTIFIER SCs TopLevelDeclListOrEmpty                           { Root = new PackageAST($2, *$4); }
     ;
 
     TopLevelDeclListOrEmpty: TopLevelDeclList                                       { $$ = $1; }
@@ -336,8 +336,20 @@
     ;
 
 // Method declaration
-    MethodDecl: FUNC '(' IDENTIFIER Type ')' IDENTIFIER Signature Block             { $$ = new MethodDeclaration($6, $3, $4, $7, $8); }
-                | FUNC '(' IDENTIFIER Type ')' IDENTIFIER Signature                 { $$ = new MethodDeclaration($6, $3, $4, $7, nullptr); }
+    MethodDecl: FUNC '(' IDENTIFIER '*' IDENTIFIER ')' IDENTIFIER Signature Block  { 
+                                                                                        IdentifierAsType* type = new IdentifierAsType($5);
+                                                                                        type->isPointer = true;
+                                                                                        $$ = new MethodDeclaration($7, $3, type, $8, $9); 
+                                                                                    }
+
+                | FUNC '(' IDENTIFIER '*' IDENTIFIER ')' IDENTIFIER Signature      {
+                                                                                        IdentifierAsType* type = new IdentifierAsType($5);
+                                                                                        type->isPointer = true;
+                                                                                        $$ = new MethodDeclaration($7, $3, new IdentifierAsType($5), $8, nullptr); 
+                                                                                    }
+
+                | FUNC '(' IDENTIFIER IDENTIFIER ')' IDENTIFIER Signature Block    { $$ = new MethodDeclaration($6, $3, new IdentifierAsType($4), $7, $8); }
+                | FUNC '(' IDENTIFIER IDENTIFIER ')' IDENTIFIER Signature          { $$ = new MethodDeclaration($6, $3, new IdentifierAsType($4), $7, nullptr); }
     ;
 
 // Type declaration

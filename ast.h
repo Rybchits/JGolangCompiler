@@ -21,6 +21,7 @@ class SwitchCaseClause;
 class TypeAST;
 class FunctionDeclaration;
 class IdentifiersWithType;
+class IdentifierAsType;
 class ExpressionAST;
 class FunctionSignature;
 class ElementCompositeLiteral;
@@ -45,7 +46,8 @@ private:
 public:
     const int64_t nodeId;
     virtual ~NodeAST() = default;
-    virtual void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward)noexcept = 0;
+    virtual void acceptVisitor(Visitor* visitor) noexcept = 0;
+    virtual NodeAST* clone() const = 0;
 protected:
     NodeAST() : nodeId(LastNodeId++) {}
     [[nodiscard]] virtual std::string name() const noexcept = 0;
@@ -54,20 +56,23 @@ protected:
 
 class PackageAST : public NodeAST {
 public:
-    explicit PackageAST(const std::string_view package, std::list<DeclarationAST *> *decls) : packageName(package),
+    explicit PackageAST(const std::string_view package, DeclarationList& decls) : packageName(package),
                                                                                               topDeclarations(decls) {}
+    
+    PackageAST* clone() const noexcept override;
 
     const std::string packageName;
-    const std::list<DeclarationAST *> *topDeclarations;
+    const DeclarationList topDeclarations;
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "Package"; }
 };
 
 
 class DeclarationAST : public NodeAST {
 public:
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward)noexcept override = 0;
+    DeclarationAST* clone() const noexcept override = 0;
+    void acceptVisitor(Visitor* visitor) noexcept override = 0;
     [[nodiscard]] std::string name() const noexcept override = 0;
 };
 
@@ -81,8 +86,9 @@ public:
 
     VariableDeclaration(IdentifiersWithType *typedIds, ExpressionList &values, bool isConst = false)
             : identifiersWithType(typedIds), values(values), isConst(isConst) {};
-
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward)noexcept override;
+        
+    VariableDeclaration* clone() const noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "VarDecl"; };
 };
 
@@ -94,7 +100,8 @@ public:
 
     TypeDeclaration(const std::string_view id, TypeAST *type) : alias(id), declType(type) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward)noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    TypeDeclaration* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "TypeDecl"; };
 };
 
@@ -108,7 +115,8 @@ public:
     FunctionDeclaration(const std::string_view id, FunctionSignature *signature, BlockStatement *stmt)
             : identifier(id), signature(signature), block(stmt) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward)noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    FunctionDeclaration* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "FuncDecl"; };
 };
 
@@ -116,13 +124,14 @@ public:
 class MethodDeclaration : public FunctionDeclaration {
 public:
     std::string receiverIdentifier;
-    TypeAST *receiverType;
+    IdentifierAsType *receiverType;
 
-    MethodDeclaration(const std::string_view id, const std::string_view recId, TypeAST *recType,
+    MethodDeclaration(const std::string_view id, const std::string_view recId, IdentifierAsType *recType,
                       FunctionSignature *signature, BlockStatement *stmt) :
             FunctionDeclaration(id, signature, stmt), receiverType(recType), receiverIdentifier(recId) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward)noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    MethodDeclaration* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "MethodDecl"; };
 };
 
@@ -131,7 +140,8 @@ public:
 /* -------------------------------- Expression -------------------------------- */
 class ExpressionAST : public NodeAST {
 public:
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward)noexcept override = 0;
+    void acceptVisitor(Visitor* visitor) noexcept override = 0;
+    ExpressionAST* clone() const noexcept override = 0;
     [[nodiscard]] std::string name() const noexcept override = 0;
 };
 
@@ -141,8 +151,9 @@ public:
     std::string identifier;
 
     explicit IdentifierAsExpression(const std::string_view id) : identifier(id) {};
-
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward)noexcept override;
+    IdentifierAsExpression* clone() const noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    
     [[nodiscard]] std::string name() const noexcept override { return "IdExpr"; };
 };
 
@@ -153,7 +164,8 @@ public:
 
     explicit IntegerExpression(long long i) : intLit(i) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward)noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    IntegerExpression* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "IntegerLit"; };
 };
 
@@ -164,7 +176,8 @@ public:
 
     explicit BooleanExpression(long long boolean) : boolLit(boolean) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward)noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    BooleanExpression* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "BooleanLit"; };
 };
 
@@ -174,8 +187,8 @@ public:
     double floatLit;
 
     explicit FloatExpression(double floating) : floatLit(floating) {};
-
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward)noexcept override;
+    FloatExpression* clone() const noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "FloatLit"; };
 };
 
@@ -185,8 +198,8 @@ public:
     std::string stringLit;
 
     explicit StringExpression(const std::string_view string) : stringLit(string) {};
-
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    StringExpression* clone() const noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "StringLit"; };
 };
 
@@ -196,8 +209,8 @@ public:
     int32_t runeLit;
 
     explicit RuneExpression(int32_t rune) : runeLit(rune) {};
-
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    RuneExpression* clone() const noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "RuneLit"; };
 };
 
@@ -206,7 +219,8 @@ class NilExpression : public ExpressionAST {
 public:
     NilExpression() = default;
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    NilExpression* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "NilLit"; };
 };
 
@@ -217,8 +231,8 @@ public:
     BlockStatement *block;
 
     FunctionLitExpression(FunctionSignature *signature, BlockStatement *block) : signature(signature), block(block) {};
-
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    FunctionLitExpression* clone() const noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "FunctionLit"; };
 };
 
@@ -229,9 +243,9 @@ public:
     ExpressionAST *expression;
 
     explicit UnaryExpression(UnaryExpressionEnum type, ExpressionAST *expr) : type(type), expression(expr) {};
-
+    UnaryExpression* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override;
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
 };
 
 
@@ -244,8 +258,9 @@ public:
     BinaryExpression(BinaryExpressionEnum type, ExpressionAST *lhs, ExpressionAST *rhs)
             : type(type), lhs(lhs), rhs(rhs) {};
 
+    BinaryExpression* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override;
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
 };
 
 
@@ -257,7 +272,8 @@ public:
 
     CallableExpression(ExpressionAST *base, ExpressionList &args) : base(base), arguments(args) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    CallableExpression* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "CallableExpr"; };
 };
 
@@ -272,7 +288,8 @@ public:
             : type(type), base(base), accessor(accessor) {};
 
     [[nodiscard]] std::string name() const noexcept override;
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    AccessExpression* clone() const noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
 };
 
 
@@ -288,7 +305,8 @@ public:
             : key(key), value(value) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "ElementComposite"; };
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    ElementCompositeLiteral* clone() const noexcept override;
 };
 
 
@@ -299,7 +317,8 @@ public:
 
     CompositeLiteral(TypeAST *type, std::list<ElementCompositeLiteral *> &elems) : type(type), elements(elems) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    CompositeLiteral* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "CompositeLit"; };
 };
 
@@ -308,7 +327,8 @@ public:
 /* -------------------------------- Statement -------------------------------- */
 class StatementAST : public NodeAST {
 public:
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override = 0;
+    void acceptVisitor(Visitor* visitor) noexcept override = 0;
+    StatementAST* clone() const noexcept override = 0;
     [[nodiscard]] std::string name() const noexcept override = 0;
 };
 
@@ -319,7 +339,8 @@ public:
 
     explicit BlockStatement(StatementList& list) : body(list) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    BlockStatement* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "BlockStmt"; }
 };
 
@@ -330,7 +351,8 @@ public:
 
     explicit KeywordStatement(KeywordEnum type) : type(type) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    KeywordStatement* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override;
 };
 
@@ -341,7 +363,8 @@ public:
 
     explicit ExpressionStatement(ExpressionAST *expr) : expression(expr) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    ExpressionStatement* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "ExprStmt"; }
 };
 
@@ -359,7 +382,8 @@ public:
     AssignmentStatement(AssignmentEnum type, ExpressionList& lhs, ExpressionList& rhs);
 
     [[nodiscard]] std::string name() const noexcept override;
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    AssignmentStatement* clone() const noexcept override;
 };
 
 
@@ -373,8 +397,9 @@ public:
     ForStatement(StatementAST *init, ExpressionAST *cond, StatementAST *next, BlockStatement *block)
             : initStatement(init), conditionExpression(cond), iterationStatement(next), block(block) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "ForStmt"; }
+    ForStatement* clone() const noexcept override;
 };
 
 
@@ -385,7 +410,8 @@ public:
 
     WhileStatement(ExpressionAST *cond, BlockStatement *block) : conditionExpression(cond), block(block) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    WhileStatement* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "WhileStmt"; }
 };
 
@@ -400,8 +426,9 @@ public:
     ForRangeStatement(ExpressionList &init, ExpressionAST *val, BlockStatement *block, bool isShort)
             : initStatement(init), hasShortDeclaration(isShort), expressionValue(val), block(block) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "ForRangeStmt"; }
+    ForRangeStatement* clone() const noexcept override;
 };
 
 
@@ -411,7 +438,8 @@ public:
 
     explicit ReturnStatement(ExpressionList &values) : returnValues(values) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    ReturnStatement* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "ReturnStmt"; }
 };
 
@@ -426,7 +454,8 @@ public:
     IfStatement(StatementAST *pre, ExpressionAST *cond, BlockStatement *then, StatementAST *elseStmt)
             : preStatement(pre), condition(cond), thenStatement(then), elseStatement(elseStmt) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    IfStatement* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "IfStmt"; }
 };
 
@@ -438,7 +467,8 @@ public:
 
     SwitchCaseClause(ExpressionAST *key, StatementList &stmts) : expressionCase(key), statementsList(stmts) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    SwitchCaseClause* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "CaseStmt"; }
 };
 
@@ -454,7 +484,8 @@ public:
                     StatementList &defaultCase)
             : statement(init), expression(expr), clauseList(cases), defaultStatement(defaultCase) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    SwitchStatement* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "SwitchStmt"; }
 };
 
@@ -465,7 +496,8 @@ public:
     explicit DeclarationStatement(DeclarationList& decls) : declarations(decls) {};
     explicit DeclarationStatement(DeclarationAST* decl) : declarations(*(new DeclarationList{ decl })) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    DeclarationStatement* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "DeclStmt"; }
 };
 
@@ -477,7 +509,8 @@ public:
     bool isVariadic;
     bool isPointer;
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override = 0;
+    void acceptVisitor(Visitor* visitor) noexcept override = 0;
+    TypeAST* clone() const noexcept override = 0;
     [[nodiscard]] std::string name() const noexcept override = 0;
 
 protected:
@@ -490,8 +523,9 @@ public:
     const IdentifiersList identifiers;
     TypeAST* type;
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "TypedIds"; };
+    IdentifiersWithType* clone() const noexcept override;
 
     IdentifiersWithType(IdentifiersList& ids, TypeAST* type) : identifiers(ids), type(type) {};
     IdentifiersWithType(std::string id, TypeAST* type): identifiers( *(new IdentifiersList({ id })) ), type(type) {};
@@ -506,7 +540,8 @@ public:
     FunctionSignature(std::list<IdentifiersWithType *> &args, std::list<IdentifiersWithType *> &results)
             : idsAndTypesArgs(args), idsAndTypesResults(results) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    FunctionSignature* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "TypeFunction"; };
 };
 
@@ -519,7 +554,8 @@ public:
 
     explicit ArraySignature(TypeAST *type): arrayElementType(type), dimensions(-1) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    ArraySignature* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "TypeArray"; };
 };
 
@@ -530,7 +566,8 @@ public:
 
     explicit StructSignature(std::list<IdentifiersWithType *>& members): structMembers(members) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    StructSignature* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "TypeStruct"; };
 };
 
@@ -541,7 +578,8 @@ public:
 
     explicit IdentifierAsType(const std::string_view id): identifier(id) {};
 
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    IdentifierAsType* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "TypeIdentifier"; };
 
     [[nodiscard]] bool isBuiltInType() const;
@@ -555,5 +593,6 @@ public:
     explicit InterfaceType(FunctionList& list) : functions(list) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "InterfaceType"; };
-    void acceptVisitor(Visitor* visitor, TraversalMethod way = TraversalMethod::Downward) noexcept override;
+    InterfaceType* clone() const noexcept override;
+    void acceptVisitor(Visitor* visitor) noexcept override;
 };

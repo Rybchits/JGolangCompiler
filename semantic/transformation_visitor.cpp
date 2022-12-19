@@ -1,7 +1,7 @@
 #include "./transformation_visitor.h"
 
 std::string TreeTransformationVisitor::getNameCurrentClass() {
-    return "$class_" + std::to_string(indexClassInDeclaration++);
+    return "$class_" + currentFunctionName + std::to_string(indexClassInDeclaration++);
 }
 
 
@@ -41,7 +41,7 @@ StatementList TreeTransformationVisitor::transformForRangeToWhile(ForRangeStatem
             BinaryExpressionEnum::Less,
             new IdentifierAsExpression(indexPrivateVariableName),
             new CallableExpression(new IdentifierAsExpression("len"),
-                                   *(new ExpressionList{forRangeStmt->expressionValue}))
+                                   *(new ExpressionList{forRangeStmt->expressionValue->clone()}))
     );
 
     if (forRangeStmt->initStatement.size() > 2) {
@@ -116,7 +116,13 @@ StatementList TreeTransformationVisitor::transformForRangeToWhile(ForRangeStatem
     return list;
 }
 
-void TreeTransformationVisitor::visit(IdentifiersWithType *node) {
+void TreeTransformationVisitor::onFinishVisit(IdentifiersWithType *node) {
+    auto idType = dynamic_cast<IdentifierAsType *>(node->type);
+
+    if (idType->identifier == currentAliasTypeDecl) {
+        semantic->errors.push_back("Invalid recursive type " + currentAliasTypeDecl);
+    }
+
     if (dynamic_cast<StructSignature *>(node->type) || dynamic_cast<InterfaceType *>(node->type)) {
         std::string name = getNameCurrentClass();
         classes[name] = JavaClass(node->type);
@@ -124,7 +130,7 @@ void TreeTransformationVisitor::visit(IdentifiersWithType *node) {
     }
 }
 
-void TreeTransformationVisitor::visit(ArraySignature *node) {
+void TreeTransformationVisitor::onFinishVisit(ArraySignature *node) {
     if (dynamic_cast<StructSignature *>(node->arrayElementType) ||
         dynamic_cast<InterfaceType *>(node->arrayElementType)) {
         std::string name = getNameCurrentClass();
@@ -133,7 +139,7 @@ void TreeTransformationVisitor::visit(ArraySignature *node) {
     }
 }
 
-void TreeTransformationVisitor::visit(CompositeLiteral *node) {
+void TreeTransformationVisitor::onFinishVisit(CompositeLiteral *node) {
     if (dynamic_cast<StructSignature *>(node->type) || dynamic_cast<InterfaceType *>(node->type)) {
         std::string name = getNameCurrentClass();
         classes[name] = JavaClass(node->type);
@@ -141,7 +147,7 @@ void TreeTransformationVisitor::visit(CompositeLiteral *node) {
     }
 }
 
-void TreeTransformationVisitor::visit(BlockStatement *node) {
+void TreeTransformationVisitor::onFinishVisit(BlockStatement *node) {
     StatementList newBody;
 
     for (auto stmt: node->body) {
@@ -163,10 +169,39 @@ void TreeTransformationVisitor::visit(BlockStatement *node) {
     node->body = newBody;
 }
 
+void TreeTransformationVisitor::onStartVisit(FunctionDeclaration* node) {
+    currentFunctionName = node->identifier;
+    indexClassInDeclaration = 0;
+}
+
+void TreeTransformationVisitor::onFinishVisit(FunctionDeclaration* node) {
+    currentFunctionName = "";
+}
+
+void TreeTransformationVisitor::onStartVisit(MethodDeclaration* node) {
+    currentFunctionName = node->receiverType->identifier + "_" + node->identifier;
+    indexClassInDeclaration = 0;
+}
+
+void TreeTransformationVisitor::onStartVisit(TypeDeclaration* node) {
+    currentAliasTypeDecl = node->alias;
+}
+
+void TreeTransformationVisitor::onFinishVisit(TypeDeclaration* node) {
+    currentAliasTypeDecl = "";
+}
+
+void TreeTransformationVisitor::onFinishVisit(MethodDeclaration* node) {
+    currentFunctionName = "";
+}
 
 std::unordered_map<std::string, JavaClass> TreeTransformationVisitor::transform(PackageAST* packageAst) {
-    packageAst->acceptVisitor(this, TraversalMethod::Upward);
+    packageAst->acceptVisitor(this);
     auto returnClassesMap = classes;
     classes = std::unordered_map<std::string, JavaClass>();
     return returnClassesMap;
+}
+
+void TreeTransformationVisitor::onStartVisit(ForStatement* node) {
+
 }
