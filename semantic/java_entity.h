@@ -87,5 +87,9 @@ public:
 
     void addMethod(JavaMethod&& method);
     void addField(JavaVariable&& field);
+    void addField(const JavaVariable& field);
     void addField(std::vector<JavaVariable>&& newFields);
+    void addField(const std::vector<JavaVariable>& field);
+
+    void constructFields();
 };

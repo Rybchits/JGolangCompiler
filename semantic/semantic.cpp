@@ -7,7 +7,12 @@ bool Semantic::analyze() {
         return false;
     }
     transformRoot();
-    analyzePackageScope();
+    //analyzePackageScope();
+
+    // construct class fields for all classes in program
+    // сначала для struct, потом для alias и пр.
+    std::for_each(classes.begin(), classes.end(), [](auto & e ){ e.second.constructFields(); });
+
     return true;
 }
 
@@ -21,7 +26,7 @@ void Semantic::transformRoot() {
 void Semantic::analyzePackageScope() {
     std::vector<MethodDeclaration*> methods;
 
-    for (auto decl : *root->topDeclarations) {
+    for (auto decl : root->topDeclarations) {
 
         if (auto typeDeclaration = dynamic_cast<TypeDeclaration*>(decl)) {
             classes[typeDeclaration->alias] = JavaClass(typeDeclaration->declType);
@@ -35,14 +40,10 @@ void Semantic::analyzePackageScope() {
     }
 
     for (auto method : methods) {
-        if (auto className = dynamic_cast<IdentifierAsType*>(method->receiverType)) {
-            if (classes.find(className->identifier) != classes.end()) {
-                classes[className->identifier].addMethod(JavaMethod(method));
-            } else {
-                errors.push_back("Unknown receiver type at method " + method->identifier + ": " + className->identifier);
-            }
+        if (classes.find(method->receiverType->identifier) != classes.end()) {
+            classes[method->receiverType->identifier].addMethod(JavaMethod(method));
         } else {
-            errors.push_back("Invalid receiver type at method " + method->identifier);
+            errors.push_back("Unknown receiver type at method " + method->identifier + ": " + method->receiverType->identifier);
         }
     }
 }

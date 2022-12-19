@@ -43,8 +43,44 @@ JavaClass::JavaClass(TypeAST *node): typeNode(node) {
 
 void JavaClass::addMethod(JavaMethod&& method) { methods.push_back(method); }
 
-void JavaClass::addField(JavaVariable&& field) { fields.push_back(field); }
+void JavaClass::addField(JavaVariable&& field) { fields.push_back(std::move(field)); }
+
+void JavaClass::addField(const JavaVariable& field) { fields.push_back(field); }
 
 void JavaClass::addField(std::vector<JavaVariable>&& newFields) {
     fields.insert(fields.end(), std::move_iterator(newFields.begin()), std::move_iterator(newFields.end()));
+}
+
+void JavaClass::addField(const std::vector<JavaVariable>& newFields) {
+    fields.insert(fields.end(), newFields.begin(), newFields.end());
+}
+
+void JavaClass::constructFields() {
+    if (auto structSignature = dynamic_cast<StructSignature *>(typeNode)) {
+        for (auto& field : structSignature->structMembers) {
+            if (field->identifiers.size() == 1 && field->identifiers.front() == "") {
+                if (auto compositionType = dynamic_cast<IdentifierAsType *>(field->type) /* TODO check type existing in type scope */) {
+                    //TODO add composition
+                } else {
+                    // TODO exception 'syntax error: unexpected struct, expecting field name or embedded type'
+                }
+            }
+            for (auto& identifier : field->identifiers) {
+                if (auto identifierAsType = dynamic_cast<IdentifierAsType *>(field->type)) {
+                    addField(JavaVariable(identifier, new JavaType(identifierAsType->identifier))); // TODO можно не порождать для списка id постоянно тип, т.к. у них он один и тот же
+                } else if (auto arraySignatureType = dynamic_cast<ArraySignature *>(field->type)) {
+                    // TODO как-то хитро сделать
+                } else if (auto intefraceType = dynamic_cast<InterfaceType* >(field->type)) {
+                    // TODO interface type
+                }
+            }
+        }
+    } else if (auto identifierAsType = dynamic_cast<IdentifierAsType *>(typeNode)) {
+        auto identifier = identifierAsType->identifier;
+        // addField(classes[identifier].fields);    // предполагается, что поля у этого класса уже собраны
+                                                    // Хотя если делаем элиас на элиас, то они могут быть не собраны
+                                                    // (при том, что сначала собираем классы, потом элиасы)
+    } else if (auto interfaceType = dynamic_cast<InterfaceType *>(typeNode)) {
+        // TODO class - interface
+    }
 }
