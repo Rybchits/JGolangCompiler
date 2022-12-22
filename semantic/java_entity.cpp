@@ -1,86 +1,61 @@
 #include "java_entity.h"
 
-JavaType::JavaType(std::string typeAsId) {    
-    // TODO typeAsId == "uint8" || typeAsId == "uint16" || typeAsId == "uint32" || typeAsId == "uint64"
+JavaType::BuiltInType JavaType::builtInTypeFromString(std::string id) {
 
-    if (typeAsId == "int"   || typeAsId == "int16"  || typeAsId == "int32"  || typeAsId == "int64" || typeAsId == "rune")
-        type = BuiltInType::Int;
+    if (id == "int"   || id == "int16"  || id == "int32"  || id == "int64" || id == "rune")
+        return BuiltInType::Int;
 
-    else if (typeAsId == "float32" || typeAsId == "float64")
-        type = BuiltInType::Float;
+    else if (id == "float32" || id == "float64")
+        return BuiltInType::Float;
 
-    else if (typeAsId == "string")
-        type = BuiltInType::String;
+    else if (id == "string")
+        return BuiltInType::String;
 
-    else if (typeAsId == "bool")
-        type = BuiltInType::Boolean;
+    else if (id == "bool")
+        return BuiltInType::Boolean;
 
     else 
-        type = BuiltInType::UserType;
-        
-    this->value = typeAsId;
+        return BuiltInType::UserType;
 }
 
-JavaType::JavaType(JavaArraySignature array) {
-    type = BuiltInType::Array;
-    this->value = array;
-}
+JavaType::JavaType(TypeAST* node) {
+    if (auto array = dynamic_cast<ArraySignature*>(node)) {
+        type = BuiltInType::Array;
+        this->value = JavaArraySignature(array->dimensions, new JavaType(array->arrayElementType));
 
-JavaClass::JavaClass(TypeAST *node): typeNode(node) {
-    if (auto structType = dynamic_cast<StructSignature*>(node)) {
-        typeJavaClass = JavaClass::TypeJavaClass::Class;
-        
-    } else if (auto arrayType = dynamic_cast<ArraySignature*>(node)) {
-        typeJavaClass = JavaClass::TypeJavaClass::Alias;
-
-    } else if (auto identifierType = dynamic_cast<IdentifierAsType*>(node)) {
-        typeJavaClass = JavaClass::TypeJavaClass::Alias;
-
-    } else if (auto interfaceType = dynamic_cast<InterfaceType*>(node)) {
-        typeJavaClass = JavaClass::TypeJavaClass::Interface;
-    } 
-}
-
-void JavaClass::addMethod(JavaMethod&& method) { methods.push_back(method); }
-
-void JavaClass::addField(JavaVariable&& field) { fields.push_back(std::move(field)); }
-
-void JavaClass::addField(const JavaVariable& field) { fields.push_back(field); }
-
-void JavaClass::addField(std::vector<JavaVariable>&& newFields) {
-    fields.insert(fields.end(), std::move_iterator(newFields.begin()), std::move_iterator(newFields.end()));
-}
-
-void JavaClass::addField(const std::vector<JavaVariable>& newFields) {
-    fields.insert(fields.end(), newFields.begin(), newFields.end());
-}
-
-void JavaClass::constructFields() {
-    if (auto structSignature = dynamic_cast<StructSignature *>(typeNode)) {
-        for (auto& field : structSignature->structMembers) {
-            if (field->identifiers.size() == 1 && field->identifiers.front() == "") {
-                if (auto compositionType = dynamic_cast<IdentifierAsType *>(field->type) /* TODO check type existing in type scope */) {
-                    //TODO add composition
-                } else {
-                    // TODO exception 'syntax error: unexpected struct, expecting field name or embedded type'
-                }
-            }
-            for (auto& identifier : field->identifiers) {
-                if (auto identifierAsType = dynamic_cast<IdentifierAsType *>(field->type)) {
-                    addField(JavaVariable(identifier, new JavaType(identifierAsType->identifier))); // TODO можно не порождать для списка id постоянно тип, т.к. у них он один и тот же
-                } else if (auto arraySignatureType = dynamic_cast<ArraySignature *>(field->type)) {
-                    // TODO как-то хитро сделать
-                } else if (auto intefraceType = dynamic_cast<InterfaceType* >(field->type)) {
-                    // TODO interface type
-                }
-            }
-        }
-    } else if (auto identifierAsType = dynamic_cast<IdentifierAsType *>(typeNode)) {
-        auto identifier = identifierAsType->identifier;
-        // addField(classes[identifier].fields);    // предполагается, что поля у этого класса уже собраны
-                                                    // Хотя если делаем элиас на элиас, то они могут быть не собраны
-                                                    // (при том, что сначала собираем классы, потом элиасы)
-    } else if (auto interfaceType = dynamic_cast<InterfaceType *>(typeNode)) {
-        // TODO class - interface
+    } else if (auto typeAsId = dynamic_cast<IdentifierAsType*>(node)) {
+        this->type = builtInTypeFromString(typeAsId->identifier);
+        this->value = typeAsId->identifier;
     }
+};
+
+JavaType::JavaType(std::string id) {
+    this->type = builtInTypeFromString(id);
+    this->value = id;
+}
+
+bool JavaType::operator==(const JavaType& other) {
+    if (this->type == Unknown || other.type == Unknown) {
+        return false;
+    } else if (this->type == Array && other.type == Array) {
+        // TODO HERE
+        //std::get<>()
+        //return this->
+    }
+
+    return false;
+}
+
+std::string JavaType::toByteCode() const {
+    switch (type)
+    {
+    case BuiltInType::Array:
+        
+        break;
+    
+    default:
+        break;
+    }
+
+    return "";
 }

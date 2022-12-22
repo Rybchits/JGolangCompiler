@@ -51,6 +51,7 @@ class DotConvertVisitor : public Visitor {
     void onStartVisit(InterfaceType* node) override;
     void onStartVisit(CompositeLiteral* node) override;
     void onStartVisit(ElementCompositeLiteral* node) override;
+    void onStartVisit(ShortVarDeclarationStatement *node) override;
 
 public:
     explicit DotConvertVisitor(std::ostream &out) : out(out) {};

@@ -39,6 +39,7 @@ typedef std::list<FunctionDeclaration *> FunctionList;
 // Functions
 std::list<IdentifiersWithType *>* AttachIdentifiersToListTypes(TypeList& listTypes);
 TypeList* ListIdentifiersToListTypes(IdentifiersList& identifiers);
+IdentifiersList* IdentifiersListFromExpressions(ExpressionList& expressions);
 
 class NodeAST {
 private:
@@ -366,6 +367,19 @@ public:
     void acceptVisitor(Visitor* visitor) noexcept override;
     ExpressionStatement* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "ExprStmt"; }
+};
+
+
+class ShortVarDeclarationStatement : public StatementAST {
+public:
+    ExpressionList values;
+    IdentifiersList identifiers;
+
+    ShortVarDeclarationStatement(IdentifiersList& ids, ExpressionList& values): values(values), identifiers(ids) {};
+    
+    void acceptVisitor(Visitor* visitor) noexcept override;
+    ShortVarDeclarationStatement* clone() const noexcept override;
+    [[nodiscard]] std::string name() const noexcept override { return "Op :="; }
 };
 
 

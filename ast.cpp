@@ -47,6 +47,20 @@ std::list<IdentifiersWithType *> *AttachIdentifiersToListTypes(TypeList& listTyp
     return listIdentifiersWithType;
 }
 
+IdentifiersList* IdentifiersListFromExpressions(ExpressionList& expressions) {
+    auto identifiers = new IdentifiersList();
+
+    for (auto expr : expressions) {
+        if (auto expressionAsIdentifier = dynamic_cast<IdentifierAsExpression*>(expr)) {
+            identifiers->push_back(expressionAsIdentifier->identifier);
+        } else {
+            return nullptr;
+        }
+    }
+
+    return identifiers;
+}
+
 
 std::string UnaryExpression::name() const noexcept {
     switch (this->type) {
@@ -124,8 +138,6 @@ std::string AssignmentStatement::name() const noexcept {
             return "Op *=";
         case DivAssign:
             return "Op /=";
-        case ShortDeclaration:
-            return "Op :=";
     }
     return "AssignmentStmt";
 }
@@ -887,3 +899,30 @@ InterfaceType* InterfaceType::clone() const noexcept {
 
     return new InterfaceType(cloneFunctions);
 }
+
+
+void ShortVarDeclarationStatement::acceptVisitor(Visitor* visitor) noexcept {
+    visitor->onStartVisit(this);
+
+    for (auto expr : this->values) {
+        expr->acceptVisitor(visitor);
+    }
+
+    visitor->onFinishVisit(this);
+};
+
+ShortVarDeclarationStatement* ShortVarDeclarationStatement::clone() const noexcept {
+    ExpressionList cloneValues;
+
+    for (auto expr : this->values) {
+        cloneValues.push_back(expr->clone());
+    }
+
+    IdentifiersList cloneIdentifiers;
+
+    for (auto id : this->identifiers) {
+        cloneIdentifiers.push_back(id);
+    }
+
+    return new ShortVarDeclarationStatement(cloneIdentifiers, cloneValues);
+};

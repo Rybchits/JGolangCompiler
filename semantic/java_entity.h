@@ -2,14 +2,14 @@
 
 #include "../ast.h"
 
+#include <unordered_map>
 #include <string>
 #include <vector>
 #include <variant>
 
 class JavaType;
 class JavaVariable;
-class JavaMethod;
-class JavaClass;
+class JavaFunction;
 
 struct JavaArraySignature {
     int dims;
@@ -20,76 +20,49 @@ struct JavaArraySignature {
 
 class JavaType {
 public:
-    enum class BuiltInType {
+    enum BuiltInType {
         Int,
+        UndefinedInt,
         Float,
+        UndefinedFloat,
         Boolean,
         String,
         Array,
         UserType,
+        Unknown,
     } type;
-
-    JavaType(std::string typeAsId);
-    JavaType(JavaArraySignature array);
-
+    
+    JavaType(): type(BuiltInType::Unknown) {};
+    JavaType(TypeAST* node);
+    JavaType(std::string id);
     std::variant<std::string, JavaArraySignature> value;
-
+ 
     std::string toByteCode() const;
-};
 
-class JavaVariable {
+    bool operator==(const JavaType& other);
+
 private:
-    std::string id;
-    JavaType* type;
-
-public:
-    JavaVariable(std::string id, JavaType* type): id(id), type(type) {};
+    BuiltInType builtInTypeFromString(std::string id);
 };
 
 
-class JavaMethod {
+class JavaFunction {
 private:
     FunctionDeclaration* functionNode;
 
-    std::string receiverIdentifier;
-    JavaType* receiverType;
-
-    std::vector<JavaVariable> args;
+    int numberLocalVariables = 0;
     JavaType* returnType;
     BlockStatement* block;
 
 public:
-    JavaMethod(FunctionDeclaration* node): functionNode(node) {};
-
-    JavaMethod(FunctionDeclaration* node, std::string thisId, JavaType* className):
-        functionNode(node), receiverIdentifier(thisId), receiverType(className) {};
+    JavaFunction() = default;
+    JavaFunction(FunctionDeclaration* node): functionNode(node) {};
 };
 
 
 class JavaClass {
-public:
-    enum class TypeJavaClass {
-        Class,
-        Interface,
-        Alias,
-    };
+    std::unordered_map<std::string, JavaType> fields;
+    std::unordered_map<std::string, JavaFunction> methods;
 
-private:
-    TypeAST* typeNode;
-    TypeJavaClass typeJavaClass;
-
-    std::vector<JavaVariable> fields;
-    std::vector<JavaMethod> methods;
-
-public:
-    JavaClass() = default;
-    JavaClass(TypeAST* node);
-
-    void addMethod(JavaMethod&& method);
-    void addField(JavaVariable&& field);
-    void addField(const JavaVariable& field);
-    void addField(std::vector<JavaVariable>&& newFields);
-    void addField(const std::vector<JavaVariable>& field);
-
-    void constructFields();
+    std::unordered_map<size_t, std::string> constantTable;
 };

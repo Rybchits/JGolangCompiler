@@ -44,5 +44,4 @@ enum AssignmentEnum {
     ModAssign,          // %=
     MulAssign,          // *=
     DivAssign,          // /=
-    ShortDeclaration,   // :=
 };

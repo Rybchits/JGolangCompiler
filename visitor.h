@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ast.h"
+#include <string>
 
 class NodeAST;
 class PackageAST;
@@ -40,6 +41,7 @@ class InterfaceType;
 class CompositeLiteral;
 class ElementCompositeLiteral;
 class IntegerExpression;
+class ShortVarDeclarationStatement;
 
 class Visitor {
 public:
@@ -81,6 +83,7 @@ public:
     virtual void onStartVisit(CompositeLiteral* node) {};
     virtual void onStartVisit(ElementCompositeLiteral* node) {};
     virtual void onStartVisit(IntegerExpression* node) {};
+    virtual void onStartVisit(ShortVarDeclarationStatement* node) {};
 
     virtual void onFinishVisit(NodeAST* node) {};
     virtual void onFinishVisit(PackageAST* node) {};
@@ -120,6 +123,7 @@ public:
     virtual void onFinishVisit(CompositeLiteral* node) {};
     virtual void onFinishVisit(ElementCompositeLiteral* node) {};
     virtual void onFinishVisit(IntegerExpression* node) {};
+    virtual void onFinishVisit(ShortVarDeclarationStatement* node) {};
 
     virtual ~Visitor() = default;
 };
@@ -128,4 +132,7 @@ public:
 // thin/empty implementation
 // not inheriting std exceptions
 // and not inheritable
-struct ProcessingInterrupted final {};
+struct ProcessingInterrupted final {
+    std::string message;
+    ProcessingInterrupted(std::string mess): message(mess) {};
+};

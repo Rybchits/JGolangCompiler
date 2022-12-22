@@ -1,11 +1,8 @@
-#include "./transformation_visitor.h"
+#include "loops_visitor.h"
 
-std::string TreeTransformationVisitor::getNameCurrentClass() {
-    return "$class_" + currentFunctionName + std::to_string(indexClassInDeclaration++);
-}
+const std::string LoopsVisitor::indexPrivateVariableName = "$index";
 
-
-StatementList TreeTransformationVisitor::transformForToWhile(ForStatement *forStmt) {
+BlockStatement* LoopsVisitor::transformForToWhile(ForStatement *forStmt) {
     StatementList list;
 
     if (forStmt->initStatement != nullptr)
@@ -21,13 +18,33 @@ StatementList TreeTransformationVisitor::transformForToWhile(ForStatement *forSt
 
     list.push_back(whileLoop);
 
-    return list;
+    return new BlockStatement(list);
 }
 
 
-StatementList TreeTransformationVisitor::transformForRangeToWhile(ForRangeStatement *forRangeStmt) {
+// Перед каждым Continue добавить statement перехода
+StatementList LoopsVisitor::transformStatementsWithContinues(StatementList body) {
+    StatementList newBody;
+
+    for (auto stmt: body) {
+        auto keyword = dynamic_cast<KeywordStatement *>(stmt);
+
+        if (keyword && keyword->type == KeywordEnum::Continue) {
+
+            if (nextIterationsLoops.empty()) {
+                semantic->errors.push_back("Continue keyword out of loop");
+            } else if (nextIterationsLoops.top() != nullptr) {
+                newBody.push_back(nextIterationsLoops.top()->clone());
+            }
+        }
+
+        newBody.push_back(stmt);
+    }
+    return newBody;
+}
+
+BlockStatement* LoopsVisitor::transformForRangeToWhile(ForRangeStatement *forRangeStmt) {
     StatementList list;
-    std::string indexPrivateVariableName = "$index";
 
     auto indexDeclaration = new VariableDeclaration(
             new IdentifiersWithType(
@@ -113,95 +130,72 @@ StatementList TreeTransformationVisitor::transformForRangeToWhile(ForRangeStatem
                     new IdentifierAsExpression(indexPrivateVariableName))));
 
     list.push_back(new WhileStatement(condition, forRangeStmt->block));
-    return list;
+    return new BlockStatement(list);
 }
 
-void TreeTransformationVisitor::onFinishVisit(IdentifiersWithType *node) {
-    auto idType = dynamic_cast<IdentifierAsType *>(node->type);
-
-    if (idType->identifier == currentAliasTypeDecl) {
-        semantic->errors.push_back("Invalid recursive type " + currentAliasTypeDecl);
-    }
-
-    if (dynamic_cast<StructSignature *>(node->type) || dynamic_cast<InterfaceType *>(node->type)) {
-        std::string name = getNameCurrentClass();
-        classes[name] = JavaClass(node->type);
-        node->type = new IdentifierAsType(name);
-    }
-}
-
-void TreeTransformationVisitor::onFinishVisit(ArraySignature *node) {
-    if (dynamic_cast<StructSignature *>(node->arrayElementType) ||
-        dynamic_cast<InterfaceType *>(node->arrayElementType)) {
-        std::string name = getNameCurrentClass();
-        classes[name] = JavaClass(node->arrayElementType);
-        node->arrayElementType = new IdentifierAsType(name);
-    }
-}
-
-void TreeTransformationVisitor::onFinishVisit(CompositeLiteral *node) {
-    if (dynamic_cast<StructSignature *>(node->type) || dynamic_cast<InterfaceType *>(node->type)) {
-        std::string name = getNameCurrentClass();
-        classes[name] = JavaClass(node->type);
-        node->type = new IdentifierAsType(name);
-    }
-}
-
-void TreeTransformationVisitor::onFinishVisit(BlockStatement *node) {
+void LoopsVisitor::onFinishVisit(BlockStatement *node) {
     StatementList newBody;
 
     for (auto stmt: node->body) {
-        StatementList transformedLoop;
 
         if (auto forLoop = dynamic_cast<ForStatement *>(stmt)) {
-            transformedLoop = transformForToWhile(forLoop);
+            BlockStatement* transformedLoop = transformForToWhile(forLoop);
+            newBody.push_back(transformedLoop);
 
         } else if (auto forRangeLoop = dynamic_cast<ForRangeStatement *>(stmt)) {
-            transformedLoop = transformForRangeToWhile(forRangeLoop);
-
+            BlockStatement* transformedLoop = transformForRangeToWhile(forRangeLoop);
+            newBody.push_back(transformedLoop);
         } else {
             newBody.push_back(stmt);
-            continue;
         }
-
-        newBody.insert(newBody.end(), transformedLoop.begin(), transformedLoop.end());
     }
     node->body = newBody;
 }
 
-void TreeTransformationVisitor::onStartVisit(FunctionDeclaration* node) {
-    currentFunctionName = node->identifier;
-    indexClassInDeclaration = 0;
+
+void LoopsVisitor::onStartVisit(BlockStatement *node) {
+    node->body = transformStatementsWithContinues(node->body);
 }
 
-void TreeTransformationVisitor::onFinishVisit(FunctionDeclaration* node) {
-    currentFunctionName = "";
+void LoopsVisitor::onStartVisit(ForStatement* node) {
+    nextIterationsLoops.push(node->iterationStatement);
 }
 
-void TreeTransformationVisitor::onStartVisit(MethodDeclaration* node) {
-    currentFunctionName = node->receiverType->identifier + "_" + node->identifier;
-    indexClassInDeclaration = 0;
+void LoopsVisitor::onFinishVisit(ForStatement* node) {
+    nextIterationsLoops.pop();
 }
 
-void TreeTransformationVisitor::onStartVisit(TypeDeclaration* node) {
-    currentAliasTypeDecl = node->alias;
+void LoopsVisitor::onStartVisit(WhileStatement* node) {
+    nextIterationsLoops.push(nullptr);
 }
 
-void TreeTransformationVisitor::onFinishVisit(TypeDeclaration* node) {
-    currentAliasTypeDecl = "";
+void LoopsVisitor::onFinishVisit(WhileStatement* node) {
+    nextIterationsLoops.pop();
 }
 
-void TreeTransformationVisitor::onFinishVisit(MethodDeclaration* node) {
-    currentFunctionName = "";
+void LoopsVisitor::onStartVisit(ForRangeStatement* node) {
+    StatementAST* nextIteration = new ExpressionStatement(
+        new UnaryExpression(
+            UnaryExpressionEnum::Increment,
+            new IdentifierAsExpression(indexPrivateVariableName))
+        );
+    nextIterationsLoops.push(nextIteration);
 }
 
-std::unordered_map<std::string, JavaClass> TreeTransformationVisitor::transform(PackageAST* packageAst) {
+void LoopsVisitor::onFinishVisit(ForRangeStatement* node) {
+    nextIterationsLoops.pop();
+}
+
+void LoopsVisitor::transform(PackageAST* packageAst) {
     packageAst->acceptVisitor(this);
-    auto returnClassesMap = classes;
-    classes = std::unordered_map<std::string, JavaClass>();
-    return returnClassesMap;
 }
 
-void TreeTransformationVisitor::onStartVisit(ForStatement* node) {
-
+void LoopsVisitor::onStartVisit(SwitchCaseClause *node) {
+    node->statementsList = transformStatementsWithContinues(node->statementsList);
 }
+
+void LoopsVisitor::onStartVisit(SwitchStatement *node) {
+    node->defaultStatement = transformStatementsWithContinues(node->defaultStatement);
+}
+
+

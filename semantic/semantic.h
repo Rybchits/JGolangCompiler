@@ -1,7 +1,6 @@
 #pragma once
 
 #include "./java_entity.h"
-#include "./java_entity_visitor.h"
 #include "../ast.h"
 
 #include <vector>
@@ -9,6 +8,7 @@
 #include <iostream>
 
 class Semantic {
+    friend class TypeCheckVisitor;
 private:
     Semantic(PackageAST* package): root(package) {};
     static Semantic* instance;
@@ -16,15 +16,16 @@ private:
     Semantic(Semantic &other) = delete;
     void operator=(const Semantic &) = delete;
 
-    static const std::string GlobalClassName;
-    bool isGeneratedName(const std::string_view name);
-
     PackageAST* root;
-    std::unordered_map<std::string, JavaClass> classes = { {GlobalClassName, JavaClass(nullptr)} };
-    std::vector<JavaVariable> globals;
+    std::unordered_map<std::string, JavaFunction> functions;
+    std::unordered_map<std::string, JavaType> globalVariables;
 
     void analyzePackageScope();
     void transformRoot();
+    void analyzeTypesAndVariables();
+
+    static const std::string GlobalClassName;
+    bool isGeneratedName(const std::string_view name);
 
 public:
     static Semantic *GetInstance(PackageAST* package);

@@ -368,3 +368,16 @@ void DotConvertVisitor::onStartVisit(IntegerExpression *node) {
     out << MakeNode(node->nodeId, "Int: " + std::to_string(node->intLit));
 }
 
+void DotConvertVisitor::onStartVisit(ShortVarDeclarationStatement *node) {
+    std::string label = node->name() + "\n";
+
+    int index = 0;
+    for (const auto &id: node->identifiers) {
+        label += std::to_string(index++) + ": " + id + '\n';
+    }
+    out << MakeNode(node->nodeId, label);
+
+    for (const auto &exp: node->values) {
+        out << MakeConnection(node->nodeId, exp->nodeId);
+    }
+}

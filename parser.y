@@ -33,6 +33,7 @@
     ElementCompositeLiteral *elementCompositLiteral;
     SwitchCaseClause *switchCaseClause;
     FunctionSignature *functionSignature;
+    ShortVarDeclarationStatement *shortDeclaration;
     
     DeclarationList *declarationList;
     FunctionList *functionList;
@@ -63,8 +64,9 @@
 %type <varDecl> VariableSpec ConstSpec
 %type <typedIdentifiers> IdentifiersWithType VariadicNamedArgument
 %type <declarationNode> FunctionDecl MethodDecl TypeDef
-%type <statementNode> Statement SimpleStmt Assignment ShortVarDecl IncDecStmt ReturnStmt IfStmt ForStmt SwitchStmt
-%type <statementNode> SimpleStmtWithExprWrapCompositeObj SimpleStmtWithWrapCompositeObjOptional AssignmentWithWrapCompositeObj ShortVarDeclWithWrapCompositeObj IncDecStmtWithWrapCompositeObj
+%type <shortDeclaration> ShortVarDecl ShortVarDeclWithWrapCompositeObj
+%type <statementNode> Statement SimpleStmt Assignment IncDecStmt ReturnStmt IfStmt ForStmt SwitchStmt
+%type <statementNode> SimpleStmtWithExprWrapCompositeObj SimpleStmtWithWrapCompositeObjOptional AssignmentWithWrapCompositeObj IncDecStmtWithWrapCompositeObj
 %type <expressionNode> Expression ExprWithWrapCompositeObjOptional Operand BasicLiteral CompositeLiteral FunctionLiteral AccessExpression
 %type <expressionNode> OperandWithCompositeObj ObjectCompositeLit OperandWithWrapCompositeObj AccessExprWithWrapCompositeObj ExprWithWrapCompositeObj
 %type <typeNode> Type TypeOnly LiteralType StructType SliceDeclType ArrayDeclType FunctionType VariadicType InterfaceType
@@ -515,7 +517,14 @@
                 | ExprWithWrapCompositeObjList '=' ExprWithWrapCompositeObjList                             { $$ = new AssignmentStatement(AssignmentEnum::SimpleAssign, *$1, *$3); }
     ;
 
-    ShortVarDeclWithWrapCompositeObj: ExprWithWrapCompositeObjList SHORT_DECL_OP ExprWithWrapCompositeObjList       { $$ = new AssignmentStatement(AssignmentEnum::ShortDeclaration, *$1, *$3); }
+    ShortVarDeclWithWrapCompositeObj: ExprWithWrapCompositeObjList SHORT_DECL_OP ExprWithWrapCompositeObjList       {
+                                                                                                                        IdentifiersList* temp = IdentifiersListFromExpressions(*$1);
+                                                                                                                        if (temp == nullptr) {
+                                                                                                                            yyerror("Lhs of short declaration must contains only identifiers");
+                                                                                                                        } else { 
+                                                                                                                            $$ = new ShortVarDeclarationStatement(*temp, *$3);
+                                                                                                                        } 
+                                                                                                                    }
     ;
 
     IncDecStmtWithWrapCompositeObj: ExprWithWrapCompositeObj INCREMENT              { $$ = new ExpressionStatement(new UnaryExpression(UnaryExpressionEnum::Increment, $1)); }
@@ -536,7 +545,14 @@
                 | ExpressionList '=' ExpressionList                                 { $$ = new AssignmentStatement(AssignmentEnum::SimpleAssign, *$1, *$3); }
     ;
 
-    ShortVarDecl: ExpressionList SHORT_DECL_OP ExpressionList                       { $$ = new AssignmentStatement(AssignmentEnum::ShortDeclaration, *$1, *$3); }
+    ShortVarDecl: ExpressionList SHORT_DECL_OP ExpressionList                       {
+                                                                                        IdentifiersList* temp = IdentifiersListFromExpressions(*$1);
+                                                                                        if (temp == nullptr) {
+                                                                                            yyerror("Lhs of short declaration must contains only identifiers");
+                                                                                        } else {
+                                                                                            $$ = new ShortVarDeclarationStatement(*temp, *$3);
+                                                                                        } 
+                                                                                    }
     ;
 
     Statement: Declaration                                                          { $$ = new DeclarationStatement(*$1); }
