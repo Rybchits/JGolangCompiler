@@ -4,111 +4,225 @@
 
 bool TypeCheckVisitor::check(NodeAST* root) {
     std::cout << "Start type check" << std::endl;
-    scopes.push_back(std::unordered_map<std::string, JavaType>());
+    scopesVariables.push_back(std::unordered_map<std::string, JavaType*>());
     root->acceptVisitor(this);
     return true;
 }
 
 void TypeCheckVisitor::onStartVisit(BlockStatement* node) {
     if (!lastAddedScopeInFuncDecl) {
-        scopes.push_back(std::unordered_map<std::string, JavaType>());
+        scopesVariables.push_back(std::unordered_map<std::string, JavaType*>());
     }
     lastAddedScopeInFuncDecl = false;
 }
 
 void TypeCheckVisitor::onFinishVisit(BlockStatement* node) {
-    scopes.pop_back();
+    scopesVariables.pop_back();
 }
 
 void TypeCheckVisitor::onStartVisit(FunctionDeclaration* node) {
-    scopes.push_back(std::unordered_map<std::string, JavaType>());
+    scopesVariables.push_back(std::unordered_map<std::string, JavaType*>());
     lastAddedScopeInFuncDecl = true;
     
 }
 
 void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
-    // Добавить все объявленные переменные в таблицу скоупа
-    // Todo если нет явно указанного типа присвоить из values
-    for (auto id : node->identifiersWithType->identifiers) {
-        scopes.back()[id] = JavaType(node->identifiersWithType->type);
-        std::cout << id << ": index scope" << scopes.size() << std::endl;
+
+    if (node->identifiersWithType->identifiers.size() != node->values.size() && node->values.size() != 0) {
+        semantic->errors.push_back("Assignment count mismatch");
+
+    } else {
+        auto currentValue = node->values.begin();
+        for (auto id : node->identifiersWithType->identifiers) {
+            
+            if (node->identifiersWithType->type != nullptr) {
+                auto generalType = new JavaType(node->identifiersWithType->type);
+
+                // Compare types expressions with the declared type
+                if (node->values.size() != 0 && typesExpressions[(*currentValue)->nodeId]->equal(generalType))
+                    scopesVariables.back()[id] = generalType;
+
+                else
+                    semantic->errors.push_back("Assignment variable " + id + "must have equals types");
+
+                currentValue++;
+                
+            } else {
+                if (typesExpressions[(*currentValue)->nodeId]->type == JavaType::UntypedFloat) {
+                    scopesVariables.back()[id] = new JavaType(JavaType::Float);
+
+                } else if (typesExpressions[(*currentValue)->nodeId]->type == JavaType::UntypedInt) {
+                    scopesVariables.back()[id] = new JavaType(JavaType::Int);
+
+                } else {
+                    scopesVariables.back()[id] = typesExpressions[(*currentValue)->nodeId];
+                }
+            }
+            std::cout << id << ": index scope " << scopesVariables.size() << " " << scopesVariables.back()[id]->toByteCode() << std::endl;
+        }
     }
 }
 
 void TypeCheckVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
-    for (auto id : node->identifiers) {
-        scopes.back()[id] = JavaType();
-        std::cout << id << ": index scope" << scopes.size() << std::endl;
+    
+    if (node->identifiers.size() != node->values.size() && node->values.size() != 0) {
+        semantic->errors.push_back("Short variable declaration: assignment count mismatch");
+
+    } else {
+        auto currentValue = node->values.begin();
+
+        for (auto id : node->identifiers) {
+            if (typesExpressions[(*currentValue)->nodeId]->type == JavaType::UntypedFloat) {
+                scopesVariables.back()[id] = new JavaType(JavaType::Float);
+                    
+            } else if (typesExpressions[(*currentValue)->nodeId]->type == JavaType::UntypedInt) {
+                scopesVariables.back()[id] = new JavaType(JavaType::Int);
+
+            } else {
+                scopesVariables.back()[id] = typesExpressions[(*currentValue)->nodeId];
+            }
+
+            currentValue++;
+            std::cout << id << ": index scope " << scopesVariables.size() << " " << scopesVariables.back()[id]->toByteCode() << std::endl;
+        }
     }
 }
 
 void TypeCheckVisitor::onFinishVisit(IdentifierAsExpression* node) {
-    for (auto scope : scopes) {
+    for (auto scope : scopesVariables) {
         if (scope.count(node->identifier)) {
-            typesNode[node->nodeId] = scope[node->identifier];
+            typesExpressions[node->nodeId] = scope[node->identifier];
             return ;
         }
     }
-
-    typesNode[node->nodeId] = JavaType();
+    
+    semantic->errors.push_back("Undefined: " + node->identifier);
+    typesExpressions[node->nodeId] = new JavaType();
 }
 
 
 void TypeCheckVisitor::onFinishVisit(IntegerExpression* node) {
-    typesNode[node->nodeId] = JavaType("int");
+    typesExpressions[node->nodeId] = new JavaType(JavaType::UntypedInt);
 }
 
 void TypeCheckVisitor::onFinishVisit(BooleanExpression* node) {
-    typesNode[node->nodeId] = JavaType("bool");
+    typesExpressions[node->nodeId] = new JavaType(JavaType::Boolean);
 }
 
 void TypeCheckVisitor::onFinishVisit(FloatExpression* node) {
-    typesNode[node->nodeId] = JavaType("float64");
+    typesExpressions[node->nodeId] = new JavaType(JavaType::UntypedFloat);
 }
 
 void TypeCheckVisitor::onFinishVisit(StringExpression* node) {
-    typesNode[node->nodeId] = JavaType("string");
+    typesExpressions[node->nodeId] = new JavaType(JavaType::String);
 }
 
 void TypeCheckVisitor::onFinishVisit(RuneExpression* node) {
-    typesNode[node->nodeId] = JavaType("rune");
+    typesExpressions[node->nodeId] = new JavaType(JavaType::Rune);
 }
 
 void TypeCheckVisitor::onFinishVisit(NilExpression* node) {
-    typesNode[node->nodeId] = JavaType();
+    typesExpressions[node->nodeId] = new JavaType();
 }
 
 void TypeCheckVisitor::onFinishVisit(UnaryExpression* node) {
-    typesNode[node->nodeId] = typesNode[node->expression->nodeId];
+    if (typesExpressions[node->expression->nodeId]->type == JavaType::Invalid) {
+        typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
+        return ;
+    }
+
+    if (node->type == UnaryExpressionEnum::UnaryNot) {
+        if (typesExpressions[node->expression->nodeId]->type == JavaType::Boolean) {
+            typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
+        } else {
+            typesExpressions[node->nodeId] = new JavaType();
+            semantic->errors.push_back(node->name() + " must have boolean expression");
+        }
+
+    } else if (node->type == UnaryExpressionEnum::Variadic) {
+        if (typesExpressions[node->expression->nodeId]->type == JavaType::Array) {
+            typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
+        } else {
+            typesExpressions[node->nodeId] = new JavaType();
+            semantic->errors.push_back(node->name() + " must have array expression");
+        }
+
+    } else {
+        if (typesExpressions[node->expression->nodeId]->isNumeric()) {
+            typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
+        } else {
+            typesExpressions[node->nodeId] = new JavaType();
+            semantic->errors.push_back(node->name() + " must have numeric expression");
+        }
+    }
 }
 
 void TypeCheckVisitor::onFinishVisit(BinaryExpression* node) {
-    /*if (typesNode[node->lhs->nodeId] == typesNode[node->rhs->nodeId]) {
-        typesNode[node->nodeId] = typesNode[node->lhs->nodeId];
-    } else {
-        throw ProcessingInterrupted("Mismatched types in " + node->name());
-    }*/
+    if (typesExpressions[node->lhs->nodeId]->type == JavaType::Invalid) {
+        typesExpressions[node->nodeId] = typesExpressions[node->lhs->nodeId];
+        return ;
 
-    if (node->type == Addition || node->type == Subtraction  || node->type == Multiplication
-        || node->type == Division || node->type == Mod
-    ) {
+    } else if (typesExpressions[node->rhs->nodeId]->type == JavaType::Invalid) {
+        typesExpressions[node->nodeId] = typesExpressions[node->rhs->nodeId];
+        return ;
+    }
+
+    if (node->type == Addition || node->type == Subtraction || node->type == Multiplication || node->type == Division || node->type == Mod) {
+        if (typesExpressions[node->lhs->nodeId]->isNumeric() && typesExpressions[node->rhs->nodeId]->isNumeric()) {
+            typesExpressions[node->nodeId] = typesExpressions[node->lhs->nodeId]->determinePriorityType(typesExpressions[node->rhs->nodeId]);
+
+        } else {
+            typesExpressions[node->nodeId] = new JavaType();
+            semantic->errors.push_back(node->name() + " must have numeric expressions");
+        }
 
     } else if (node->type == Or || node->type == And) {
-
+        if (typesExpressions[node->lhs->nodeId]->type == JavaType::Boolean && typesExpressions[node->rhs->nodeId]->type == JavaType::Boolean) {
+            typesExpressions[node->nodeId] = typesExpressions[node->lhs->nodeId]->determinePriorityType(typesExpressions[node->rhs->nodeId]);
+        } else {
+            typesExpressions[node->nodeId] = new JavaType();
+            semantic->errors.push_back(node->name() + " must have boolean expressions");
+        }
     } else {
-
+        if (typesExpressions[node->lhs->nodeId]->equal(typesExpressions[node->rhs->nodeId]) 
+            && typesExpressions[node->lhs->nodeId]->type == JavaType::Array 
+            && typesExpressions[node->lhs->nodeId]->type != JavaType::UserType) {
+            typesExpressions[node->nodeId] = typesExpressions[node->lhs->nodeId]->determinePriorityType(typesExpressions[node->rhs->nodeId]);
+        } else {
+            typesExpressions[node->nodeId] = new JavaType();
+            semantic->errors.push_back(node->name() + " must have equals types expressions. Comparison of arrays and functions are'nt supported");
+        }
     }
 }
 
 void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
+    // TODO
+    // Проверить является ли название вызываемого exp встроенным типом
+        // Проверить передаваемый тип (он один)
+        // Вернуть 
 
+    // Если не является найти название функции в глобальном скоупе
+        // Проверить все передаваемые типы
+
+    // Если его там нет записать ошибку
+    typesExpressions[node->nodeId] = new JavaType();
 }
 
 void TypeCheckVisitor::onFinishVisit(AccessExpression* node) {
-
+    // TODO
+    // Получить тип дочернего элемента в indexing
+    typesExpressions[node->nodeId] = new JavaType();
 }
 
 void TypeCheckVisitor::onFinishVisit(CompositeLiteral* node) {
+    // TODO
+    // Пройти по всем элементам и проверить что их тип является дочерним типом
+    typesExpressions[node->nodeId] = new JavaType();
+}
 
+void TypeCheckVisitor::onFinishVisit(ElementCompositeLiteral* node) {
+    // TODO
+    // 
+    typesExpressions[node->nodeId] = new JavaType();
 }
 

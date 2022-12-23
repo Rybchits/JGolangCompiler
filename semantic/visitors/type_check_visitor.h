@@ -4,10 +4,11 @@
 class TypeCheckVisitor : public Visitor {
 private:
     Semantic* semantic;
-    std::vector<std::unordered_map<std::string, JavaType>> scopes;
-    std::unordered_map<size_t, JavaType> typesNode;
+    std::vector<std::unordered_map<std::string, JavaType*>> scopesVariables;
+    std::unordered_map<size_t, JavaType*> typesExpressions;
 
     bool lastAddedScopeInFuncDecl = false;
+    int numberLocalVariables = 0;
 
     void onStartVisit(BlockStatement* node);
     void onFinishVisit(BlockStatement* node);
@@ -28,6 +29,8 @@ private:
     void onFinishVisit(CallableExpression* node);
     void onFinishVisit(AccessExpression* node);
     void onFinishVisit(CompositeLiteral* node);
+    void onFinishVisit(ElementCompositeLiteral* node);
+
 
 public:
     explicit TypeCheckVisitor(Semantic* semantic): semantic(semantic) {};

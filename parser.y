@@ -234,13 +234,13 @@
                 | Parameters Result                                                 { $$ = new FunctionSignature(*$1, *$2); }
     ;
 
-    Result: '(' ')'                                                                 { $$ = new std::list<IdentifiersWithType *>(); }
-                | '(' NamedArgsList ')'                                             { $$ = $2; }
-                | '(' NamedArgsList ',' ')'                                         { $$ = $2; }
-                | '(' TypesWithIdentifiersList ')'                                  { $$ = AttachIdentifiersToListTypes(*$2); }
-                | '(' IdentifiersList ')'                                           { $$ = AttachIdentifiersToListTypes( *ListIdentifiersToListTypes(*$2) ); }
-                | '(' TypesWithIdentifiersList ',' ')'                              { $$ = AttachIdentifiersToListTypes(*$2); }
-                | '(' IdentifiersList ',' ')'                                       { $$ = AttachIdentifiersToListTypes( *ListIdentifiersToListTypes(*$2) ); }
+    Result: '(' ')'                                                                 { yyerror("Many returns are not supported yet"); }
+                | '(' NamedArgsList ')'                                             { yyerror("Many returns are not supported yet"); }
+                | '(' NamedArgsList ',' ')'                                         { yyerror("Many returns are not supported yet"); }
+                | '(' TypesWithIdentifiersList ')'                                  { yyerror("Many returns are not supported yet"); }
+                | '(' IdentifiersList ')'                                           { yyerror("Many returns are not supported yet"); }
+                | '(' TypesWithIdentifiersList ',' ')'                              { yyerror("Many returns are not supported yet"); }
+                | '(' IdentifiersList ',' ')'                                       { yyerror("Many returns are not supported yet"); }
 
                 | LiteralType                                                       { 
                                                                                         $$ = new std::list<IdentifiersWithType *>();

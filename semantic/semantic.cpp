@@ -20,7 +20,15 @@ bool Semantic::analyze() {
     }
 
     analyzePackageScope();
+
     analyzeTypesAndVariables();
+
+    if (!errors.empty()) {
+        for (auto err : errors) {
+            std::cout << err << std::endl;
+        }
+        return false;
+    }
 
     return true;
 }
@@ -38,7 +46,7 @@ void Semantic::analyzeTypesAndVariables() {
 void Semantic::analyzePackageScope() {
     for (auto decl : root->topDeclarations) {
         if (auto functionDeclaration = dynamic_cast<FunctionDeclaration*>(decl)) {
-            functions[functionDeclaration->identifier] = JavaFunction(functionDeclaration);
+            classes[GlobalClassName]->addMethod(functionDeclaration->identifier, new JavaFunction(functionDeclaration));
         }
     }
 }

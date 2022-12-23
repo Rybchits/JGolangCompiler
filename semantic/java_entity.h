@@ -11,58 +11,72 @@ class JavaType;
 class JavaVariable;
 class JavaFunction;
 
-struct JavaArraySignature {
+class JavaArraySignature {
+public:
     int dims;
     JavaType* type;
-
     JavaArraySignature(int dims, JavaType* javaType): dims(dims), type(javaType) {};
+    
+    bool equals(const JavaArraySignature* other);
 };
+
 
 class JavaType {
 public:
-    enum BuiltInType {
+    enum JavaTypeEnum {
         Int,
-        UndefinedInt,
+        UntypedInt,
         Float,
-        UndefinedFloat,
+        UntypedFloat,
         Boolean,
+        Rune,
         String,
         Array,
         UserType,
-        Unknown,
+        Invalid
     } type;
+
+    std::variant<std::string, JavaArraySignature*> value;
     
-    JavaType(): type(BuiltInType::Unknown) {};
+    JavaType(): type(Invalid) {};
+
     JavaType(TypeAST* node);
-    JavaType(std::string id);
-    std::variant<std::string, JavaArraySignature> value;
+    JavaType(JavaTypeEnum type): type(type) {};
  
     std::string toByteCode() const;
+    bool isNumeric();
 
-    bool operator==(const JavaType& other);
+    bool equal(const JavaType* other);
+    JavaType* determinePriorityType(const JavaType* other);
 
 private:
-    BuiltInType builtInTypeFromString(std::string id);
+    JavaTypeEnum builtInTypeFromString(std::string id);
 };
 
 
 class JavaFunction {
 private:
-    FunctionDeclaration* functionNode;
-
     int numberLocalVariables = 0;
+
+    std::unordered_map<std::string, JavaType*> arguments;
     JavaType* returnType;
-    BlockStatement* block;
+
+    BlockStatement* block;  // Содержится в узле functionNode. Мб излишне
 
 public:
     JavaFunction() = default;
-    JavaFunction(FunctionDeclaration* node): functionNode(node) {};
+    JavaFunction(FunctionDeclaration* node);
+
+    //std::vector<std::pair<, std::string>> toRowsConstantTable();
 };
 
 
 class JavaClass {
-    std::unordered_map<std::string, JavaType> fields;
-    std::unordered_map<std::string, JavaFunction> methods;
+    std::unordered_map<std::string, JavaType*> fields;
+    std::unordered_map<std::string, JavaFunction*> methods;
 
     std::unordered_map<size_t, std::string> constantTable;
+
+public:
+    void addMethod(std::string identifier, JavaFunction * method) { methods.emplace(identifier, method); }
 };

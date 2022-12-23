@@ -17,8 +17,7 @@ private:
     void operator=(const Semantic &) = delete;
 
     PackageAST* root;
-    std::unordered_map<std::string, JavaFunction> functions;
-    std::unordered_map<std::string, JavaType> globalVariables;
+    std::unordered_map<std::string, JavaClass*> classes = { { GlobalClassName, new JavaClass()} };
 
     void analyzePackageScope();
     void transformRoot();

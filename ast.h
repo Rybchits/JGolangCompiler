@@ -294,7 +294,7 @@ public:
 };
 
 
-class ElementCompositeLiteral : public NodeAST {
+class ElementCompositeLiteral : public ExpressionAST {
 public:
     ExpressionAST *key;
 
