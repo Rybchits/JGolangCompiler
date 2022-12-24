@@ -595,8 +595,6 @@ public:
     void acceptVisitor(Visitor* visitor) noexcept override;
     IdentifierAsType* clone() const noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "TypeIdentifier"; };
-
-    [[nodiscard]] bool isBuiltInType() const;
 };
 
 

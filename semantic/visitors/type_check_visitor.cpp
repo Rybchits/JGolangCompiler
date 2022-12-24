@@ -6,6 +6,11 @@ bool TypeCheckVisitor::check(NodeAST* root) {
     std::cout << "Start type check" << std::endl;
     scopesVariables.push_back(std::unordered_map<std::string, JavaType*>());
     root->acceptVisitor(this);
+
+    for (const auto & [ key, value ] : typesExpressions) {
+        std::cout << key << ": " << value->toByteCode() << std::endl;
+    }
+
     return true;
 }
 
@@ -34,6 +39,10 @@ void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
     } else {
         auto currentValue = node->values.begin();
         for (auto id : node->identifiersWithType->identifiers) {
+
+            if (JavaType::IsBuiltInType(id)) {
+                semantic->errors.push_back("Variable " + id + " collides with the 'builtin' type");
+            }
             
             if (node->identifiersWithType->type != nullptr) {
                 auto generalType = new JavaType(node->identifiersWithType->type);
@@ -72,6 +81,10 @@ void TypeCheckVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
         auto currentValue = node->values.begin();
 
         for (auto id : node->identifiers) {
+            if (JavaType::IsBuiltInType(id)) {
+                semantic->errors.push_back("Variable " + id + " collides with the 'builtin' type");
+            }
+
             if (typesExpressions[(*currentValue)->nodeId]->type == JavaType::UntypedFloat) {
                 scopesVariables.back()[id] = new JavaType(JavaType::Float);
                     
@@ -89,9 +102,11 @@ void TypeCheckVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
 }
 
 void TypeCheckVisitor::onFinishVisit(IdentifierAsExpression* node) {
-    for (auto scope : scopesVariables) {
-        if (scope.count(node->identifier)) {
-            typesExpressions[node->nodeId] = scope[node->identifier];
+
+    for (auto scope = scopesVariables.rbegin(); scope != scopesVariables.rend(); ++scope) {
+
+        if ((*scope).count(node->identifier)) {
+            typesExpressions[node->nodeId] = (*scope)[node->identifier];
             return ;
         }
     }
@@ -209,20 +224,57 @@ void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
 }
 
 void TypeCheckVisitor::onFinishVisit(AccessExpression* node) {
-    // TODO
-    // Получить тип дочернего элемента в indexing
+    if (node->type == AccessExpressionEnum::Indexing && typesExpressions[node->accessor->nodeId]->type == JavaType::Array) {
+        typesExpressions[node->nodeId] = std::get<JavaArraySignature*>(typesExpressions[node->accessor->nodeId]->value)->type;
+        return ;
+
+    } else if (node->type == AccessExpressionEnum::FieldSelect && typesExpressions[node->accessor->nodeId]->type == JavaType::UserType) {
+        // struct aren't supported yet
+    }
+
     typesExpressions[node->nodeId] = new JavaType();
 }
 
 void TypeCheckVisitor::onFinishVisit(CompositeLiteral* node) {
-    // TODO
-    // Пройти по всем элементам и проверить что их тип является дочерним типом
+    if (auto arrayType = dynamic_cast<ArraySignature*>(node->type)) {
+        auto declaredElementType = new JavaType(arrayType->arrayElementType);
+
+        int index = 0;
+        for (auto element : node->elements) {
+            std::cout << typesExpressions[element->nodeId]->toByteCode() << " " << declaredElementType->toByteCode() << " " << typesExpressions[element->nodeId]->equal(declaredElementType) << std::endl;
+            if (!typesExpressions[element->nodeId]->equal(declaredElementType)) {
+                semantic->errors
+                    .push_back("Array declarated type mismatch " + std::string("index ") + std::to_string(index));
+            }
+            index++;
+        }
+    }
+
     typesExpressions[node->nodeId] = new JavaType();
 }
 
 void TypeCheckVisitor::onFinishVisit(ElementCompositeLiteral* node) {
-    // TODO
-    // 
-    typesExpressions[node->nodeId] = new JavaType();
+
+    if (std::holds_alternative<ExpressionAST *>(node->value)) {
+        typesExpressions[node->nodeId] = typesExpressions[std::get<ExpressionAST*>(node->value)->nodeId];
+
+    } else if (std::holds_alternative<std::list<ElementCompositeLiteral *>>(node->value)) {
+        JavaType* tentativeElementType;
+
+        for (auto el : std::get<std::list<ElementCompositeLiteral *>>(node->value)) {
+            if (tentativeElementType == nullptr)
+                tentativeElementType = typesExpressions[el->nodeId];
+            else {
+                tentativeElementType = tentativeElementType->determinePriorityType(typesExpressions[el->nodeId]);
+            }
+        }
+
+        if (tentativeElementType->type == JavaType::Invalid) {
+            typesExpressions[node->nodeId] = tentativeElementType;
+
+        } else {
+            typesExpressions[node->nodeId] = new JavaType(new JavaArraySignature(tentativeElementType));
+        }
+    }
 }
 

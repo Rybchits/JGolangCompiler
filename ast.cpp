@@ -1,25 +1,6 @@
 #include "ast.h"
 
 /* -------------------------------- Types -------------------------------- */
-std::list<std::string> BuiltInTypes = {
-        "int",
-        "int8",
-        "int16",
-        "int32",
-        "int64",
-        "float32",
-        "float64",
-        "string",
-        "rune",
-        "bool"
-};
-
-
-[[nodiscard]] bool IdentifierAsType::isBuiltInType() const {
-    return std::find(BuiltInTypes.begin(), BuiltInTypes.end(), identifier) != BuiltInTypes.end();
-}
-
-
 TypeList* ListIdentifiersToListTypes(IdentifiersList& identifiers) {
     auto listTypes = new std::list<TypeAST *>;
 

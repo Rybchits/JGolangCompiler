@@ -1,6 +1,6 @@
 #pragma once
 
-#include "parser.hpp"
+#include "parser.tab.h"
 
 #include <string>
 #include <cstdio>

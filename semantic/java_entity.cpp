@@ -4,6 +4,24 @@ bool JavaArraySignature::equals(const JavaArraySignature* other) {
     return this->dims == other->dims && this->type == other->type;
 }
 
+std::list<std::string> JavaType::BuiltInTypes = {
+        "int",
+        "int8",
+        "int16",
+        "int32",
+        "int64",
+        "float32",
+        "float64",
+        "string",
+        "rune",
+        "bool"
+};
+
+
+bool JavaType::IsBuiltInType(std::string identifier) {
+    return std::find(BuiltInTypes.begin(), BuiltInTypes.end(), identifier) != BuiltInTypes.end();
+}
+
 JavaType::JavaTypeEnum JavaType::builtInTypeFromString(std::string id) {
 
     if (id == "int"   || id == "int16"  || id == "int32"  || id == "int64" || id == "rune")
@@ -23,6 +41,7 @@ JavaType::JavaTypeEnum JavaType::builtInTypeFromString(std::string id) {
 }
 
 bool JavaType::equal(const JavaType* other) {
+    
     if (this->type == Array && other->type == Array) {
         auto currentValue = std::get<JavaArraySignature*>(this->value);
         auto otherValue = std::get<JavaArraySignature*>(other->value);
@@ -33,16 +52,14 @@ bool JavaType::equal(const JavaType* other) {
         auto otherValue = std::get<std::string>(other->value);
         return currentValue == otherValue;
         
-    } else if ((type == UntypedInt && other->type == UntypedFloat)
-               || (type == UntypedFloat && other->type == UntypedInt)
-               || (type == Int && other->type == UntypedInt)
-               || (type == UntypedInt && other->type == Int)
-               || (type == UntypedFloat && other->type == Float)
-               || (type == Float || other->type == UntypedFloat)) {
-        return true;
-        
-    } else if (type == other->type) {
-        return true;
+    } else if ((this->type == UntypedInt && other->type == UntypedFloat)
+               || (this->type == UntypedFloat && other->type == UntypedInt)
+               || (this->type == Int && other->type == UntypedInt)
+               || (this->type == UntypedInt && other->type == Int)
+               || (this->type == UntypedFloat && other->type == Float)
+               || (this->type == Float || other->type == UntypedFloat)
+               || (this->type == other->type)) { 
+                return true;
     }
 
     return false;
@@ -64,7 +81,7 @@ JavaType* JavaType::determinePriorityType(const JavaType* other) {
             return this;
         }
     } else {
-        return nullptr;
+        return new JavaType();
     }
 }
 
@@ -87,11 +104,19 @@ std::string JavaType::toByteCode() const {
     if (type == Array)
         return "[" + std::get<JavaArraySignature*>(value)->type->toByteCode();
     
-    else if (type == Int || type == UntypedInt)
+    else if (type == Int)
         return "I";
+
+    else if (type == UntypedInt) {
+        return "UI";
+    }
     
-    else if (type == Float || type == UntypedFloat)
+    else if (type == Float)
         return "F";
+
+    else if (type == UntypedFloat) {
+        return "UF";
+    }
     
     else if (type == Boolean)
         return "Z";
@@ -102,7 +127,7 @@ std::string JavaType::toByteCode() const {
     else if (type == UserType)
         return std::get<std::string>(value);
         
-    return "";
+    return "Invalid";
 }
 
  JavaFunction::JavaFunction(FunctionDeclaration* node) : block(node->block) {

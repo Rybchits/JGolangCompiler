@@ -1,8 +1,8 @@
 #include "ast.h"
 #include "semantic/semantic.h"
+#include "./utils/io.hpp"
 
-#include "./utils/io.cpp"
-#include "parser.cpp"
+#include "parser.tab.c"
 
 #include <iostream>
 #include <filesystem>

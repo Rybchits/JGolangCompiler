@@ -16,6 +16,7 @@ public:
     int dims;
     JavaType* type;
     JavaArraySignature(int dims, JavaType* javaType): dims(dims), type(javaType) {};
+    JavaArraySignature(JavaType* javaType): dims(-1), type(javaType) {};
     
     bool equals(const JavaArraySignature* other);
 };
@@ -39,8 +40,8 @@ public:
     std::variant<std::string, JavaArraySignature*> value;
     
     JavaType(): type(Invalid) {};
-
     JavaType(TypeAST* node);
+    JavaType(JavaArraySignature* array): type(Array), value(array) {};
     JavaType(JavaTypeEnum type): type(type) {};
  
     std::string toByteCode() const;
@@ -48,6 +49,9 @@ public:
 
     bool equal(const JavaType* other);
     JavaType* determinePriorityType(const JavaType* other);
+
+    static bool IsBuiltInType(std::string);
+    static std::list<std::string> BuiltInTypes;
 
 private:
     JavaTypeEnum builtInTypeFromString(std::string id);

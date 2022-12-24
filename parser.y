@@ -1,6 +1,6 @@
 %{
     #include "ast.h"
-    #include "lexer.cpp"
+    #include "lex.yy.cc"
 
     yyFlexLexer* lexer;
     PackageAST *Root;
