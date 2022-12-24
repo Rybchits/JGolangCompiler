@@ -1,0 +1,91 @@
+{
+    "tasks": [
+        {
+            "label": "C/C++: build all",
+            "dependsOn": [
+                "C/C++: build parser",
+                "C/C++: build lexer",
+                "C/C++: build semantic"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+        },
+
+        {
+            "type": "cppbuild",
+            "label": "C/C++: build lexer",
+            "command": "/usr/bin/flex",
+            "args": [
+                "-o",
+                "./lexer.cpp",
+                "./lexer.lpp",
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+
+        {
+            "type": "cppbuild",
+            "label": "C/C++: build parser",
+            "command": "/usr/bin/bison",
+            "args": [
+                "-d",
+                "./parser.y",
+                "-o",
+                "./parser.cpp",
+                "-t",
+                "-v"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+
+        {
+            "type": "cppbuild",
+            "label": "C/C++: build semantic",
+            "command": "/usr/bin/g++",
+            "args": [
+                "-std=c++17",
+                "-g",
+                "./main.cpp",
+                "./ast.cpp",
+                "./semantic/visitors/loops_visitor.cpp",
+                "./semantic/semantic.cpp",
+                "./semantic/visitors/type_check_visitor.cpp",
+                "./semantic/java_entity.cpp",
+                "./utils/dot_visitor.cpp",
+                "-o",
+                "./parser.o"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        }
+    ],
+    "version": "2.0.0"
+}
