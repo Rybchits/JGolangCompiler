@@ -15,7 +15,6 @@ bool TypeCheckVisitor::checkGlobalClass(JavaClass* globalClass, std::list<Variab
     for (auto globalVarDecl : packageGlobalVariables) {
         globalVarDecl->acceptVisitor(this);
     }
-    globalClass->addFields(scopesDeclarations[0]);
 
     for (auto & [identifier, methodSignature] : globalClass->getMethods()) {
         scopesDeclarations.push_back(std::unordered_map<std::string, JavaType*>());
@@ -253,10 +252,13 @@ void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
             index++;
             argExprType++;
         }
+        
         typesExpressions[node->nodeId] = signature->returnType;
+        
         return ;
 
     } else if (baseType->type == JavaType::Invalid) {
+        typesExpressions[node->nodeId] = new JavaType();
         return ;
     }
 

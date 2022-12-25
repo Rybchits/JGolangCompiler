@@ -131,6 +131,9 @@ std::string JavaType::toByteCode() const {
     
     else if (type == Boolean)
         return "Z";
+
+    else if (type == Void)
+        return "V";
     
     else if (type == String)
         return "java/lang/String";
@@ -146,11 +149,7 @@ std::string JavaType::toByteCode() const {
             code += arg->toByteCode() + " ";
         }
 
-        if (func->returnType != nullptr) {
-            code += " return " + func->returnType->toByteCode();
-        } else {
-            code += " return " + std::string("V");
-        }
+        code += " return " + func->returnType->toByteCode();
 
         return code;
     }
@@ -168,7 +167,7 @@ JavaType* JavaFunction::toJavaType() {
     return new JavaType(new JavaFunctionSignature(args, this->returnType));
 }
 
- JavaFunction::JavaFunction(FunctionDeclaration* node) : block(node->block) {
+JavaFunction::JavaFunction(FunctionDeclaration* node) : block(node->block) {
     // fill with args
     for (auto identifiersWithType : node->signature->idsAndTypesArgs) {
         auto type = new JavaType(identifiersWithType->type);
@@ -177,9 +176,13 @@ JavaType* JavaFunction::toJavaType() {
         }
     }
 
-    // fill with return values
-    for (auto identifiersWithType : node->signature->idsAndTypesResults) {
-        auto type = new JavaType(identifiersWithType->type);
-        returnType = type;
+    if (node->signature->idsAndTypesResults.empty()) {
+        returnType = new JavaType(JavaType::Void);
+    } else {
+        // fill with return values
+        for (auto identifiersWithType : node->signature->idsAndTypesResults) {
+            auto type = new JavaType(identifiersWithType->type);
+            returnType = type;
+        }
     }
  }

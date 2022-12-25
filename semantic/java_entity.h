@@ -35,6 +35,7 @@ public:
 class JavaType {
 public:
     enum JavaTypeEnum {
+        Void,
         Int,
         UntypedInt,
         Float,
