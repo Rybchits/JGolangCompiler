@@ -2,16 +2,32 @@
 #include <unordered_map>
 #include <iostream>
 
-bool TypeCheckVisitor::check(NodeAST* root) {
+bool TypeCheckVisitor::checkGlobalClass(JavaClass* globalClass, std::list<VariableDeclaration*>& packageGlobalVariables) {
     std::cout << "____Start type check____" << std::endl;
     scopesDeclarations.push_back(std::unordered_map<std::string, JavaType*>());
 
-    // Added package function
-    for (auto function : semantic->classes[Semantic::GlobalClassName]->getMethods()) {
-        scopesDeclarations.back()[function.first] = function.second->toJavaType();
+    // Add package functions
+    for (auto & [identifier, methodSignature] : globalClass->getMethods()) {
+        scopesDeclarations.back().emplace(identifier, methodSignature->toJavaType());
     }
 
-    root->acceptVisitor(this);
+    // Add package variables
+    for (auto globalVarDecl : packageGlobalVariables) {
+        globalVarDecl->acceptVisitor(this);
+    }
+    globalClass->addFields(scopesDeclarations[0]);
+
+    for (auto & [identifier, methodSignature] : globalClass->getMethods()) {
+        scopesDeclarations.push_back(std::unordered_map<std::string, JavaType*>());
+
+        // Get arguments from current JavaFunction
+        for (auto arg : methodSignature->getArguments()) {
+            scopesDeclarations.back()[arg.first] = arg.second;
+        }
+
+        lastAddedScopeInFuncDecl = true;
+        methodSignature->getCodeBlock()->acceptVisitor(this);
+    }
 
     for (const auto & [ key, value ] : typesExpressions) {
         std::cout << key << ": " << value->toByteCode() << std::endl;
@@ -19,6 +35,7 @@ bool TypeCheckVisitor::check(NodeAST* root) {
 
     return true;
 }
+
 
 void TypeCheckVisitor::onStartVisit(BlockStatement* node) {
     if (!lastAddedScopeInFuncDecl) {
@@ -31,20 +48,6 @@ void TypeCheckVisitor::onFinishVisit(BlockStatement* node) {
     scopesDeclarations.pop_back();
 }
 
-void TypeCheckVisitor::onStartVisit(FunctionDeclaration* node) {
-    scopesDeclarations.push_back(std::unordered_map<std::string, JavaType*>());
-
-    // Get arguments from current JavaFunction
-    auto methods = semantic->classes[Semantic::GlobalClassName]->getMethods();
-    JavaFunction* currentFunction = methods[node->identifier];
-
-    for (auto arg : currentFunction->getArguments()) {
-        scopesDeclarations.back()[arg.first] = arg.second;
-    }
-
-    lastAddedScopeInFuncDecl = true;
-}
-
 void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
 
     if (node->identifiersWithType->identifiers.size() != node->values.size() && node->values.size() != 0) {
@@ -54,8 +57,14 @@ void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
         auto currentValue = node->values.begin();
         for (auto id : node->identifiersWithType->identifiers) {
 
+            if (!scopesDeclarations.back().count(id)) {
+                semantic->errors.push_back(id + " redeclared in this block");
+                continue;
+            }
+
             if (JavaType::IsBuiltInType(id)) {
                 semantic->errors.push_back("Variable " + id + " collides with the 'builtin' type");
+                continue;
             }
             
             if (node->identifiersWithType->type != nullptr) {
@@ -81,7 +90,6 @@ void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
                     scopesDeclarations.back()[id] = typesExpressions[(*currentValue)->nodeId];
                 }
             }
-            std::cout << id << ": index scope " << scopesDeclarations.size() << " " << scopesDeclarations.back()[id]->toByteCode() << std::endl;
         }
     }
 }
@@ -110,7 +118,6 @@ void TypeCheckVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
             }
 
             currentValue++;
-            std::cout << id << ": index scope " << scopesDeclarations.size() << " " << scopesDeclarations.back()[id]->toByteCode() << std::endl;
         }
     }
 }

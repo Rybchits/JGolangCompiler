@@ -86,6 +86,8 @@ public:
     JavaType* toJavaType();
     
     const std::unordered_map<std::string, JavaType*> getArguments() { return arguments; }
+    BlockStatement* getCodeBlock() { return block; }
+    
     //std::vector<std::pair<, std::string>> toRowsConstantTable();
 };
 
@@ -98,8 +100,19 @@ private:
     std::unordered_map<size_t, std::string> constantTable;
 
 public:
-    void addMethod(std::string identifier, JavaFunction * method) { methods.emplace(identifier, method); }
-    void addField(std::string identifier, JavaType* type) { fields.emplace(identifier, type); };
+    bool addMethod(std::string identifier, JavaFunction * method) { return methods.try_emplace(identifier, method).second; }
+    bool addField(std::string identifier, JavaType* type) { return fields.try_emplace(identifier, type).second; };
+    
+    bool addFields(std::unordered_map<std::string, JavaType*> & vars) { 
+        bool success = true;
+
+        for (auto & [identifier, type] : vars) {
+            success &= fields.try_emplace(identifier, type).second;
+        }
+
+        return success;
+    };
     
     const std::unordered_map<std::string, JavaFunction*> getMethods() { return methods; }; 
+    const std::unordered_map<std::string, JavaType*> getFields() { return fields; };
 };

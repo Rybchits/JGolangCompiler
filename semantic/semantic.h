@@ -19,6 +19,7 @@ private:
 
     PackageAST* root;
     std::unordered_map<std::string, JavaClass*> classes = { { GlobalClassName, new JavaClass()} };
+    std::list<VariableDeclaration*> packageVariables;
 
     void analyzePackageScope();
     void transformRoot();

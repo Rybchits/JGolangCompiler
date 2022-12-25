@@ -40,18 +40,19 @@ void Semantic::transformRoot() {
 
 void Semantic::analyzeTypesAndVariables() {
     auto typeVisitor = new TypeCheckVisitor(this);
-    typeVisitor->check(root);
+    typeVisitor->checkGlobalClass(classes[Semantic::GlobalClassName], packageVariables);
 }
 
 void Semantic::analyzePackageScope() {
+    // Collect all functions
     for (auto decl : root->topDeclarations) {
         if (auto functionDeclaration = dynamic_cast<FunctionDeclaration*>(decl)) {
-
-            if (classes[GlobalClassName]->getMethods().count(functionDeclaration->identifier)) {
-                errors.push_back( + "redeclared in this package");
-            } else {
-                classes[GlobalClassName]->addMethod(functionDeclaration->identifier, new JavaFunction(functionDeclaration));
+            
+            if (!classes[GlobalClassName]->addMethod(functionDeclaration->identifier, new JavaFunction(functionDeclaration))) {
+                errors.push_back(functionDeclaration->identifier + " redeclared in this block"); 
             }
+        } else if (auto variableDeclaration = dynamic_cast<VariableDeclaration*>(decl)) {
+            packageVariables.push_back(variableDeclaration);
         }
     }
 }

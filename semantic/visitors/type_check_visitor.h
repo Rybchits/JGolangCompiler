@@ -13,7 +13,6 @@ private:
     void onStartVisit(BlockStatement* node);
     void onFinishVisit(BlockStatement* node);
     
-    void onStartVisit(FunctionDeclaration* node);
     void onFinishVisit(VariableDeclaration* node);
     void onFinishVisit(ShortVarDeclarationStatement* node);
 
@@ -34,5 +33,5 @@ private:
 
 public:
     explicit TypeCheckVisitor(Semantic* semantic): semantic(semantic) {};
-    bool check(NodeAST* root);
+    bool checkGlobalClass(JavaClass* globalClass, std::list<VariableDeclaration*>& globalVariables);
 };
