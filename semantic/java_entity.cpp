@@ -1,8 +1,27 @@
 #include "java_entity.h"
 
-bool JavaArraySignature::equals(const JavaArraySignature* other) {
-    return this->dims == other->dims && this->type == other->type;
+bool JavaArraySignature::equals(const JavaArraySignature* other) const {
+    return this->dims == other->dims && this->type->equal(other->type);
 }
+
+bool JavaFunctionSignature::equals(const JavaFunctionSignature* other) const {
+    if (this->argsTypes.size() != other->argsTypes.size()) {
+        return false;
+    }
+
+    bool argsEquals = false;
+    std::list<JavaType*>::const_iterator it1 = this->argsTypes.begin();
+    std::list<JavaType*>::const_iterator it2 = other->argsTypes.begin();
+
+    while(it1 != this->argsTypes.end() && it2 != other->argsTypes.end() && argsEquals) {
+        argsEquals &= (*it1)->equal((*it2));
+        it1++;
+        it2++;
+    }
+
+    return argsEquals && this->returnType->equal(other->returnType);
+}
+
 
 std::list<std::string> JavaType::BuiltInTypes = {
         "int",
@@ -57,7 +76,7 @@ bool JavaType::equal(const JavaType* other) {
                || (this->type == Int && other->type == UntypedInt)
                || (this->type == UntypedInt && other->type == Int)
                || (this->type == UntypedFloat && other->type == Float)
-               || (this->type == Float || other->type == UntypedFloat)
+               || (this->type == Float && other->type == UntypedFloat)
                || (this->type == other->type)) { 
                 return true;
     }
@@ -102,21 +121,13 @@ bool JavaType::isNumeric() {
 
 std::string JavaType::toByteCode() const {
     if (type == Array)
-        return "[" + std::get<JavaArraySignature*>(value)->type->toByteCode();
+        return "[" + std::to_string(std::get<JavaArraySignature*>(value)->dims) + std::get<JavaArraySignature*>(value)->type->toByteCode();
     
-    else if (type == Int)
+    else if (type == Int || type == UntypedInt)
         return "I";
-
-    else if (type == UntypedInt) {
-        return "UI";
-    }
     
-    else if (type == Float)
+    else if (type == Float || type == UntypedFloat)
         return "F";
-
-    else if (type == UntypedFloat) {
-        return "UF";
-    }
     
     else if (type == Boolean)
         return "Z";
@@ -126,8 +137,35 @@ std::string JavaType::toByteCode() const {
     
     else if (type == UserType)
         return std::get<std::string>(value);
+
+    else if (type == Function) {
+        std::string code = "Fun ";
+
+        auto func = std::get<JavaFunctionSignature*>(value);
+        for (auto arg : func->argsTypes) {
+            code += arg->toByteCode() + " ";
+        }
+
+        if (func->returnType != nullptr) {
+            code += " return " + func->returnType->toByteCode();
+        } else {
+            code += " return " + std::string("V");
+        }
+
+        return code;
+    }
         
     return "Invalid";
+}
+
+JavaType* JavaFunction::toJavaType() {
+    std::list<JavaType*> args;
+
+    for (const auto &arg : this->arguments ) {
+       args.push_back(arg.second);
+    }
+
+    return new JavaType(new JavaFunctionSignature(args, this->returnType));
 }
 
  JavaFunction::JavaFunction(FunctionDeclaration* node) : block(node->block) {
@@ -143,8 +181,5 @@ std::string JavaType::toByteCode() const {
     for (auto identifiersWithType : node->signature->idsAndTypesResults) {
         auto type = new JavaType(identifiersWithType->type);
         returnType = type;
-        for (auto identifier : identifiersWithType->identifiers) {
-            // returnType
-        }
     }
  }

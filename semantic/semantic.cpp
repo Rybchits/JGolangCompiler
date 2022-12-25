@@ -46,7 +46,12 @@ void Semantic::analyzeTypesAndVariables() {
 void Semantic::analyzePackageScope() {
     for (auto decl : root->topDeclarations) {
         if (auto functionDeclaration = dynamic_cast<FunctionDeclaration*>(decl)) {
-            classes[GlobalClassName]->addMethod(functionDeclaration->identifier, new JavaFunction(functionDeclaration));
+
+            if (classes[GlobalClassName]->getMethods().count(functionDeclaration->identifier)) {
+                errors.push_back( + "redeclared in this package");
+            } else {
+                classes[GlobalClassName]->addMethod(functionDeclaration->identifier, new JavaFunction(functionDeclaration));
+            }
         }
     }
 }

@@ -4,7 +4,7 @@
 class TypeCheckVisitor : public Visitor {
 private:
     Semantic* semantic;
-    std::vector<std::unordered_map<std::string, JavaType*>> scopesVariables;
+    std::vector<std::unordered_map<std::string, JavaType*>> scopesDeclarations;
     std::unordered_map<size_t, JavaType*> typesExpressions;
 
     bool lastAddedScopeInFuncDecl = false;
