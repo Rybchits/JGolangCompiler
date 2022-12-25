@@ -6,8 +6,8 @@
             "type": "cppdbg",
             "request": "launch",
             "cwd": "${workspaceFolder}",
-            "program": "${workspaceFolder}/parser.o",   
-            "args": ["./tests/arrays/matrix_init.go"],
+            "program": "${workspaceFolder}/parser",   
+            "args": ["./tests/algorithms/bubble-sort.go"],
             "stopAtEntry": false,
             "environment": [],
             "externalConsole": false,
@@ -16,7 +16,7 @@
                 "type": "cppdbg",
                 "request": "launch",
                 "cwd": "${workspaceFolder}",
-                "program": "${workspaceFolder}/parser.o",
+                "program": "${workspaceFolder}/parser",
                 "MIMode": "gdb",
                 "miDebuggerPath": "/usr/bin/gdb"
             },
@@ -25,7 +25,7 @@
                 "type": "cppdbg",
                 "request": "launch",
                 "cwd": "${workspaceFolder}",
-                "program": "${workspaceFolder}/parser.o",
+                "program": "${workspaceFolder}/parser",
                 "MIMode": "lldb",
                 // TODO написать путь для линукса, если нужно
                 // "miDebuggerPath": ""

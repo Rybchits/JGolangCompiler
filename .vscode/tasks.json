@@ -18,8 +18,6 @@
             "label": "C/C++: build lexer",
             "command": "/usr/bin/flex",
             "args": [
-                "-o",
-                "./lexer.cpp",
                 "./lexer.lpp",
             ],
             "options": {
@@ -39,10 +37,8 @@
             "label": "C/C++: build parser",
             "command": "/usr/bin/bison",
             "args": [
-                "-d",
                 "./parser.y",
-                "-o",
-                "./parser.cpp",
+                "-d",
                 "-t",
                 "-v"
             ],
@@ -73,7 +69,7 @@
                 "./semantic/java_entity.cpp",
                 "./utils/dot_visitor.cpp",
                 "-o",
-                "./parser.o"
+                "./parser"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
