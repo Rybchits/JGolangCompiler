@@ -30,6 +30,7 @@ private:
 
 public:
     static Semantic *GetInstance(PackageAST* package);
+    static const std::unordered_map<std::string, JavaType*> BuiltInFunctions;
 
     bool analyze();
     std::vector<std::string> errors;

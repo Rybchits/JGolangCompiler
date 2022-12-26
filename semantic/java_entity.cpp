@@ -51,7 +51,7 @@ bool JavaType::isFloat() {
 
 JavaType::JavaTypeEnum JavaType::builtInTypeFromString(std::string id) {
 
-    if (id == "int"   || id == "int16"  || id == "int32"  || id == "int64" || id == "rune")
+    if (id == "int8" || id == "int" || id == "int16"  || id == "int32"  || id == "int64" || id == "rune")
         return JavaTypeEnum::Int;
 
     else if (id == "float32" || id == "float64")
@@ -85,6 +85,7 @@ bool JavaType::equal(const JavaType* other) {
                || (this->type == UntypedInt && other->type == Int)
                || (this->type == UntypedFloat && other->type == Float)
                || (this->type == Float && other->type == UntypedFloat)
+               || (this->type == Any || other->type == Any)
                || (this->type == other->type)) { 
                 return true;
     }
@@ -129,7 +130,7 @@ bool JavaType::isNumeric() {
 
 std::string JavaType::toByteCode() const {
     if (type == Array)
-        return "[" + std::to_string(std::get<JavaArraySignature*>(value)->dims) + std::get<JavaArraySignature*>(value)->type->toByteCode();
+        return "[" + std::get<JavaArraySignature*>(value)->type->toByteCode();
     
     else if (type == Int || type == UntypedInt)
         return "I";
@@ -144,20 +145,24 @@ std::string JavaType::toByteCode() const {
         return "V";
     
     else if (type == String)
-        return "java/lang/String";
+        return "java/lang/String;";
     
     else if (type == UserType)
         return std::get<std::string>(value);
 
+    else if (type == Any)
+        return "Ljava/lang/Object;";
+
     else if (type == Function) {
-        std::string code = "Fun";
+        std::string code = "(";
 
         auto func = std::get<JavaFunctionSignature*>(value);
         for (auto arg : func->argsTypes) {
-            code += " " + arg->toByteCode();
+            code += arg->toByteCode();
         }
 
-        code += " return " + func->returnType->toByteCode();
+        code += ")";
+        code += func->returnType->toByteCode();
 
         return code;
     }

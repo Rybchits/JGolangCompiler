@@ -35,6 +35,7 @@ public:
 class JavaType {
 public:
     enum JavaTypeEnum {
+        Any,    // for built in functions
         Void,
         Int,
         UntypedInt,
@@ -89,10 +90,11 @@ public:
     JavaType* toJavaType();
     
     const std::unordered_map<std::string, JavaType*> getArguments() { return arguments; }
-    BlockStatement* getCodeBlock() { return block; }
+    BlockStatement* getCodeBlock() const { return block; }
+    int getNumberLocalVariables() const;
+    JavaType* getReturnType() const { return returnType; };
     
     void setNumberLocalVariables(int number);
-    int getNumberLocalVariables() const;
 };
 
 

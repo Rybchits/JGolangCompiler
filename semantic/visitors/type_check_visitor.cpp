@@ -1,5 +1,6 @@
 #include "./type_check_visitor.h"
 #include <unordered_map>
+#include <map>
 #include <iostream>
 
 bool TypeCheckVisitor::checkGlobalClass(JavaClass* globalClass, std::list<VariableDeclaration*>& packageGlobalVariables) {
@@ -9,6 +10,11 @@ bool TypeCheckVisitor::checkGlobalClass(JavaClass* globalClass, std::list<Variab
     // Add package functions
     for (auto & [identifier, methodSignature] : globalClass->getMethods()) {
         scopesDeclarations.back().emplace(identifier, methodSignature->toJavaType());
+    }
+
+    // Add builtIn functions
+    for (auto & [identifier, functionSignature] : Semantic::BuiltInFunctions) {
+        scopesDeclarations.back().emplace(identifier, functionSignature);
     }
 
     // Add package variables
@@ -39,8 +45,11 @@ bool TypeCheckVisitor::checkGlobalClass(JavaClass* globalClass, std::list<Variab
         numberLocalVariables = 0;
     }
 
-    for (const auto & [ key, value ] : typesExpressions) {
-        std::cout << key << ": " << value->toByteCode() << std::endl;
+
+    std::map<size_t, JavaType*> ordered(typesExpressions.begin(), typesExpressions.end());
+
+    for(auto it = ordered.begin(); it != ordered.end(); ++it) {
+        std::cout << (*it).first << ": " << (*it).second->toByteCode() << std::endl;
     }
 
     return true;
@@ -82,11 +91,16 @@ void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
                 auto generalType = new JavaType(node->identifiersWithType->type);
 
                 // Compare types expressions with the declared type
-                if (node->values.size() != 0 && typesExpressions[(*currentValue)->nodeId]->equal(generalType))
-                    scopesDeclarations.back()[id] = generalType;
+                if (node->values.size() != 0 ) {
+                    if (typesExpressions[(*currentValue)->nodeId]->equal(generalType)) {
+                        scopesDeclarations.back()[id] = generalType;
 
-                else
-                    semantic->errors.push_back("Assignment variable " + id + " must have equals types");
+                    } else {
+                        semantic->errors.push_back("Assignment variable " + id + " must have equals types");
+                    }
+                } else {
+                    scopesDeclarations.back()[id] = generalType;
+                }
                 
             } else {
                 if (typesExpressions[(*currentValue)->nodeId]->type == JavaType::UntypedFloat) {
@@ -248,7 +262,43 @@ void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
 
     // Call declarated function
     JavaType* baseType = typesExpressions[node->base->nodeId];
-    if (baseType->type == JavaType::Function) {
+    auto appendBase = dynamic_cast<IdentifierAsExpression*>(node->base);
+
+    // TODO dirty hack
+    if (appendBase != nullptr && appendBase->identifier == "append") {
+
+        if (node->arguments.size() < 2) {
+            semantic->errors.push_back("Append function must take more than two arguments");
+            typesExpressions[node->nodeId] = new JavaType();
+            return;
+        }
+
+        int index = 0;
+        JavaType* arrayType = nullptr;
+        for (auto arg : node->arguments) {
+            if (index == 0) {
+                if (typesExpressions[arg->nodeId]->type == JavaType::Array) {
+                    arrayType = typesExpressions[arg->nodeId];
+                } else {
+                    semantic->errors.push_back("First agrument in 'append' must be array");
+                    typesExpressions[node->nodeId] = new JavaType();
+                    return;
+                }
+            } else {
+                JavaType* elementType = std::get<JavaArraySignature*>(arrayType->value)->type;
+                if (!elementType->equal(typesExpressions[arg->nodeId])) {
+                    semantic->errors.push_back("Agrument " + std::to_string(index) + " in 'append' must has element array type");
+                    typesExpressions[node->nodeId] = new JavaType();
+                    return;
+                }
+            }
+            index++;
+        }
+        
+        typesExpressions[node->nodeId] = arrayType;
+        return ;
+
+    } else if (baseType->type == JavaType::Function) {
 
         std::list<ExpressionAST*>::const_iterator argExprType = node->arguments.begin();
         auto signature = std::get<JavaFunctionSignature*>(baseType->value);
@@ -264,7 +314,6 @@ void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
         }
         
         typesExpressions[node->nodeId] = signature->returnType;
-        
         return ;
 
     } else if (baseType->type == JavaType::Invalid) {
@@ -406,5 +455,17 @@ void TypeCheckVisitor::onFinishVisit(AssignmentStatement* node) {
 
 void TypeCheckVisitor::onFinishVisit(ReturnStatement* node) {
 
+    if (node->returnValues.size() > 1) {
+        semantic->errors.push_back("'return' cannot take more than one value");
+
+    } else if (currentJavaFunction->getReturnType()->type != JavaType::Void && node->returnValues.empty()) {
+        semantic->errors.push_back("Missing return value");
+    }
+
+    for (auto value : node->returnValues) {
+        if (!currentJavaFunction->getReturnType()->equal(typesExpressions[value->nodeId])) {
+            semantic->errors.push_back("Cannot use this value for return");
+        }
+    }
 }
 
