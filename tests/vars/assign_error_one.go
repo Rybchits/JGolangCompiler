@@ -1,9 +1,10 @@
 package errors
 
-var int int = 0
+var b bool = false
 
 func main() {
-	var a = (1 + true)
+	var a, b = 1, false
+	b = a
 
 	print(a + 2)
 }

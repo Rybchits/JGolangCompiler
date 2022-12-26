@@ -142,11 +142,11 @@ std::string JavaType::toByteCode() const {
         return std::get<std::string>(value);
 
     else if (type == Function) {
-        std::string code = "Fun ";
+        std::string code = "Fun";
 
         auto func = std::get<JavaFunctionSignature*>(value);
         for (auto arg : func->argsTypes) {
-            code += arg->toByteCode() + " ";
+            code += " " + arg->toByteCode();
         }
 
         code += " return " + func->returnType->toByteCode();
@@ -186,3 +186,13 @@ JavaFunction::JavaFunction(FunctionDeclaration* node) : block(node->block) {
         }
     }
  }
+
+ bool JavaClass::addFields(std::unordered_map<std::string, JavaType*> & vars) { 
+        bool success = true;
+
+        for (auto & [identifier, type] : vars) {
+            success &= fields.try_emplace(identifier, type).second;
+        }
+
+        return success;
+    };

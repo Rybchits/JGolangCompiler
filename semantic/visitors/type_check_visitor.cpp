@@ -14,6 +14,10 @@ bool TypeCheckVisitor::checkGlobalClass(JavaClass* globalClass, std::list<Variab
     // Add package variables
     for (auto globalVarDecl : packageGlobalVariables) {
         globalVarDecl->acceptVisitor(this);
+
+        for (auto identifier : globalVarDecl->identifiersWithType->identifiers) {
+            globalClass->addField(identifier, scopesDeclarations[0][identifier]);
+        }
     }
 
     for (auto & [identifier, methodSignature] : globalClass->getMethods()) {
@@ -56,7 +60,7 @@ void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
         auto currentValue = node->values.begin();
         for (auto id : node->identifiersWithType->identifiers) {
 
-            if (!scopesDeclarations.back().count(id)) {
+            if (scopesDeclarations.back().count(id)) {
                 semantic->errors.push_back(id + " redeclared in this block");
                 continue;
             }
@@ -74,9 +78,7 @@ void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
                     scopesDeclarations.back()[id] = generalType;
 
                 else
-                    semantic->errors.push_back("Assignment variable " + id + "must have equals types");
-
-                currentValue++;
+                    semantic->errors.push_back("Assignment variable " + id + " must have equals types");
                 
             } else {
                 if (typesExpressions[(*currentValue)->nodeId]->type == JavaType::UntypedFloat) {
@@ -89,6 +91,8 @@ void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
                     scopesDeclarations.back()[id] = typesExpressions[(*currentValue)->nodeId];
                 }
             }
+
+            currentValue++;
         }
     }
 }
@@ -213,7 +217,7 @@ void TypeCheckVisitor::onFinishVisit(BinaryExpression* node) {
 
     } else if (node->type == Or || node->type == And) {
         if (typesExpressions[node->lhs->nodeId]->type == JavaType::Boolean && typesExpressions[node->rhs->nodeId]->type == JavaType::Boolean) {
-            typesExpressions[node->nodeId] = typesExpressions[node->lhs->nodeId]->determinePriorityType(typesExpressions[node->rhs->nodeId]);
+            typesExpressions[node->nodeId] = new JavaType(JavaType::Boolean);
         } else {
             typesExpressions[node->nodeId] = new JavaType();
             semantic->errors.push_back(node->name() + " must have boolean expressions");
@@ -222,7 +226,7 @@ void TypeCheckVisitor::onFinishVisit(BinaryExpression* node) {
         if (typesExpressions[node->lhs->nodeId]->equal(typesExpressions[node->rhs->nodeId]) 
             && typesExpressions[node->lhs->nodeId]->type != JavaType::Array 
             && typesExpressions[node->lhs->nodeId]->type != JavaType::UserType) {
-            typesExpressions[node->nodeId] = typesExpressions[node->lhs->nodeId]->determinePriorityType(typesExpressions[node->rhs->nodeId]);
+            typesExpressions[node->nodeId] = new JavaType(JavaType::Boolean);
         } else {
             typesExpressions[node->nodeId] = new JavaType();
             semantic->errors.push_back(node->name() + " must have equals types expressions. Comparison of arrays and functions are'nt supported");
@@ -231,10 +235,6 @@ void TypeCheckVisitor::onFinishVisit(BinaryExpression* node) {
 }
 
 void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
-    // TODO
-    // Проверить является ли название вызываемого exp встроенным типом
-        // Проверить передаваемый тип (он один)
-        // Вернуть 
 
     // Call declarated function
     JavaType* baseType = typesExpressions[node->base->nodeId];
@@ -289,7 +289,6 @@ void TypeCheckVisitor::onFinishVisit(CompositeLiteral* node) {
                     .push_back("Array declarated type mismatch " + std::string("index ") + std::to_string(index));
 
                 typesExpressions[node->nodeId] = new JavaType();
-                return;
             }
             index++;
         }
@@ -321,5 +320,69 @@ void TypeCheckVisitor::onFinishVisit(ElementCompositeLiteral* node) {
             typesExpressions[node->nodeId] = new JavaType(new JavaArraySignature(tentativeElementType));
         }
     }
+}
+
+void TypeCheckVisitor::onFinishVisit(AssignmentStatement* node) {
+    if (node->type == AssignmentEnum::SimpleAssign) {
+        if (node->lhs.size() != node->rhs.size()) {
+            semantic->errors.push_back(
+                "Assignment count mismatch " + std::to_string(node->lhs.size()) + " and " + std::to_string(node->rhs.size()));
+        } else {
+            
+            int index = 0;
+            ExpressionList::iterator indexIterator = node->indexes.begin();
+            ExpressionList::iterator valueIterator = node->rhs.begin();
+            ExpressionList::iterator idIterator = node->lhs.begin();
+
+            while (indexIterator != node->indexes.end() && idIterator != node->lhs.end() ) {
+                
+                if ((*indexIterator) == nullptr 
+                        && !typesExpressions[(*idIterator)->nodeId]->equal(typesExpressions[(*valueIterator)->nodeId])) {
+                    semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented"));
+
+                } else if ((*indexIterator) != nullptr && typesExpressions[(*idIterator)->nodeId]->type == JavaType::Array) {
+                    JavaType* typeElement = std::get<JavaArraySignature*>(typesExpressions[(*idIterator)->nodeId]->value)->type;
+
+                    if (!typeElement->equal(typesExpressions[(*valueIterator)->nodeId])) {
+                        semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented"));
+                    }
+                }
+
+                index++;
+                indexIterator++;
+                valueIterator++;
+                idIterator++;
+            }
+        }
+
+    } else {
+
+        if (node->lhs.size() != 1) {
+            semantic->errors.push_back("Unexpected " + node->name() + " expecting ':=', '=', or ','");
+
+        } else if (node->lhs.size() != 1) {
+            semantic->errors.push_back(
+                "Assignment count mismatch " + std::to_string(node->lhs.size()) + " and " + std::to_string(node->rhs.size()));
+
+        } else {
+            auto index = node->indexes.begin();
+            auto id = node->lhs.begin();
+            auto value = node->rhs.begin();
+
+            if ((*index) == nullptr && (!typesExpressions[(*value)->nodeId]->isNumeric() || !typesExpressions[(*id)->nodeId]->isNumeric())) {
+                semantic->errors.push_back("Lhs and rhs in " + node->name() + " must be numeric");
+
+            } else if ((*index) != nullptr && typesExpressions[(*id)->nodeId]->type == JavaType::Array) {
+                JavaType* elementType = std::get<JavaArraySignature*>(typesExpressions[(*id)->nodeId]->value)->type;
+                if (!elementType->isNumeric() || !typesExpressions[(*value)->nodeId]->isNumeric()) {
+                    semantic->errors.push_back("Lhs and rhs in " + node->name() + " must be numeric");
+                }
+            }
+        }
+    }
+}
+
+void TypeCheckVisitor::onFinishVisit(ReturnStatement* node) {
+
 }
 

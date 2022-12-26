@@ -7,6 +7,7 @@ private:
     std::vector<std::unordered_map<std::string, JavaType*>> scopesDeclarations;
     std::unordered_map<size_t, JavaType*> typesExpressions;
 
+    JavaFunction* currentJavaFunction;
     bool lastAddedScopeInFuncDecl = false;
     int numberLocalVariables = 0;
 
@@ -15,6 +16,8 @@ private:
     
     void onFinishVisit(VariableDeclaration* node);
     void onFinishVisit(ShortVarDeclarationStatement* node);
+    void onFinishVisit(AssignmentStatement* node);
+    void onFinishVisit(ReturnStatement* node);
 
     void onFinishVisit(IdentifierAsExpression* node);
     void onFinishVisit(IntegerExpression* node);
