@@ -21,15 +21,22 @@ bool TypeCheckVisitor::checkGlobalClass(JavaClass* globalClass, std::list<Variab
     }
 
     for (auto & [identifier, methodSignature] : globalClass->getMethods()) {
+        currentJavaFunction = methodSignature;
+
         scopesDeclarations.push_back(std::unordered_map<std::string, JavaType*>());
 
         // Get arguments from current JavaFunction
         for (auto arg : methodSignature->getArguments()) {
             scopesDeclarations.back()[arg.first] = arg.second;
+            numberLocalVariables++;
         }
 
         lastAddedScopeInFuncDecl = true;
         methodSignature->getCodeBlock()->acceptVisitor(this);
+
+
+        methodSignature->setNumberLocalVariables(numberLocalVariables);
+        numberLocalVariables = 0;
     }
 
     for (const auto & [ key, value ] : typesExpressions) {
@@ -59,6 +66,7 @@ void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
     } else {
         auto currentValue = node->values.begin();
         for (auto id : node->identifiersWithType->identifiers) {
+            numberLocalVariables++;
 
             if (scopesDeclarations.back().count(id)) {
                 semantic->errors.push_back(id + " redeclared in this block");
@@ -106,6 +114,8 @@ void TypeCheckVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
         auto currentValue = node->values.begin();
 
         for (auto id : node->identifiers) {
+            numberLocalVariables++;
+
             if (JavaType::IsBuiltInType(id)) {
                 semantic->errors.push_back("Variable " + id + " collides with the 'builtin' type");
             }
@@ -267,9 +277,18 @@ void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
 }
 
 void TypeCheckVisitor::onFinishVisit(AccessExpression* node) {
-    if (node->type == AccessExpressionEnum::Indexing && typesExpressions[node->accessor->nodeId]->type == JavaType::Array) {
-        typesExpressions[node->nodeId] = std::get<JavaArraySignature*>(typesExpressions[node->accessor->nodeId]->value)->type;
-        return ;
+    if (node->type == AccessExpressionEnum::Indexing) {
+        if (typesExpressions[node->base->nodeId]->type != JavaType::Array) {
+            semantic->errors.push_back("Base for indexing must be array");
+
+        } else if (!typesExpressions[node->accessor->nodeId]->isInteger()) {
+            semantic->errors.push_back("Index must be integer value");
+
+        } else {
+            typesExpressions[node->nodeId] = std::get<JavaArraySignature*>(typesExpressions[node->base->nodeId]->value)->type;
+            return ;
+        }
+        typesExpressions[node->nodeId] = new JavaType();
 
     } else if (node->type == AccessExpressionEnum::FieldSelect && typesExpressions[node->accessor->nodeId]->type == JavaType::UserType) {
         // struct aren't supported yet
@@ -345,6 +364,9 @@ void TypeCheckVisitor::onFinishVisit(AssignmentStatement* node) {
 
                     if (!typeElement->equal(typesExpressions[(*valueIterator)->nodeId])) {
                         semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented"));
+
+                    } else if (!typesExpressions[(*indexIterator)->nodeId]->isInteger()) {
+                        semantic->errors.push_back("Index must be integer value");
                     }
                 }
 

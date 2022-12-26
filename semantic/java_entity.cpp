@@ -41,6 +41,14 @@ bool JavaType::IsBuiltInType(std::string identifier) {
     return std::find(BuiltInTypes.begin(), BuiltInTypes.end(), identifier) != BuiltInTypes.end();
 }
 
+bool JavaType::isInteger() {
+    return this->type == JavaTypeEnum::Int || this->type == JavaTypeEnum::UntypedInt;
+}
+
+bool JavaType::isFloat() {
+    return this->type == JavaTypeEnum::Float || this->type == JavaTypeEnum::UntypedFloat;
+}
+
 JavaType::JavaTypeEnum JavaType::builtInTypeFromString(std::string id) {
 
     if (id == "int"   || id == "int16"  || id == "int32"  || id == "int64" || id == "rune")
@@ -196,3 +204,12 @@ JavaFunction::JavaFunction(FunctionDeclaration* node) : block(node->block) {
 
         return success;
     };
+
+
+void JavaFunction::setNumberLocalVariables(int number) {
+    numberLocalVariables = number;
+}
+
+int JavaFunction::getNumberLocalVariables() const {
+    return numberLocalVariables;
+}

@@ -59,6 +59,8 @@ public:
  
     std::string toByteCode() const;
     bool isNumeric();
+    bool isInteger();
+    bool isFloat();
 
     bool equal(const JavaType* other);
     JavaType* determinePriorityType(const JavaType* other);
@@ -89,7 +91,8 @@ public:
     const std::unordered_map<std::string, JavaType*> getArguments() { return arguments; }
     BlockStatement* getCodeBlock() { return block; }
     
-    //std::vector<std::pair<, std::string>> toRowsConstantTable();
+    void setNumberLocalVariables(int number);
+    int getNumberLocalVariables() const;
 };
 
 
@@ -103,7 +106,7 @@ public:
     bool addField(std::string identifier, JavaType* type) { return fields.try_emplace(identifier, type).second; };
     bool addFields(std::unordered_map<std::string, JavaType*> & vars);
     
-    const std::unordered_map<std::string, JavaFunction*> getMethods() { return methods; }; 
-    const std::unordered_map<std::string, JavaType*> getFields() { return fields; };
+    const std::unordered_map<std::string, JavaFunction*>& getMethods() { return methods; }; 
+    const std::unordered_map<std::string, JavaType*>& getFields() { return fields; };
 
 };

@@ -12,7 +12,7 @@ func main() {
 		}
 
 		for j := 0; j < 3; j++ {
-			m1[i][j] = i * j * return1()
+			m1[1.2][1] = i * j * return1()
 			continue
 		}
 
