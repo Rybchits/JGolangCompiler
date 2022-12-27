@@ -19,6 +19,8 @@ private:
     void onFinishVisit(ShortVarDeclarationStatement* node);
     void onFinishVisit(AssignmentStatement* node);
     void onFinishVisit(ReturnStatement* node);
+    void onFinishVisit(WhileStatement* node);
+    void onFinishVisit(IfStatement* node);
 
     void onFinishVisit(IdentifierAsExpression* node);
     void onFinishVisit(IntegerExpression* node);

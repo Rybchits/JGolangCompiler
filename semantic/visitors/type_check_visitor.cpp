@@ -443,7 +443,11 @@ void TypeCheckVisitor::onFinishVisit(AssignmentStatement* node) {
 
                 if ((*scope).count(idVariable->identifier)) {
                     variable = (*scope)[idVariable->identifier];
-                    (*scope)[idVariable->identifier]->numberUsage--;
+
+                    if (node->type == AssignmentEnum::SimpleAssign) {
+                        (*scope)[idVariable->identifier]->numberUsage--;
+                    }
+                    
                     break;
                 }
             }
@@ -556,3 +560,14 @@ void TypeCheckVisitor::onStartVisit(ExpressionStatement* node) {
     semantic->errors.push_back(node->expression->name() + " expression not available for statement");
 }
 
+void TypeCheckVisitor::onFinishVisit(WhileStatement* node) {
+    if (typesExpressions[node->conditionExpression->nodeId]->type != TypeEntity::Boolean) {
+        semantic->errors.push_back("The non-bool value used as a condition");
+    }
+}
+
+void TypeCheckVisitor::onFinishVisit(IfStatement* node) {
+    if (typesExpressions[node->condition->nodeId]->type != TypeEntity::Boolean) {
+        semantic->errors.push_back("The non-bool value used as a condition");
+    }
+}

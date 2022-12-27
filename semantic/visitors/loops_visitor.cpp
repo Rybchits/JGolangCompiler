@@ -21,6 +21,36 @@ BlockStatement* LoopsVisitor::transformForToWhile(ForStatement *forStmt) {
     return new BlockStatement(list);
 }
 
+StatementAST* LoopsVisitor::transformIfStatement(IfStatement* ifStmt) {
+    if (ifStmt->preStatement) {
+        StatementList newStatement;
+
+        newStatement.push_back(ifStmt->preStatement);
+        ifStmt->preStatement = nullptr;
+        newStatement.push_back(ifStmt);
+
+        return new BlockStatement(newStatement);
+
+    } else {
+        return ifStmt;
+    }
+}
+
+StatementAST* LoopsVisitor::transformSwitchStament(SwitchStatement* switchStmt) {
+    if (switchStmt->statement) {
+        StatementList newStatement;
+
+        newStatement.push_back(switchStmt->statement);
+        switchStmt->statement = nullptr;
+        newStatement.push_back(switchStmt);
+        
+        return new BlockStatement(newStatement);
+
+    } else {
+        return switchStmt;
+    }
+}
+
 
 // Перед каждым Continue добавить statement перехода
 StatementList LoopsVisitor::transformStatementsWithContinues(StatementList body) {
@@ -133,10 +163,10 @@ BlockStatement* LoopsVisitor::transformForRangeToWhile(ForRangeStatement *forRan
     return new BlockStatement(list);
 }
 
-void LoopsVisitor::onFinishVisit(BlockStatement *node) {
+StatementList LoopsVisitor::transformStatements(StatementList& list) {
     StatementList newBody;
 
-    for (auto stmt: node->body) {
+    for (auto stmt : list) {
 
         if (auto forLoop = dynamic_cast<ForStatement *>(stmt)) {
             BlockStatement* transformedLoop = transformForToWhile(forLoop);
@@ -145,13 +175,29 @@ void LoopsVisitor::onFinishVisit(BlockStatement *node) {
         } else if (auto forRangeLoop = dynamic_cast<ForRangeStatement *>(stmt)) {
             BlockStatement* transformedLoop = transformForRangeToWhile(forRangeLoop);
             newBody.push_back(transformedLoop);
+
+        } else if (auto ifStatement = dynamic_cast<IfStatement*>(stmt)) {
+            newBody.push_back(transformIfStatement(ifStatement));
+
+        } else if (auto switchStatement = dynamic_cast<SwitchStatement*>(stmt)) {
+            newBody.push_back(transformSwitchStament(switchStatement));
+
         } else {
             newBody.push_back(stmt);
         }
     }
-    node->body = newBody;
+    return newBody;
 }
 
+void LoopsVisitor::onFinishVisit(BlockStatement *node) {
+    node->body = transformStatements(node->body);
+}
+
+void LoopsVisitor::onFinishVisit(IfStatement* node) {
+    if (auto ifStatement = dynamic_cast<IfStatement*>(node->elseStatement)) {
+        node->elseStatement = transformIfStatement(ifStatement);
+    }
+}
 
 void LoopsVisitor::onStartVisit(BlockStatement *node) {
     node->body = transformStatementsWithContinues(node->body);
@@ -196,6 +242,14 @@ void LoopsVisitor::onStartVisit(SwitchCaseClause *node) {
 
 void LoopsVisitor::onStartVisit(SwitchStatement *node) {
     node->defaultStatement = transformStatementsWithContinues(node->defaultStatement);
+}
+
+void LoopsVisitor::onFinishVisit(SwitchCaseClause* node) {
+    node->statementsList = transformStatements(node->statementsList);
+}
+
+void LoopsVisitor::onFinishVisit(SwitchStatement* node) {
+    node->defaultStatement = transformStatements(node->defaultStatement);
 }
 
 
