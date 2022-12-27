@@ -5,13 +5,12 @@
 
 ClassEntity* TypeCheckVisitor::createGlobalClass(std::list<FunctionDeclaration*> functions, std::list<VariableDeclaration*>& variables) {
     // Add started scope
-    scopesDeclarations.push_back(std::unordered_map<std::string, TypeEntity*>());
+    scopesDeclarations.push_back(std::unordered_map<std::string, VariableEntity*>());
     auto packageClass = new ClassEntity();
 
-    // TODO create class
     // Add builtIn functions
     for (auto & [identifier, functionSignature] : Semantic::BuiltInFunctions) {
-        scopesDeclarations.back().emplace(identifier, functionSignature);
+        scopesDeclarations.back().emplace(identifier, new VariableEntity(functionSignature));
     }
 
     // Add package functions
@@ -20,7 +19,7 @@ ClassEntity* TypeCheckVisitor::createGlobalClass(std::list<FunctionDeclaration*>
         if (!packageClass->addMethod(function->identifier, method)) {
             semantic->errors.push_back("Function " + function->identifier + " already declarated");
         } else {
-            scopesDeclarations.back().emplace(function->identifier, method->toTypeEntity());
+            scopesDeclarations.back().emplace(function->identifier, new VariableEntity(method->toTypeEntity()));
         }
     }
 
@@ -37,7 +36,7 @@ ClassEntity* TypeCheckVisitor::createGlobalClass(std::list<FunctionDeclaration*>
                 expressionsIter++;
             }
 
-            auto field = new FieldEntity(scopesDeclarations[0][identifier], expressionNode);
+            auto field = new FieldEntity(scopesDeclarations[0][identifier]->type, expressionNode);
 
             if (!packageClass->addField(identifier, field)) {
                 semantic->errors.push_back("Variable " + identifier + " already declarated");
@@ -48,11 +47,11 @@ ClassEntity* TypeCheckVisitor::createGlobalClass(std::list<FunctionDeclaration*>
     for (auto & [identifier, methodSignature] : packageClass->getMethods()) {
         currentMethodEntity = methodSignature;
 
-        scopesDeclarations.push_back(std::unordered_map<std::string, TypeEntity*>());
+        scopesDeclarations.push_back(std::unordered_map<std::string, VariableEntity*>());
 
         // Get arguments from current MethodEntity
-        for (auto & arg : methodSignature->getArguments()) {
-            scopesDeclarations.back().insert(arg);
+        for (auto & [id, type] : methodSignature->getArguments()) {
+            scopesDeclarations.back().insert({id, new VariableEntity(type)});
             numberLocalVariables++;
         }
 
@@ -77,12 +76,18 @@ ClassEntity* TypeCheckVisitor::createGlobalClass(std::list<FunctionDeclaration*>
 
 void TypeCheckVisitor::onStartVisit(BlockStatement* node) {
     if (!lastAddedScopeInFuncDecl) {
-        scopesDeclarations.push_back(std::unordered_map<std::string, TypeEntity*>());
+        scopesDeclarations.push_back(std::unordered_map<std::string, VariableEntity*>());
     }
     lastAddedScopeInFuncDecl = false;
 }
 
 void TypeCheckVisitor::onFinishVisit(BlockStatement* node) {
+    for (auto & [id, var] : scopesDeclarations.back()) {
+        if (var->numberUsage == 0) {
+            semantic->errors.push_back("Unused variable " + id);
+        }
+    }
+
     scopesDeclarations.pop_back();
 }
 
@@ -112,24 +117,27 @@ void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
                 // Compare types expressions with the declared type
                 if (node->values.size() != 0 ) {
                     if (typesExpressions[(*currentValue)->nodeId]->equal(generalType)) {
-                        scopesDeclarations.back()[id] = generalType;
+                        scopesDeclarations.back()[id] = new VariableEntity(generalType, node->isConst);
 
                     } else {
                         semantic->errors.push_back("Assignment variable " + id + " must have equals types");
                     }
                 } else {
-                    scopesDeclarations.back()[id] = generalType;
+                    scopesDeclarations.back()[id] = new VariableEntity(generalType, node->isConst);
                 }
                 
             } else {
-                if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedFloat) {
-                    scopesDeclarations.back()[id] = new TypeEntity(TypeEntity::Float);
+                if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::Array && node->isConst) {
+                    semantic->errors.push_back("Go does not support constant arrays, maps or slices");
+
+                } else if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedFloat) {
+                    scopesDeclarations.back()[id] = new VariableEntity(new TypeEntity(TypeEntity::Float), node->isConst);
 
                 } else if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedInt) {
-                    scopesDeclarations.back()[id] = new TypeEntity(TypeEntity::Int);
+                    scopesDeclarations.back()[id] = new VariableEntity(new TypeEntity(TypeEntity::Int), node->isConst);
 
                 } else {
-                    scopesDeclarations.back()[id] = typesExpressions[(*currentValue)->nodeId];
+                    scopesDeclarations.back()[id] = new VariableEntity(typesExpressions[(*currentValue)->nodeId], node->isConst);
                 }
             }
 
@@ -154,13 +162,13 @@ void TypeCheckVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
             }
 
             if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedFloat) {
-                scopesDeclarations.back()[id] = new TypeEntity(TypeEntity::Float);
+                scopesDeclarations.back()[id] = new VariableEntity(new TypeEntity(TypeEntity::Float));
                     
             } else if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedInt) {
-                scopesDeclarations.back()[id] = new TypeEntity(TypeEntity::Int);
+                scopesDeclarations.back()[id] = new VariableEntity(new TypeEntity(TypeEntity::Int));
 
             } else {
-                scopesDeclarations.back()[id] = typesExpressions[(*currentValue)->nodeId];
+                scopesDeclarations.back()[id] = new VariableEntity(typesExpressions[(*currentValue)->nodeId]);
             }
 
             currentValue++;
@@ -170,10 +178,12 @@ void TypeCheckVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
 
 void TypeCheckVisitor::onFinishVisit(IdentifierAsExpression* node) {
 
+    // TODO create context class
     for (auto scope = scopesDeclarations.rbegin(); scope != scopesDeclarations.rend(); ++scope) {
 
         if ((*scope).count(node->identifier)) {
-            typesExpressions[node->nodeId] = (*scope)[node->identifier];
+            typesExpressions[node->nodeId] = (*scope)[node->identifier]->type;
+            (*scope)[node->identifier]->use();
             return ;
         }
     }
@@ -423,6 +433,30 @@ void TypeCheckVisitor::onFinishVisit(ElementCompositeLiteral* node) {
 
 
 void TypeCheckVisitor::onFinishVisit(AssignmentStatement* node) {
+    
+    // Check const variables
+    for (auto var : node->lhs) {
+        if (auto idVariable = dynamic_cast<IdentifierAsExpression*>(var)) {
+                    
+            VariableEntity* variable = nullptr;
+            for (auto scope = scopesDeclarations.rbegin(); scope != scopesDeclarations.rend(); ++scope) {
+
+                if ((*scope).count(idVariable->identifier)) {
+                    variable = (*scope)[idVariable->identifier];
+                    (*scope)[idVariable->identifier]->numberUsage--;
+                    break;
+                }
+            }
+
+            // TODO check right const expressions
+            if (variable != nullptr && variable->isConst) {
+                semantic->errors.push_back("Cannot assign to " + idVariable->identifier);
+            }
+        } else if (dynamic_cast<AccessExpression*>(var) == nullptr) {
+            semantic->errors.push_back("Cannot assign to " + var->name());
+        }
+    }
+
     if (node->type == AssignmentEnum::SimpleAssign) {
 
         if (node->lhs.size() != node->rhs.size()) {
@@ -436,7 +470,7 @@ void TypeCheckVisitor::onFinishVisit(AssignmentStatement* node) {
             ExpressionList::iterator valueIterator = node->rhs.begin();
             ExpressionList::iterator idIterator = node->lhs.begin();
 
-            while (indexIterator == node->indexes.end() || idIterator == node->lhs.end() || valueIterator == node->rhs.end()) {
+            while (indexIterator != node->indexes.end() && idIterator != node->lhs.end() && valueIterator != node->rhs.end()) {
 
                 if ((*indexIterator) == nullptr 
                         && !typesExpressions[(*idIterator)->nodeId]->equal(typesExpressions[(*valueIterator)->nodeId])) {
@@ -519,6 +553,6 @@ void TypeCheckVisitor::onStartVisit(ExpressionStatement* node) {
         }
     }
     
-    semantic->errors.push_back(node->name() + " expression not available for statement");
+    semantic->errors.push_back(node->expression->name() + " expression not available for statement");
 }
 

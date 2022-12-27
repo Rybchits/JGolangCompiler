@@ -121,3 +121,14 @@ public:
     const std::unordered_map<std::string, FieldEntity*>& getFields() { return fields; };
 
 };
+
+
+class VariableEntity{
+public:
+    TypeEntity* type;
+    bool isConst;
+    int numberUsage = 0;
+
+    VariableEntity(TypeEntity* type, bool isConst = false): type(type), isConst(isConst) {};
+    void use() { numberUsage++; };
+};

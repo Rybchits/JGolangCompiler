@@ -4,7 +4,7 @@
 class TypeCheckVisitor : public Visitor {
 private:
     Semantic* semantic;
-    std::vector<std::unordered_map<std::string, TypeEntity*>> scopesDeclarations;
+    std::vector<std::unordered_map<std::string, VariableEntity*>> scopesDeclarations;
     std::unordered_map<size_t, TypeEntity*> typesExpressions;
 
     MethodEntity* currentMethodEntity;

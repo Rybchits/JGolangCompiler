@@ -328,7 +328,7 @@
                 | ConstSpecMoreTwo SCs ConstSpec                                    { $$ = $1; $$ -> push_back($3); }
     ;
 
-    ConstSpec: IdentifiersWithType '=' ExpressionList                               { $$ = new VariableDeclaration($1, *$3, true); }
+    ConstSpec: IdentifiersList IDENTIFIER '=' ExpressionList                        { $$ = new VariableDeclaration(new IdentifiersWithType(*$1, new IdentifierAsType($2)), *$4, true); }
                 | IdentifiersList '=' ExpressionList                                { $$ = new VariableDeclaration(new IdentifiersWithType(*$1, nullptr), *$3, true); }
     ;
 
