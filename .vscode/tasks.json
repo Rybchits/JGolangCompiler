@@ -67,7 +67,10 @@
                 "./semantic/semantic.cpp",
                 "./semantic/visitors/type_check_visitor.cpp",
                 "./semantic/entities.cpp",
+                "./semantic/built_in_functions.cpp",
                 "./utils/dot_visitor.cpp",
+                "./codegen/constant.cpp",
+                "./codegen/codegen.cpp",
                 "-o",
                 "./parser"
             ],
