@@ -168,25 +168,31 @@ void TypeCheckVisitor::onFinishVisit(IntegerExpression* node) {
     typesExpressions[node->nodeId] = new JavaType(JavaType::UntypedInt);
 }
 
+
 void TypeCheckVisitor::onFinishVisit(BooleanExpression* node) {
     typesExpressions[node->nodeId] = new JavaType(JavaType::Boolean);
 }
+
 
 void TypeCheckVisitor::onFinishVisit(FloatExpression* node) {
     typesExpressions[node->nodeId] = new JavaType(JavaType::UntypedFloat);
 }
 
+
 void TypeCheckVisitor::onFinishVisit(StringExpression* node) {
     typesExpressions[node->nodeId] = new JavaType(JavaType::String);
 }
+
 
 void TypeCheckVisitor::onFinishVisit(RuneExpression* node) {
     typesExpressions[node->nodeId] = new JavaType(JavaType::Rune);
 }
 
+
 void TypeCheckVisitor::onFinishVisit(NilExpression* node) {
     typesExpressions[node->nodeId] = new JavaType();
 }
+
 
 void TypeCheckVisitor::onFinishVisit(UnaryExpression* node) {
     if (typesExpressions[node->expression->nodeId]->type == JavaType::Invalid) {
@@ -219,6 +225,7 @@ void TypeCheckVisitor::onFinishVisit(UnaryExpression* node) {
         }
     }
 }
+
 
 void TypeCheckVisitor::onFinishVisit(BinaryExpression* node) {
     if (typesExpressions[node->lhs->nodeId]->type == JavaType::Invalid) {
@@ -257,6 +264,7 @@ void TypeCheckVisitor::onFinishVisit(BinaryExpression* node) {
         }
     }
 }
+
 
 void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
 
@@ -306,6 +314,7 @@ void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
         int index = 0;
         for (auto argType : signature->argsTypes) {
             if (!argType->equal(typesExpressions[(*argExprType)->nodeId])) {
+                typesExpressions[node->nodeId] = new JavaType();
                 semantic->errors.push_back("Cannot use expression index " + std::to_string(index) + " in argument");
                 return;
             }
@@ -324,6 +333,7 @@ void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
     semantic->errors.push_back("Cannot call non-function");
     typesExpressions[node->nodeId] = new JavaType();
 }
+
 
 void TypeCheckVisitor::onFinishVisit(AccessExpression* node) {
     if (node->type == AccessExpressionEnum::Indexing) {
@@ -346,6 +356,7 @@ void TypeCheckVisitor::onFinishVisit(AccessExpression* node) {
     typesExpressions[node->nodeId] = new JavaType();
 }
 
+
 void TypeCheckVisitor::onFinishVisit(CompositeLiteral* node) {
     if (auto arrayType = dynamic_cast<ArraySignature*>(node->type)) {
         auto declaredElementType = new JavaType(arrayType->arrayElementType);
@@ -364,6 +375,7 @@ void TypeCheckVisitor::onFinishVisit(CompositeLiteral* node) {
         typesExpressions[node->nodeId] = new JavaType(arrayType);
     }
 }
+
 
 void TypeCheckVisitor::onFinishVisit(ElementCompositeLiteral* node) {
 
@@ -390,11 +402,14 @@ void TypeCheckVisitor::onFinishVisit(ElementCompositeLiteral* node) {
     }
 }
 
+
 void TypeCheckVisitor::onFinishVisit(AssignmentStatement* node) {
     if (node->type == AssignmentEnum::SimpleAssign) {
+
         if (node->lhs.size() != node->rhs.size()) {
             semantic->errors.push_back(
                 "Assignment count mismatch " + std::to_string(node->lhs.size()) + " and " + std::to_string(node->rhs.size()));
+
         } else {
             
             int index = 0;
@@ -402,8 +417,8 @@ void TypeCheckVisitor::onFinishVisit(AssignmentStatement* node) {
             ExpressionList::iterator valueIterator = node->rhs.begin();
             ExpressionList::iterator idIterator = node->lhs.begin();
 
-            while (indexIterator != node->indexes.end() && idIterator != node->lhs.end() ) {
-                
+            while (indexIterator == node->indexes.end() || idIterator == node->lhs.end() || valueIterator == node->rhs.end()) {
+
                 if ((*indexIterator) == nullptr 
                         && !typesExpressions[(*idIterator)->nodeId]->equal(typesExpressions[(*valueIterator)->nodeId])) {
                     semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented"));
@@ -467,5 +482,24 @@ void TypeCheckVisitor::onFinishVisit(ReturnStatement* node) {
             semantic->errors.push_back("Cannot use this value for return");
         }
     }
+}
+
+
+void TypeCheckVisitor::onStartVisit(ExpressionStatement* node) {
+    // Increment and decrement can be statements
+    if (auto unaryExpression = dynamic_cast<UnaryExpression*>(node->expression)) {
+        if (unaryExpression->type == UnaryExpressionEnum::Decrement || unaryExpression->type == UnaryExpressionEnum::Increment) {
+            return;
+        }
+        
+    } else if (auto functionCall = dynamic_cast<CallableExpression*>(node->expression)) {
+        // With the exception of specific built-in functions and conversions, callable expressions can appear in statement context.
+        if ( auto identifiedBase = dynamic_cast<IdentifierAsExpression*>(functionCall->base)) {
+            if (identifiedBase->identifier != "append" && identifiedBase->identifier != "len" && !JavaType::IsBuiltInType(identifiedBase->identifier))
+            return;
+        }
+    }
+    
+    semantic->errors.push_back(node->name() + " expression not available for statement");
 }
 

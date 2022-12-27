@@ -14,6 +14,7 @@ private:
     void onStartVisit(BlockStatement* node);
     void onFinishVisit(BlockStatement* node);
     
+    void onStartVisit(ExpressionStatement* node);
     void onFinishVisit(VariableDeclaration* node);
     void onFinishVisit(ShortVarDeclarationStatement* node);
     void onFinishVisit(AssignmentStatement* node);

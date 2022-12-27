@@ -11,6 +11,7 @@ class FunctionDeclaration;
 class MethodDeclaration;
 class IdentifierAsExpression;
 class BooleanExpression;
+class IntegerExpression;
 class FloatExpression;
 class StringExpression;
 class RuneExpression;
@@ -40,7 +41,6 @@ class IdentifierAsType;
 class InterfaceType;
 class CompositeLiteral;
 class ElementCompositeLiteral;
-class IntegerExpression;
 class ShortVarDeclarationStatement;
 
 class Visitor {

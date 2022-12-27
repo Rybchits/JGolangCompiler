@@ -2,12 +2,7 @@ package main
 
 func createBool() bool {
 	i := 12
-	if true {
-		return true
-	} else {
-		return false
-	}
-	i = (12*i)/2 + 0
+	return
 }
 
 func main() {

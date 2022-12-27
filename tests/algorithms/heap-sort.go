@@ -1,7 +1,7 @@
 package main
 
 func sift(arr []int, i int, arrLen int) []int {
-	done := false
+	/*done := false
 
 	tmp := 0
 	maxChild := 0
@@ -23,7 +23,7 @@ func sift(arr []int, i int, arrLen int) []int {
 		} else {
 			done = true
 		}
-	}
+	}*/
 
 	return arr
 }
@@ -42,6 +42,7 @@ func HeapSort(arr []int) {
 		arr[i] = tmp
 		arr = sift(arr, 0, i)
 	}
+	arr = sift(arr, 0, i)
 }
 
 func main() {

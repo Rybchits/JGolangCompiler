@@ -98,9 +98,11 @@ public:
 };
 
 
+// 
 class JavaClass {
 private:
-    std::unordered_map<std::string, JavaType*> fields;
+    // 
+    std::unordered_map<std::string, JavaType*> fields;  // javafield хранить expression если он был инициализрован
     std::unordered_map<std::string, JavaFunction*> methods;
 
 public:
