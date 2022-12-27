@@ -20,8 +20,8 @@ bool Semantic::analyze() {
     }
 
     analyzePackageScope();
-
-    analyzeTypesAndVariables();
+    
+    createGlobalClass();
 
     if (!errors.empty()) {
         for (auto err : errors) {
@@ -38,19 +38,17 @@ void Semantic::transformRoot() {
     loopVisitor->transform(root);
 }
 
-void Semantic::analyzeTypesAndVariables() {
+void Semantic::createGlobalClass() {
     auto typeVisitor = new TypeCheckVisitor(this);
-    typeVisitor->checkGlobalClass(classes[Semantic::GlobalClassName], packageVariables);
+    packageClass = typeVisitor->createGlobalClass(packageFunctions, packageVariables);
 }
 
 void Semantic::analyzePackageScope() {
     // Collect all functions
     for (auto decl : root->topDeclarations) {
         if (auto functionDeclaration = dynamic_cast<FunctionDeclaration*>(decl)) {
+            packageFunctions.push_back(functionDeclaration);
             
-            if (!classes[GlobalClassName]->addMethod(functionDeclaration->identifier, new JavaFunction(functionDeclaration))) {
-                errors.push_back(functionDeclaration->identifier + " redeclared in this block"); 
-            }
         } else if (auto variableDeclaration = dynamic_cast<VariableDeclaration*>(decl)) {
             packageVariables.push_back(variableDeclaration);
         }

@@ -1,17 +1,17 @@
-#include "java_entity.h"
+#include "entities.h"
 
-bool JavaArraySignature::equals(const JavaArraySignature* other) const {
+bool ArraySignatureEntity::equals(const ArraySignatureEntity* other) const {
     return this->dims == other->dims && this->type->equal(other->type);
 }
 
-bool JavaFunctionSignature::equals(const JavaFunctionSignature* other) const {
+bool FunctionSignatureEntity::equals(const FunctionSignatureEntity* other) const {
     if (this->argsTypes.size() != other->argsTypes.size()) {
         return false;
     }
 
     bool argsEquals = false;
-    std::list<JavaType*>::const_iterator it1 = this->argsTypes.begin();
-    std::list<JavaType*>::const_iterator it2 = other->argsTypes.begin();
+    std::list<TypeEntity*>::const_iterator it1 = this->argsTypes.begin();
+    std::list<TypeEntity*>::const_iterator it2 = other->argsTypes.begin();
 
     while(it1 != this->argsTypes.end() && it2 != other->argsTypes.end() && argsEquals) {
         argsEquals &= (*it1)->equal((*it2));
@@ -23,7 +23,7 @@ bool JavaFunctionSignature::equals(const JavaFunctionSignature* other) const {
 }
 
 
-std::list<std::string> JavaType::BuiltInTypes = {
+std::list<std::string> TypeEntity::BuiltInTypes = {
         "int",
         "int8",
         "int16",
@@ -37,41 +37,41 @@ std::list<std::string> JavaType::BuiltInTypes = {
 };
 
 
-bool JavaType::IsBuiltInType(std::string identifier) {
+bool TypeEntity::IsBuiltInType(std::string identifier) {
     return std::find(BuiltInTypes.begin(), BuiltInTypes.end(), identifier) != BuiltInTypes.end();
 }
 
-bool JavaType::isInteger() {
-    return this->type == JavaTypeEnum::Int || this->type == JavaTypeEnum::UntypedInt;
+bool TypeEntity::isInteger() {
+    return this->type == TypeEntityEnum::Int || this->type == TypeEntityEnum::UntypedInt;
 }
 
-bool JavaType::isFloat() {
-    return this->type == JavaTypeEnum::Float || this->type == JavaTypeEnum::UntypedFloat;
+bool TypeEntity::isFloat() {
+    return this->type == TypeEntityEnum::Float || this->type == TypeEntityEnum::UntypedFloat;
 }
 
-JavaType::JavaTypeEnum JavaType::builtInTypeFromString(std::string id) {
+TypeEntity::TypeEntityEnum TypeEntity::builtInTypeFromString(std::string id) {
 
     if (id == "int8" || id == "int" || id == "int16"  || id == "int32"  || id == "int64" || id == "rune")
-        return JavaTypeEnum::Int;
+        return TypeEntityEnum::Int;
 
     else if (id == "float32" || id == "float64")
-        return JavaTypeEnum::Float;
+        return TypeEntityEnum::Float;
 
     else if (id == "string")
-        return JavaTypeEnum::String;
+        return TypeEntityEnum::String;
 
     else if (id == "bool")
-        return JavaTypeEnum::Boolean;
+        return TypeEntityEnum::Boolean;
 
     else
-        return JavaTypeEnum::Invalid;
+        return TypeEntityEnum::Invalid;
 }
 
-bool JavaType::equal(const JavaType* other) {
+bool TypeEntity::equal(const TypeEntity* other) {
     
     if (this->type == Array && other->type == Array) {
-        auto currentValue = std::get<JavaArraySignature*>(this->value);
-        auto otherValue = std::get<JavaArraySignature*>(other->value);
+        auto currentValue = std::get<ArraySignatureEntity*>(this->value);
+        auto otherValue = std::get<ArraySignatureEntity*>(other->value);
         return currentValue->equals(otherValue);
         
     } else if (this->type == UserType && other->type == UserType) {
@@ -94,29 +94,29 @@ bool JavaType::equal(const JavaType* other) {
 }
 
 // Определение рузультирующего типа
-JavaType* JavaType::determinePriorityType(const JavaType* other) {
+TypeEntity* TypeEntity::determinePriorityType(const TypeEntity* other) {
     if (this->equal(other)) {
         if ((type == UntypedInt && other->type == UntypedFloat) || (type == UntypedFloat && other->type == UntypedInt)) {
-            return new JavaType(UntypedFloat);
+            return new TypeEntity(UntypedFloat);
             
         } else if ((type == Int && other->type == UntypedInt) || (type == UntypedInt && other->type == Int)) {
-            return new JavaType(Int);
+            return new TypeEntity(Int);
             
         } else if ((type == UntypedFloat && other->type == Float) || (type == Float && other->type == UntypedFloat)) {
-            return new JavaType(Float);
+            return new TypeEntity(Float);
             
         } else {
             return this;
         }
     } else {
-        return new JavaType();
+        return new TypeEntity();
     }
 }
 
-JavaType::JavaType(TypeAST* node) {
+TypeEntity::TypeEntity(TypeAST* node) {
     if (auto array = dynamic_cast<ArraySignature*>(node)) {
-        type = JavaTypeEnum::Array;
-        this->value = new JavaArraySignature(array->dimensions, new JavaType(array->arrayElementType));
+        type = TypeEntityEnum::Array;
+        this->value = new ArraySignatureEntity(array->dimensions, new TypeEntity(array->arrayElementType));
 
     } else if (auto typeAsId = dynamic_cast<IdentifierAsType*>(node)) {
         this->type = builtInTypeFromString(typeAsId->identifier);
@@ -124,13 +124,13 @@ JavaType::JavaType(TypeAST* node) {
     }
 };
 
-bool JavaType::isNumeric() {
+bool TypeEntity::isNumeric() {
     return type == Int || type == Float || type == UntypedInt || type == UntypedFloat;
 }
 
-std::string JavaType::toByteCode() const {
+std::string TypeEntity::toByteCode() const {
     if (type == Array)
-        return "[" + std::get<JavaArraySignature*>(value)->type->toByteCode();
+        return "[" + std::get<ArraySignatureEntity*>(value)->type->toByteCode();
     
     else if (type == Int || type == UntypedInt)
         return "I";
@@ -156,7 +156,7 @@ std::string JavaType::toByteCode() const {
     else if (type == Function) {
         std::string code = "(";
 
-        auto func = std::get<JavaFunctionSignature*>(value);
+        auto func = std::get<FunctionSignatureEntity*>(value);
         for (auto arg : func->argsTypes) {
             code += arg->toByteCode();
         }
@@ -170,37 +170,38 @@ std::string JavaType::toByteCode() const {
     return "Invalid";
 }
 
-JavaType* JavaFunction::toJavaType() {
-    std::list<JavaType*> args;
+TypeEntity* MethodEntity::toTypeEntity() {
+    std::list<TypeEntity*> args;
 
     for (const auto &arg : this->arguments ) {
        args.push_back(arg.second);
     }
 
-    return new JavaType(new JavaFunctionSignature(args, this->returnType));
+    return new TypeEntity(new FunctionSignatureEntity(args, this->returnType));
 }
 
-JavaFunction::JavaFunction(FunctionDeclaration* node) : block(node->block) {
+MethodEntity::MethodEntity(FunctionDeclaration* node) : block(node->block) {
     // fill with args
     for (auto identifiersWithType : node->signature->idsAndTypesArgs) {
-        auto type = new JavaType(identifiersWithType->type);
+        auto type = new TypeEntity(identifiersWithType->type);
+        
         for (auto identifier : identifiersWithType->identifiers) {
-            arguments.emplace(identifier, type);
+            arguments.emplace_back(identifier, type);
         }
     }
 
     if (node->signature->idsAndTypesResults.empty()) {
-        returnType = new JavaType(JavaType::Void);
+        returnType = new TypeEntity(TypeEntity::Void);
     } else {
         // fill with return values
         for (auto identifiersWithType : node->signature->idsAndTypesResults) {
-            auto type = new JavaType(identifiersWithType->type);
+            auto type = new TypeEntity(identifiersWithType->type);
             returnType = type;
         }
     }
  }
 
- bool JavaClass::addFields(std::unordered_map<std::string, JavaType*> & vars) { 
+ bool ClassEntity::addFields(std::unordered_map<std::string, FieldEntity*> & vars) {
         bool success = true;
 
         for (auto & [identifier, type] : vars) {
@@ -211,10 +212,10 @@ JavaFunction::JavaFunction(FunctionDeclaration* node) : block(node->block) {
     };
 
 
-void JavaFunction::setNumberLocalVariables(int number) {
+void MethodEntity::setNumberLocalVariables(int number) {
     numberLocalVariables = number;
 }
 
-int JavaFunction::getNumberLocalVariables() const {
+int MethodEntity::getNumberLocalVariables() const {
     return numberLocalVariables;
 }

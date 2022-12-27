@@ -1,6 +1,6 @@
 #pragma once
 
-#include "./java_entity.h"
+#include "./entities.h"
 #include "../ast.h"
 
 #include <vector>
@@ -18,19 +18,21 @@ private:
     void operator=(const Semantic &) = delete;
 
     PackageAST* root;
-    std::unordered_map<std::string, JavaClass*> classes = { { GlobalClassName, new JavaClass()} };
+
+    std::list<FunctionDeclaration*> packageFunctions;
     std::list<VariableDeclaration*> packageVariables;
 
     void analyzePackageScope();
     void transformRoot();
-    void analyzeTypesAndVariables();
+    void createGlobalClass();
 
     static const std::string GlobalClassName;
     bool isGeneratedName(const std::string_view name);
 
 public:
     static Semantic *GetInstance(PackageAST* package);
-    static const std::unordered_map<std::string, JavaType*> BuiltInFunctions;
+    static const std::unordered_map<std::string, TypeEntity*> BuiltInFunctions;
+    ClassEntity* packageClass;
 
     bool analyze();
     std::vector<std::string> errors;

@@ -4,10 +4,10 @@
 class TypeCheckVisitor : public Visitor {
 private:
     Semantic* semantic;
-    std::vector<std::unordered_map<std::string, JavaType*>> scopesDeclarations;
-    std::unordered_map<size_t, JavaType*> typesExpressions;
+    std::vector<std::unordered_map<std::string, TypeEntity*>> scopesDeclarations;
+    std::unordered_map<size_t, TypeEntity*> typesExpressions;
 
-    JavaFunction* currentJavaFunction;
+    MethodEntity* currentMethodEntity;
     bool lastAddedScopeInFuncDecl = false;
     int numberLocalVariables = 0;
 
@@ -37,5 +37,5 @@ private:
 
 public:
     explicit TypeCheckVisitor(Semantic* semantic): semantic(semantic) {};
-    bool checkGlobalClass(JavaClass* globalClass, std::list<VariableDeclaration*>& globalVariables);
+    ClassEntity* createGlobalClass(std::list<FunctionDeclaration*>, std::list<VariableDeclaration*>& globalVariables);
 };

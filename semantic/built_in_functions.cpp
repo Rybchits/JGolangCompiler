@@ -1,53 +1,53 @@
 #include <unordered_map>
 #include "semantic.h"
 
-const std::unordered_map<std::string, JavaType*> Semantic::BuiltInFunctions = {
-    {"print", new JavaType(new JavaFunctionSignature(
-        *(new std::list<JavaType*>({new JavaType(JavaType::Any)})),
-        new JavaType(JavaType::Void)))
+const std::unordered_map<std::string, TypeEntity*> Semantic::BuiltInFunctions = {
+    {"print", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Any)})),
+        new TypeEntity(TypeEntity::Void)))
     },
 
-    {"println", new JavaType(new JavaFunctionSignature(
-        *(new std::list<JavaType*>({new JavaType(JavaType::Any)})),
-        new JavaType(JavaType::Void)))
+    {"println", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Any)})),
+        new TypeEntity(TypeEntity::Void)))
     },
 
-    {"len", new JavaType(new JavaFunctionSignature(
-        *(new std::list<JavaType*>({new JavaType(new JavaArraySignature(new JavaType(JavaType::Any)))})),
-        new JavaType(JavaType::Int)))
+    {"len", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Any)))})),
+        new TypeEntity(TypeEntity::Int)))
     },
 
-    {"scan", new JavaType(new JavaFunctionSignature(
-        *(new std::list<JavaType*>({new JavaType(JavaType::Any)})),
-        new JavaType(JavaType::Void)))
+    {"scan", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Any)})),
+        new TypeEntity(TypeEntity::Void)))
     },
 
-    {"append", new JavaType(new JavaFunctionSignature(
-        *(new std::list<JavaType*>({
-            new JavaType(new JavaArraySignature(new JavaType(JavaType::Any))),
-            new JavaType(JavaType::Any)
+    {"append", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({
+            new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Any))),
+            new TypeEntity(TypeEntity::Any)
         })),
-        new JavaType(new JavaArraySignature(new JavaType(JavaType::Any)))))
+        new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Any)))))
     },
 
     // Conversions
-    {"int", new JavaType(new JavaFunctionSignature(
-        *(new std::list<JavaType*>({new JavaType(JavaType::Any)})),
-        new JavaType(JavaType::Int)))
+    {"int", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Any)})),
+        new TypeEntity(TypeEntity::Int)))
     },
 
-    {"float32", new JavaType(new JavaFunctionSignature(
-        *(new std::list<JavaType*>({new JavaType(JavaType::Any)})),
-        new JavaType(JavaType::Float)))
+    {"float32", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Any)})),
+        new TypeEntity(TypeEntity::Float)))
     },
 
-    {"float64", new JavaType(new JavaFunctionSignature(
-        *(new std::list<JavaType*>({new JavaType(JavaType::Any)})),
-        new JavaType(JavaType::Float)))
+    {"float64", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Any)})),
+        new TypeEntity(TypeEntity::Float)))
     },
 
-    {"string", new JavaType(new JavaFunctionSignature(
-        *(new std::list<JavaType*>({new JavaType(JavaType::Any)})),
-        new JavaType(JavaType::String)))
+    {"string", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Any)})),
+        new TypeEntity(TypeEntity::String)))
     },
 };

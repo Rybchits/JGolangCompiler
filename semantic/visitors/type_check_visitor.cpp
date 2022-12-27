@@ -3,37 +3,56 @@
 #include <map>
 #include <iostream>
 
-bool TypeCheckVisitor::checkGlobalClass(JavaClass* globalClass, std::list<VariableDeclaration*>& packageGlobalVariables) {
-    std::cout << "____Start type check____" << std::endl;
-    scopesDeclarations.push_back(std::unordered_map<std::string, JavaType*>());
+ClassEntity* TypeCheckVisitor::createGlobalClass(std::list<FunctionDeclaration*> functions, std::list<VariableDeclaration*>& variables) {
+    // Add started scope
+    scopesDeclarations.push_back(std::unordered_map<std::string, TypeEntity*>());
+    auto packageClass = new ClassEntity();
 
-    // Add package functions
-    for (auto & [identifier, methodSignature] : globalClass->getMethods()) {
-        scopesDeclarations.back().emplace(identifier, methodSignature->toJavaType());
-    }
-
+    // TODO create class
     // Add builtIn functions
     for (auto & [identifier, functionSignature] : Semantic::BuiltInFunctions) {
         scopesDeclarations.back().emplace(identifier, functionSignature);
     }
 
-    // Add package variables
-    for (auto globalVarDecl : packageGlobalVariables) {
-        globalVarDecl->acceptVisitor(this);
-
-        for (auto identifier : globalVarDecl->identifiersWithType->identifiers) {
-            globalClass->addField(identifier, scopesDeclarations[0][identifier]);
+    // Add package functions
+    for (auto function : functions) {
+        auto method =  new MethodEntity(function);
+        if (!packageClass->addMethod(function->identifier, method)) {
+            semantic->errors.push_back("Function " + function->identifier + " already declarated");
+        } else {
+            scopesDeclarations.back().emplace(function->identifier, method->toTypeEntity());
         }
     }
 
-    for (auto & [identifier, methodSignature] : globalClass->getMethods()) {
-        currentJavaFunction = methodSignature;
+    // Add package variables
+    for (auto variableNode : variables) {
+        variableNode->acceptVisitor(this);
+        
+        auto expressionsIter = variableNode->values.begin();
+        for (auto identifier : variableNode->identifiersWithType->identifiers) {
+            
+            ExpressionAST* expressionNode = nullptr;
+            if (expressionsIter != variableNode->values.end()) {
+                expressionNode = (*expressionsIter);
+                expressionsIter++;
+            }
 
-        scopesDeclarations.push_back(std::unordered_map<std::string, JavaType*>());
+            auto field = new FieldEntity(scopesDeclarations[0][identifier], expressionNode);
 
-        // Get arguments from current JavaFunction
-        for (auto arg : methodSignature->getArguments()) {
-            scopesDeclarations.back()[arg.first] = arg.second;
+            if (!packageClass->addField(identifier, field)) {
+                semantic->errors.push_back("Variable " + identifier + " already declarated");
+            }
+        }
+    }
+
+    for (auto & [identifier, methodSignature] : packageClass->getMethods()) {
+        currentMethodEntity = methodSignature;
+
+        scopesDeclarations.push_back(std::unordered_map<std::string, TypeEntity*>());
+
+        // Get arguments from current MethodEntity
+        for (auto & arg : methodSignature->getArguments()) {
+            scopesDeclarations.back().insert(arg);
             numberLocalVariables++;
         }
 
@@ -45,20 +64,20 @@ bool TypeCheckVisitor::checkGlobalClass(JavaClass* globalClass, std::list<Variab
         numberLocalVariables = 0;
     }
 
-
-    std::map<size_t, JavaType*> ordered(typesExpressions.begin(), typesExpressions.end());
+    // Debug expressions type
+    std::map<size_t, TypeEntity*> ordered(typesExpressions.begin(), typesExpressions.end());
 
     for(auto it = ordered.begin(); it != ordered.end(); ++it) {
         std::cout << (*it).first << ": " << (*it).second->toByteCode() << std::endl;
     }
 
-    return true;
+    return packageClass;
 }
 
 
 void TypeCheckVisitor::onStartVisit(BlockStatement* node) {
     if (!lastAddedScopeInFuncDecl) {
-        scopesDeclarations.push_back(std::unordered_map<std::string, JavaType*>());
+        scopesDeclarations.push_back(std::unordered_map<std::string, TypeEntity*>());
     }
     lastAddedScopeInFuncDecl = false;
 }
@@ -82,13 +101,13 @@ void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
                 continue;
             }
 
-            if (JavaType::IsBuiltInType(id)) {
+            if (TypeEntity::IsBuiltInType(id)) {
                 semantic->errors.push_back("Variable " + id + " collides with the 'builtin' type");
                 continue;
             }
             
             if (node->identifiersWithType->type != nullptr) {
-                auto generalType = new JavaType(node->identifiersWithType->type);
+                auto generalType = new TypeEntity(node->identifiersWithType->type);
 
                 // Compare types expressions with the declared type
                 if (node->values.size() != 0 ) {
@@ -103,11 +122,11 @@ void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
                 }
                 
             } else {
-                if (typesExpressions[(*currentValue)->nodeId]->type == JavaType::UntypedFloat) {
-                    scopesDeclarations.back()[id] = new JavaType(JavaType::Float);
+                if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedFloat) {
+                    scopesDeclarations.back()[id] = new TypeEntity(TypeEntity::Float);
 
-                } else if (typesExpressions[(*currentValue)->nodeId]->type == JavaType::UntypedInt) {
-                    scopesDeclarations.back()[id] = new JavaType(JavaType::Int);
+                } else if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedInt) {
+                    scopesDeclarations.back()[id] = new TypeEntity(TypeEntity::Int);
 
                 } else {
                     scopesDeclarations.back()[id] = typesExpressions[(*currentValue)->nodeId];
@@ -130,15 +149,15 @@ void TypeCheckVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
         for (auto id : node->identifiers) {
             numberLocalVariables++;
 
-            if (JavaType::IsBuiltInType(id)) {
+            if (TypeEntity::IsBuiltInType(id)) {
                 semantic->errors.push_back("Variable " + id + " collides with the 'builtin' type");
             }
 
-            if (typesExpressions[(*currentValue)->nodeId]->type == JavaType::UntypedFloat) {
-                scopesDeclarations.back()[id] = new JavaType(JavaType::Float);
+            if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedFloat) {
+                scopesDeclarations.back()[id] = new TypeEntity(TypeEntity::Float);
                     
-            } else if (typesExpressions[(*currentValue)->nodeId]->type == JavaType::UntypedInt) {
-                scopesDeclarations.back()[id] = new JavaType(JavaType::Int);
+            } else if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedInt) {
+                scopesDeclarations.back()[id] = new TypeEntity(TypeEntity::Int);
 
             } else {
                 scopesDeclarations.back()[id] = typesExpressions[(*currentValue)->nodeId];
@@ -160,59 +179,59 @@ void TypeCheckVisitor::onFinishVisit(IdentifierAsExpression* node) {
     }
     
     semantic->errors.push_back("Undefined: " + node->identifier);
-    typesExpressions[node->nodeId] = new JavaType();
+    typesExpressions[node->nodeId] = new TypeEntity();
 }
 
 
 void TypeCheckVisitor::onFinishVisit(IntegerExpression* node) {
-    typesExpressions[node->nodeId] = new JavaType(JavaType::UntypedInt);
+    typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::UntypedInt);
 }
 
 
 void TypeCheckVisitor::onFinishVisit(BooleanExpression* node) {
-    typesExpressions[node->nodeId] = new JavaType(JavaType::Boolean);
+    typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
 }
 
 
 void TypeCheckVisitor::onFinishVisit(FloatExpression* node) {
-    typesExpressions[node->nodeId] = new JavaType(JavaType::UntypedFloat);
+    typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::UntypedFloat);
 }
 
 
 void TypeCheckVisitor::onFinishVisit(StringExpression* node) {
-    typesExpressions[node->nodeId] = new JavaType(JavaType::String);
+    typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::String);
 }
 
 
 void TypeCheckVisitor::onFinishVisit(RuneExpression* node) {
-    typesExpressions[node->nodeId] = new JavaType(JavaType::Rune);
+    typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Rune);
 }
 
 
 void TypeCheckVisitor::onFinishVisit(NilExpression* node) {
-    typesExpressions[node->nodeId] = new JavaType();
+    typesExpressions[node->nodeId] = new TypeEntity();
 }
 
 
 void TypeCheckVisitor::onFinishVisit(UnaryExpression* node) {
-    if (typesExpressions[node->expression->nodeId]->type == JavaType::Invalid) {
+    if (typesExpressions[node->expression->nodeId]->type == TypeEntity::Invalid) {
         typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
         return ;
     }
 
     if (node->type == UnaryExpressionEnum::UnaryNot) {
-        if (typesExpressions[node->expression->nodeId]->type == JavaType::Boolean) {
+        if (typesExpressions[node->expression->nodeId]->type == TypeEntity::Boolean) {
             typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
         } else {
-            typesExpressions[node->nodeId] = new JavaType();
+            typesExpressions[node->nodeId] = new TypeEntity();
             semantic->errors.push_back(node->name() + " must have boolean expression");
         }
 
     } else if (node->type == UnaryExpressionEnum::Variadic) {
-        if (typesExpressions[node->expression->nodeId]->type == JavaType::Array) {
+        if (typesExpressions[node->expression->nodeId]->type == TypeEntity::Array) {
             typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
         } else {
-            typesExpressions[node->nodeId] = new JavaType();
+            typesExpressions[node->nodeId] = new TypeEntity();
             semantic->errors.push_back(node->name() + " must have array expression");
         }
 
@@ -220,7 +239,7 @@ void TypeCheckVisitor::onFinishVisit(UnaryExpression* node) {
         if (typesExpressions[node->expression->nodeId]->isNumeric()) {
             typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
         } else {
-            typesExpressions[node->nodeId] = new JavaType();
+            typesExpressions[node->nodeId] = new TypeEntity();
             semantic->errors.push_back(node->name() + " must have numeric expression");
         }
     }
@@ -228,11 +247,11 @@ void TypeCheckVisitor::onFinishVisit(UnaryExpression* node) {
 
 
 void TypeCheckVisitor::onFinishVisit(BinaryExpression* node) {
-    if (typesExpressions[node->lhs->nodeId]->type == JavaType::Invalid) {
+    if (typesExpressions[node->lhs->nodeId]->type == TypeEntity::Invalid) {
         typesExpressions[node->nodeId] = typesExpressions[node->lhs->nodeId];
         return ;
 
-    } else if (typesExpressions[node->rhs->nodeId]->type == JavaType::Invalid) {
+    } else if (typesExpressions[node->rhs->nodeId]->type == TypeEntity::Invalid) {
         typesExpressions[node->nodeId] = typesExpressions[node->rhs->nodeId];
         return ;
     }
@@ -242,24 +261,24 @@ void TypeCheckVisitor::onFinishVisit(BinaryExpression* node) {
             typesExpressions[node->nodeId] = typesExpressions[node->lhs->nodeId]->determinePriorityType(typesExpressions[node->rhs->nodeId]);
 
         } else {
-            typesExpressions[node->nodeId] = new JavaType();
+            typesExpressions[node->nodeId] = new TypeEntity();
             semantic->errors.push_back(node->name() + " must have numeric expressions");
         }
 
     } else if (node->type == Or || node->type == And) {
-        if (typesExpressions[node->lhs->nodeId]->type == JavaType::Boolean && typesExpressions[node->rhs->nodeId]->type == JavaType::Boolean) {
-            typesExpressions[node->nodeId] = new JavaType(JavaType::Boolean);
+        if (typesExpressions[node->lhs->nodeId]->type == TypeEntity::Boolean && typesExpressions[node->rhs->nodeId]->type == TypeEntity::Boolean) {
+            typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
         } else {
-            typesExpressions[node->nodeId] = new JavaType();
+            typesExpressions[node->nodeId] = new TypeEntity();
             semantic->errors.push_back(node->name() + " must have boolean expressions");
         }
     } else {
         if (typesExpressions[node->lhs->nodeId]->equal(typesExpressions[node->rhs->nodeId]) 
-            && typesExpressions[node->lhs->nodeId]->type != JavaType::Array 
-            && typesExpressions[node->lhs->nodeId]->type != JavaType::UserType) {
-            typesExpressions[node->nodeId] = new JavaType(JavaType::Boolean);
+            && typesExpressions[node->lhs->nodeId]->type != TypeEntity::Array
+            && typesExpressions[node->lhs->nodeId]->type != TypeEntity::UserType) {
+            typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
         } else {
-            typesExpressions[node->nodeId] = new JavaType();
+            typesExpressions[node->nodeId] = new TypeEntity();
             semantic->errors.push_back(node->name() + " must have equals types expressions. Comparison of arrays and functions are'nt supported");
         }
     }
@@ -269,7 +288,7 @@ void TypeCheckVisitor::onFinishVisit(BinaryExpression* node) {
 void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
 
     // Call declarated function
-    JavaType* baseType = typesExpressions[node->base->nodeId];
+    TypeEntity* baseType = typesExpressions[node->base->nodeId];
     auto appendBase = dynamic_cast<IdentifierAsExpression*>(node->base);
 
     // TODO dirty hack
@@ -277,26 +296,26 @@ void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
 
         if (node->arguments.size() < 2) {
             semantic->errors.push_back("Append function must take more than two arguments");
-            typesExpressions[node->nodeId] = new JavaType();
+            typesExpressions[node->nodeId] = new TypeEntity();
             return;
         }
 
         int index = 0;
-        JavaType* arrayType = nullptr;
+        TypeEntity* arrayType = nullptr;
         for (auto arg : node->arguments) {
             if (index == 0) {
-                if (typesExpressions[arg->nodeId]->type == JavaType::Array) {
+                if (typesExpressions[arg->nodeId]->type == TypeEntity::Array) {
                     arrayType = typesExpressions[arg->nodeId];
                 } else {
                     semantic->errors.push_back("First agrument in 'append' must be array");
-                    typesExpressions[node->nodeId] = new JavaType();
+                    typesExpressions[node->nodeId] = new TypeEntity();
                     return;
                 }
             } else {
-                JavaType* elementType = std::get<JavaArraySignature*>(arrayType->value)->type;
+                TypeEntity* elementType = std::get<ArraySignatureEntity*>(arrayType->value)->type;
                 if (!elementType->equal(typesExpressions[arg->nodeId])) {
                     semantic->errors.push_back("Agrument " + std::to_string(index) + " in 'append' must has element array type");
-                    typesExpressions[node->nodeId] = new JavaType();
+                    typesExpressions[node->nodeId] = new TypeEntity();
                     return;
                 }
             }
@@ -306,15 +325,15 @@ void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
         typesExpressions[node->nodeId] = arrayType;
         return ;
 
-    } else if (baseType->type == JavaType::Function) {
+    } else if (baseType->type == TypeEntity::Function) {
 
         std::list<ExpressionAST*>::const_iterator argExprType = node->arguments.begin();
-        auto signature = std::get<JavaFunctionSignature*>(baseType->value);
+        auto signature = std::get<FunctionSignatureEntity*>(baseType->value);
 
         int index = 0;
         for (auto argType : signature->argsTypes) {
             if (!argType->equal(typesExpressions[(*argExprType)->nodeId])) {
-                typesExpressions[node->nodeId] = new JavaType();
+                typesExpressions[node->nodeId] = new TypeEntity();
                 semantic->errors.push_back("Cannot use expression index " + std::to_string(index) + " in argument");
                 return;
             }
@@ -325,41 +344,41 @@ void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
         typesExpressions[node->nodeId] = signature->returnType;
         return ;
 
-    } else if (baseType->type == JavaType::Invalid) {
-        typesExpressions[node->nodeId] = new JavaType();
+    } else if (baseType->type == TypeEntity::Invalid) {
+        typesExpressions[node->nodeId] = new TypeEntity();
         return ;
     }
 
     semantic->errors.push_back("Cannot call non-function");
-    typesExpressions[node->nodeId] = new JavaType();
+    typesExpressions[node->nodeId] = new TypeEntity();
 }
 
 
 void TypeCheckVisitor::onFinishVisit(AccessExpression* node) {
     if (node->type == AccessExpressionEnum::Indexing) {
-        if (typesExpressions[node->base->nodeId]->type != JavaType::Array) {
+        if (typesExpressions[node->base->nodeId]->type != TypeEntity::Array) {
             semantic->errors.push_back("Base for indexing must be array");
 
         } else if (!typesExpressions[node->accessor->nodeId]->isInteger()) {
             semantic->errors.push_back("Index must be integer value");
 
         } else {
-            typesExpressions[node->nodeId] = std::get<JavaArraySignature*>(typesExpressions[node->base->nodeId]->value)->type;
+            typesExpressions[node->nodeId] = std::get<ArraySignatureEntity*>(typesExpressions[node->base->nodeId]->value)->type;
             return ;
         }
-        typesExpressions[node->nodeId] = new JavaType();
+        typesExpressions[node->nodeId] = new TypeEntity();
 
-    } else if (node->type == AccessExpressionEnum::FieldSelect && typesExpressions[node->accessor->nodeId]->type == JavaType::UserType) {
+    } else if (node->type == AccessExpressionEnum::FieldSelect && typesExpressions[node->accessor->nodeId]->type == TypeEntity::UserType) {
         // struct aren't supported yet
     }
 
-    typesExpressions[node->nodeId] = new JavaType();
+    typesExpressions[node->nodeId] = new TypeEntity();
 }
 
 
 void TypeCheckVisitor::onFinishVisit(CompositeLiteral* node) {
     if (auto arrayType = dynamic_cast<ArraySignature*>(node->type)) {
-        auto declaredElementType = new JavaType(arrayType->arrayElementType);
+        auto declaredElementType = new TypeEntity(arrayType->arrayElementType);
 
         int index = 0;
         for (auto element : node->elements) {
@@ -367,12 +386,12 @@ void TypeCheckVisitor::onFinishVisit(CompositeLiteral* node) {
                 semantic->errors
                     .push_back("Array declarated type mismatch " + std::string("index ") + std::to_string(index));
 
-                typesExpressions[node->nodeId] = new JavaType();
+                typesExpressions[node->nodeId] = new TypeEntity();
             }
             index++;
         }
 
-        typesExpressions[node->nodeId] = new JavaType(arrayType);
+        typesExpressions[node->nodeId] = new TypeEntity(arrayType);
     }
 }
 
@@ -383,7 +402,7 @@ void TypeCheckVisitor::onFinishVisit(ElementCompositeLiteral* node) {
         typesExpressions[node->nodeId] = typesExpressions[std::get<ExpressionAST*>(node->value)->nodeId];
 
     } else if (std::holds_alternative<std::list<ElementCompositeLiteral *>>(node->value)) {
-        JavaType* tentativeElementType = nullptr;
+        TypeEntity* tentativeElementType = nullptr;
 
         for (auto el : std::get<std::list<ElementCompositeLiteral *>>(node->value)) {
             if (tentativeElementType == nullptr)
@@ -393,11 +412,11 @@ void TypeCheckVisitor::onFinishVisit(ElementCompositeLiteral* node) {
             }
         }
 
-        if (tentativeElementType->type == JavaType::Invalid) {
+        if (tentativeElementType->type == TypeEntity::Invalid) {
             typesExpressions[node->nodeId] = tentativeElementType;
 
         } else {
-            typesExpressions[node->nodeId] = new JavaType(new JavaArraySignature(tentativeElementType));
+            typesExpressions[node->nodeId] = new TypeEntity(new ArraySignatureEntity(tentativeElementType));
         }
     }
 }
@@ -423,8 +442,8 @@ void TypeCheckVisitor::onFinishVisit(AssignmentStatement* node) {
                         && !typesExpressions[(*idIterator)->nodeId]->equal(typesExpressions[(*valueIterator)->nodeId])) {
                     semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented"));
 
-                } else if ((*indexIterator) != nullptr && typesExpressions[(*idIterator)->nodeId]->type == JavaType::Array) {
-                    JavaType* typeElement = std::get<JavaArraySignature*>(typesExpressions[(*idIterator)->nodeId]->value)->type;
+                } else if ((*indexIterator) != nullptr && typesExpressions[(*idIterator)->nodeId]->type == TypeEntity::Array) {
+                    TypeEntity* typeElement = std::get<ArraySignatureEntity*>(typesExpressions[(*idIterator)->nodeId]->value)->type;
 
                     if (!typeElement->equal(typesExpressions[(*valueIterator)->nodeId])) {
                         semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented"));
@@ -458,8 +477,8 @@ void TypeCheckVisitor::onFinishVisit(AssignmentStatement* node) {
             if ((*index) == nullptr && (!typesExpressions[(*value)->nodeId]->isNumeric() || !typesExpressions[(*id)->nodeId]->isNumeric())) {
                 semantic->errors.push_back("Lhs and rhs in " + node->name() + " must be numeric");
 
-            } else if ((*index) != nullptr && typesExpressions[(*id)->nodeId]->type == JavaType::Array) {
-                JavaType* elementType = std::get<JavaArraySignature*>(typesExpressions[(*id)->nodeId]->value)->type;
+            } else if ((*index) != nullptr && typesExpressions[(*id)->nodeId]->type == TypeEntity::Array) {
+                TypeEntity* elementType = std::get<ArraySignatureEntity*>(typesExpressions[(*id)->nodeId]->value)->type;
                 if (!elementType->isNumeric() || !typesExpressions[(*value)->nodeId]->isNumeric()) {
                     semantic->errors.push_back("Lhs and rhs in " + node->name() + " must be numeric");
                 }
@@ -473,12 +492,12 @@ void TypeCheckVisitor::onFinishVisit(ReturnStatement* node) {
     if (node->returnValues.size() > 1) {
         semantic->errors.push_back("'return' cannot take more than one value");
 
-    } else if (currentJavaFunction->getReturnType()->type != JavaType::Void && node->returnValues.empty()) {
+    } else if (currentMethodEntity->getReturnType()->type != TypeEntity::Void && node->returnValues.empty()) {
         semantic->errors.push_back("Missing return value");
     }
 
     for (auto value : node->returnValues) {
-        if (!currentJavaFunction->getReturnType()->equal(typesExpressions[value->nodeId])) {
+        if (!currentMethodEntity->getReturnType()->equal(typesExpressions[value->nodeId])) {
             semantic->errors.push_back("Cannot use this value for return");
         }
     }
@@ -495,7 +514,7 @@ void TypeCheckVisitor::onStartVisit(ExpressionStatement* node) {
     } else if (auto functionCall = dynamic_cast<CallableExpression*>(node->expression)) {
         // With the exception of specific built-in functions and conversions, callable expressions can appear in statement context.
         if ( auto identifiedBase = dynamic_cast<IdentifierAsExpression*>(functionCall->base)) {
-            if (identifiedBase->identifier != "append" && identifiedBase->identifier != "len" && !JavaType::IsBuiltInType(identifiedBase->identifier))
+            if (identifiedBase->identifier != "append" && identifiedBase->identifier != "len" && !TypeEntity::IsBuiltInType(identifiedBase->identifier))
             return;
         }
     }

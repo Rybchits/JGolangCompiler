@@ -7,7 +7,7 @@
             "request": "launch",
             "cwd": "${workspaceFolder}",
             "program": "${workspaceFolder}/parser",   
-            "args": ["./tests/algorithms/bubble-sort.go"],
+            "args": ["./tests/algorithms/heap-sort.go"],
             "stopAtEntry": false,
             "environment": [],
             "externalConsole": false,

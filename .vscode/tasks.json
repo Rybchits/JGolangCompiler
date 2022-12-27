@@ -66,7 +66,7 @@
                 "./semantic/visitors/loops_visitor.cpp",
                 "./semantic/semantic.cpp",
                 "./semantic/visitors/type_check_visitor.cpp",
-                "./semantic/java_entity.cpp",
+                "./semantic/entities.cpp",
                 "./utils/dot_visitor.cpp",
                 "-o",
                 "./parser"
