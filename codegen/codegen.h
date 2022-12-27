@@ -1,12 +1,14 @@
-#include "visitor.h"
-#include "java_entity.h"
-#include "constant.h"
+#pragma once
+
+#include "../visitor.h"
+#include "../semantic/entities.h"
+#include "./constant.h"
 
 #include <unordered_map>
 
-class Generator : public Visitor {
+class Generator {
 public:
-    void generate(std::unordered_map<std::string, JavaClass*> & classPool);
+    void generate(std::unordered_map<std::string, ClassEntity*> & classPool);
     //void generate(Constant constant);
-    //void generate(JavaFunction* method);
+    //void generate(MethodEntity* method);
 };

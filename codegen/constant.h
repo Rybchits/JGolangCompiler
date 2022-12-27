@@ -1,6 +1,6 @@
 #pragma once
 
-#include "java_entity.h"
+#include "../semantic/entities.h"
 
 #include <string>
 
@@ -68,7 +68,7 @@ struct JvmMethod
 {
     IdT nameId;
     IdT typeId;
-    JavaFunction method;
+    MethodEntity method;
 };
 
 struct ConstantPool

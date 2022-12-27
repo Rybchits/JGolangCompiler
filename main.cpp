@@ -1,5 +1,6 @@
 #include "ast.h"
 #include "semantic/semantic.h"
+#include "codegen/codegen.h"
 #include "./utils/io.hpp"
 
 #include "parser.tab.c"
@@ -17,6 +18,8 @@ int main(int argc, char** argv) {
         auto semantic = Semantic::GetInstance(Root);
         semantic->analyze();
         CreateDotFile(Root);
+        std::unordered_map<std::string, ClassEntity*> classes = {{"$" + Root->packageName, semantic->packageClass}};
+        Generator().generate(classes);
     }
     else {
         std::cout << "not found file" << std::endl;
