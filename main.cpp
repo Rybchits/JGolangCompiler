@@ -9,7 +9,7 @@
 #include <filesystem>
 
 int main(int argc, char** argv) {
-    yydebug = 1;
+    yydebug = 0;
 
     if (argc > 1) {
         std::istringstream iStringStream = StreamLinesFromFile(argv[1]);
