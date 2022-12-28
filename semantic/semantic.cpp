@@ -20,7 +20,6 @@ bool Semantic::analyze() {
     }
 
     analyzePackageScope();
-    
     createGlobalClass();
 
     if (!errors.empty()) {

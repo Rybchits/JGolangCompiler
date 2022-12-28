@@ -4,10 +4,7 @@
 
 #include <string>
 
-using IdT = uint16_t;
-using IntT = std::int32_t;
-using FloatT = double;
-using Bytes = std::vector<unsigned char>;
+using IdT = unsigned int;
 
 class Constant
 {
@@ -28,8 +25,8 @@ public:
     } type{};
 
     std::string utf8{};
-    IntT integer{};
-    FloatT floating{};
+    int integer{};
+    float floating{};
 
     IdT utf8Id{};
 
@@ -43,9 +40,9 @@ public:
 
     static Constant CreateUtf8(std::string const& content);
 
-    static Constant CreateInt(IntT value);
+    static Constant CreateInt(int value);
 
-    static Constant CreateFloat(FloatT value);
+    static Constant CreateFloat(float value);
 
     static Constant CreateString(IdT Utf8);
 
@@ -80,9 +77,9 @@ struct ConstantPool
 
     IdT FindString(std::string_view str);
 
-    IdT FindInt(IntT i);
+    IdT FindInt(int i);
 
-    IdT FindFloat(FloatT i);
+    IdT FindFloat(float i);
 
     IdT FindClass(std::string_view className);
 
@@ -103,29 +100,4 @@ enum class AccessFlags : uint16_t
     Super = 0x0020
 };
 
-struct ClassFile
-{
-    static constexpr uint32_t magicConstant = 0xCAFEBABE;
-    static constexpr uint16_t minorVersion = 0;
-    static constexpr uint16_t majorVersion = 52;
-
-    ConstantPool pool;
-
-    AccessFlags accessFlags;
-
-    uint16_t thisClass = 0;
-    uint16_t superClass = 0;
-
-    static constexpr uint16_t interfaceCount = 0;
-    // interface pool is empty
-
-    // fields count = (int16_t)fields.size()
-    std::vector<JvmField> fields;
-
-    // methods count = (int16_t)methods.size();
-    std::vector<JvmMethod> methods;
-
-    // attributes count = (int16_t)attributes.size();
-    // std::vector<> attributes;
-};
 

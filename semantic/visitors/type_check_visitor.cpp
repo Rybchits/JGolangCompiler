@@ -63,13 +63,6 @@ ClassEntity* TypeCheckVisitor::createGlobalClass(std::list<FunctionDeclaration*>
         numberLocalVariables = 0;
     }
 
-    // Debug expressions type
-    std::map<size_t, TypeEntity*> ordered(typesExpressions.begin(), typesExpressions.end());
-
-    for(auto it = ordered.begin(); it != ordered.end(); ++it) {
-        std::cout << (*it).first << ": " << (*it).second->toByteCode() << std::endl;
-    }
-
     return packageClass;
 }
 

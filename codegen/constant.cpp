@@ -32,7 +32,7 @@ Constant Constant::CreateUtf8(std::string const& content)
     return constant;
 }
 
-Constant Constant::CreateInt(IntT value)
+Constant Constant::CreateInt(int value)
 {
     Constant constant;
     constant.type = TypeT::Integer;
@@ -40,7 +40,7 @@ Constant Constant::CreateInt(IntT value)
     return constant;
 }
 
-Constant Constant::CreateFloat(FloatT value)
+Constant Constant::CreateFloat(float value)
 {
     Constant constant;
     constant.type = TypeT::Float;
@@ -115,7 +115,7 @@ IdT ConstantPool::FindString(std::string_view str)
     return foundIter - pool.begin() + 1;
 }
 
-IdT ConstantPool::FindInt(IntT value)
+IdT ConstantPool::FindInt(int value)
 {
     const auto constant = Constant::CreateInt(value);
     const auto foundIter = std::find(pool.begin(), pool.end(), constant);
@@ -127,7 +127,7 @@ IdT ConstantPool::FindInt(IntT value)
     return foundIter - pool.begin() + 1;
 }
 
-IdT ConstantPool::FindFloat(FloatT value)
+IdT ConstantPool::FindFloat(float value)
 {
     const auto constant = Constant::CreateFloat(value);
     const auto foundIter = std::find(pool.begin(), pool.end(), constant);
