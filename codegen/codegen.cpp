@@ -53,7 +53,7 @@ void Generator::generate(std::ostream& out, Constant & constant) {
 	// Class
 	if (constant.type == Constant::TypeT::Class) {
 		out << (char)Constant::TypeT::Class;
-		std::vector<char> len = intToBytes(constant.nameId);
+		std::vector<char> len = intToBytes(constant.classNameId);
 		out << len[2] << len[3];
 	}
 
@@ -96,26 +96,27 @@ void Generator::generate(std::ostream& out, Constant & constant) {
 ConstantPool Generator::fillConstantPool(std::string className, ClassEntity* classEntity) {
     ConstantPool constantPool;
 
-    constantPool.pool.push_back(Constant::CreateUtf8("this"));
+    // constantPool.pool.push_back(Constant::CreateUtf8("this"));
 
     // Add name of "Code" attribute
-    constantPool.pool.push_back(Constant::CreateUtf8("Code"));
+    // constantPool.pool.push_back(Constant::CreateUtf8("Code"));
     
     // Current class
     constantPool.pool.push_back(Constant::CreateClass(constantPool.FindUtf8(className)));
+	constantPool.pool.push_back(Constant::CreateClass(constantPool.FindUtf8("java/lang/Object")));
 
-    constantPool.FindMethodRef("java/lang/Object", "<init>", "()V");
+    // constantPool.FindMethodRef("java/lang/Object", "<init>", "()V");
      
     // Add name of name, name of types and N&T of fields
-    for (auto & [fieldIdentifier, field] : classEntity->getFields()) {
+    // for (auto & [fieldIdentifier, field] : classEntity->getFields()) {
         //constantPool.FindFieldRef(className, fieldIdentifier, field->type->toByteCode());
-    }
+    // }
 
-    for (auto & [methodIdentifier, method] : classEntity->getMethods()) {
+    // for (auto & [methodIdentifier, method] : classEntity->getMethods()) {
         //constantPool.FindMethodRef(className, methodIdentifier, method->toTypeEntity()->toByteCode());
-    }
+    // }
 
-    constantPool.pool.push_back(Constant::CreateUtf8(std::string("L") + className));
+    // constantPool.pool.push_back(Constant::CreateUtf8(std::string("L") + className + ";"));
 
     return constantPool;
 }
@@ -133,9 +134,7 @@ void Generator::generate(std::unordered_map<std::string, ClassEntity*> & classes
         create_directory(current_path() / "output");
 
         std::fstream out;
-        out.open(filepath, std::ios_base::out | std::ios_base::binary | std::ios_base::trunc);
-
-        std::vector<char> sizeConstantPool = intToBytes(pool.pool.size() + 1);
+        out.open(filepath, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
 
 		// CAFEBABE
 		out << (char)0xCA << (char)0xFE << (char)0xBA << (char)0xBE;
@@ -144,6 +143,7 @@ void Generator::generate(std::unordered_map<std::string, ClassEntity*> & classes
 		out << (char)0x00 << (char)0x00 << (char)0x00 << (char)0x34;
 
 		// constants count
+		std::vector<char> sizeConstantPool = intToBytes(pool.pool.size() + 1);
 		out << sizeConstantPool[2] << sizeConstantPool[3];
 
 		//constants table
@@ -164,9 +164,11 @@ void Generator::generate(std::unordered_map<std::string, ClassEntity*> & classes
 
 		// Interfaces table
 		out << (char)0x00 << (char)0x00;
+
+		// fields count
 		out << (char)0x00 << (char)0x00;
 
-		// TODO methods count
+		// methods count
 		bytes = intToBytes(0);
 		out << bytes[2] << bytes[3];
 

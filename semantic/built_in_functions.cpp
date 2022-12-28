@@ -17,9 +17,20 @@ const std::unordered_map<std::string, TypeEntity*> Semantic::BuiltInFunctions = 
         new TypeEntity(TypeEntity::Int)))
     },
 
-    {"scan", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Any)})),
-        new TypeEntity(TypeEntity::Void)))
+    {"readInt", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>()), new TypeEntity(TypeEntity::Int)))
+    },
+
+    {"readFloat", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>()), new TypeEntity(TypeEntity::Float)))
+    },
+
+    {"readString", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>()), new TypeEntity(TypeEntity::String)))
+    },
+
+    {"readBool", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>()), new TypeEntity(TypeEntity::Boolean)))
     },
 
     {"append", new TypeEntity(new FunctionSignatureEntity(
