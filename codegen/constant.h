@@ -71,7 +71,6 @@ struct JvmMethod
 struct ConstantPool
 {
     std::vector<Constant> pool;
-    using ConstantRef = Constant const&;
 
     IdT FindUtf8(std::string_view utf8);
 

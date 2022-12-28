@@ -18,7 +18,7 @@ int main(int argc, char** argv) {
         auto semantic = Semantic::GetInstance(Root);
         semantic->analyze();
         //CreateDotFile(Root);
-        std::unordered_map<std::string, ClassEntity*> classes = {{ Root->packageName, semantic->packageClass}};
+        std::unordered_map<std::string, ClassEntity*> classes = {{ "$" + Root->packageName, semantic->packageClass}};
         Generator().generate(classes);
     }
     else {

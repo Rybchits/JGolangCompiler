@@ -145,7 +145,7 @@ std::string TypeEntity::toByteCode() const {
         return "V";
     
     else if (type == String)
-        return "java/lang/String;";
+        return "Ljava/lang/String;";
     
     else if (type == UserType)
         return std::get<std::string>(value);
