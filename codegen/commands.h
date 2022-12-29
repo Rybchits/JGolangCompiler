@@ -1,6 +1,8 @@
 #pragma once
 
-enum class Command {
+#include <cstdint>
+
+enum class Command : uint8_t {
 	iconst_m1 = 0x2,
 	iconst_0 = 0x3,
 	iconst_1 = 0x4,

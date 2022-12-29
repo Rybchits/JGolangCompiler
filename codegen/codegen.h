@@ -1,9 +1,11 @@
 #pragma once
 
+#include "./constant.h"
+#include "./commands.h"
+#include "./constant_visitor.h"
 #include "../visitor.h"
 #include "../semantic/entities.h"
-#include "./constant.h"
-#include "./constant_visitor.h"
+#include "../semantic/semantic.h"
 
 #include <unordered_map>
 #include <cstring>
@@ -12,15 +14,56 @@
 #include <iostream>
 #include <sstream>
 
-class Generator {
-private:
-    void generate(std::ostream& out, Constant & constant);
-    void generate(std::ostream& out, std::string methodName, MethodEntity* method, ConstantPool* pool);
-    void generate(std::ostream& out, std::string fieldName, FieldEntity* field, ConstantPool* pool);
-    void generateGlobalClassConstructor(std::ostream& out, const std::string className, ConstantPool* pool);
-    //void generateStaticConstructor();
+struct RefConstant {
+    bool isLocal;
+    int index;
+    RefConstant(int index, bool isLocalVariable): index(index), isLocal(isLocalVariable) {};
+};
 
-    ConstantPool fillConstantPool(std::string className, ClassEntity* classEntity);
+class ContextGenerator {
+private:
+    std::vector<std::unordered_map<std::string, RefConstant*>> scopes;
+
+public:
+    void addScope() { scopes.push_back(std::unordered_map<std::string, RefConstant*>()); };
+    void popScope() { scopes.pop_back(); }
+
+    bool addConstant(std::string id, RefConstant* constant) { 
+        return scopes.back()[id] = constant; 
+    }
+
+    RefConstant* findConstant(std::string name) {
+        for (auto scope = scopes.rbegin(); scope != scopes.rend(); ++scope) {
+            if ((*scope).count(name)) 
+                return (*scope)[name];
+        }
+
+        return nullptr;
+    };
+
+    ContextGenerator() { addScope(); };
+};
+
+class Generator {
+    ConstantPool constantPool;
+    ContextGenerator context;
+    std::fstream outfile;
+
+    void generateConstant(Constant & constant);
+
+    void generateField(std::string fieldName, FieldEntity* field);
+    void generateMethod(std::string_view methodName, std::string_view descriptor
+                , uint numeberLocals, uint accessFlags
+                , std::vector<char>&& bodyCodeBytes);
+
+    std::vector<char> generateGlobalClassConstructorCode();
+    std::vector<char> generateStaticConstuctorCode(ClassEntity* classEntity);
+    std::vector<char> generateMethodBodyCode(MethodEntity* methodEntity);
+
+    void fillConstantPool(std::string className, ClassEntity* classEntity);
+    void addBuiltInFunctions(std::string nameBaseClass, std::unordered_map<std::string, TypeEntity*> functions);
+
 public:
     void generate(std::unordered_map<std::string, ClassEntity*> & classPool);
+    
 };

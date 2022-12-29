@@ -2,37 +2,37 @@ import java.util.Arrays;
 import java.util.Scanner;
 
 public class BuiltIn {
-    static Scanner in = new Scanner(System.in);
+    private static final Scanner in = new Scanner(System.in);
 
-    static public int readInt() {
+    public static int readInt() {
         return in.nextInt();
     }
 
-    public float readFloat() {
+    public static float readFloat() {
         return in.nextFloat();
     }
 
-    public String readString() {
+    public static String readString() {
         return new String(in.next());
     }
 
-    public boolean readBool() {
+    public static boolean readBool() {
         return in.nextBoolean();
     }
 
-    static void print(Object o) {
+    public static void print(Object o) {
         System.out.print(o);
     }
 
-    static void println(Object o) {
+    public static void println(Object o) {
         System.out.println(o);
     }
 
-    static int len(Object[] array) {
+    public static int len(Object[] array) {
         return array.length;
     }
 
-    static Object[] append(Object[] array, Object element) {
+    public static Object[] append(Object[] array, Object element) {
         Object[] newArray = Arrays.copyOf(array, array.length+1);
         newArray[array.length] = element;
         return newArray;
