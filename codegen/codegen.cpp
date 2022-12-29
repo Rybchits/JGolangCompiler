@@ -1,9 +1,4 @@
 #include "codegen.h"
-#include "constant.h"
-
-#include <filesystem>
-#include <fstream>
-#include <iostream>
 
 
 std::vector<char> intToBytes(int value) {
@@ -85,7 +80,7 @@ void Generator::generate(std::ostream& out, Constant & constant) {
 	// NameAndTypeT
 	if (constant.type == Constant::TypeT::NameAndType) {
 		out << (char)Constant::TypeT::NameAndType;
-		std::vector<char> len = intToBytes(constant.nameAndTypeId);
+		std::vector<char> len = intToBytes(constant.nameId);
 		out << len[2] << len[3];
 		len = intToBytes(constant.typeId);
 		out << len[2] << len[3];
@@ -95,28 +90,31 @@ void Generator::generate(std::ostream& out, Constant & constant) {
 
 ConstantPool Generator::fillConstantPool(std::string className, ClassEntity* classEntity) {
     ConstantPool constantPool;
+	auto constantVisitor = new ConstantVisitor(&constantPool);
 
-    // constantPool.pool.push_back(Constant::CreateUtf8("this"));
-
+	constantPool.pool.push_back(Constant::CreateUtf8("this"));
+	
     // Add name of "Code" attribute
-    // constantPool.pool.push_back(Constant::CreateUtf8("Code"));
+    constantPool.pool.push_back(Constant::CreateUtf8("Code"));
     
     // Current class
     constantPool.pool.push_back(Constant::CreateClass(constantPool.FindUtf8(className)));
 	constantPool.pool.push_back(Constant::CreateClass(constantPool.FindUtf8("java/lang/Object")));
 
-    // constantPool.FindMethodRef("java/lang/Object", "<init>", "()V");
+    constantPool.FindMethodRef("java/lang/Object", "<init>", "()V");
      
     // Add name of name, name of types and N&T of fields
-    // for (auto & [fieldIdentifier, field] : classEntity->getFields()) {
-        //constantPool.FindFieldRef(className, fieldIdentifier, field->type->toByteCode());
-    // }
+    for (auto & [fieldIdentifier, field] : classEntity->getFields()) {
+        constantPool.FindFieldRef(className, fieldIdentifier, field->type->toByteCode());
+		constantVisitor->getConstants(field->declaration);
+    }
 
-    // for (auto & [methodIdentifier, method] : classEntity->getMethods()) {
-        //constantPool.FindMethodRef(className, methodIdentifier, method->toTypeEntity()->toByteCode());
-    // }
+    for (auto & [methodIdentifier, method] : classEntity->getMethods()) {
+        constantPool.FindMethodRef(className, methodIdentifier, method->toTypeEntity()->toByteCode());
+		constantVisitor->getConstants(method->getCodeBlock());
+    }
 
-    // constantPool.pool.push_back(Constant::CreateUtf8(std::string("L") + className + ";"));
+	constantPool.FindUtf8("<clinit>");
 
     return constantPool;
 }
@@ -151,7 +149,7 @@ void Generator::generate(std::unordered_map<std::string, ClassEntity*> & classes
             generate(out, constant);
         }
 
-		// Flags 
+		// class flags ()
 		out << (char)0x00 << (char)0x21;
 
 		// This class constant
@@ -166,13 +164,107 @@ void Generator::generate(std::unordered_map<std::string, ClassEntity*> & classes
 		out << (char)0x00 << (char)0x00;
 
 		// fields count
-		out << (char)0x00 << (char)0x00;
+		bytes = intToBytes(classEntity->getFields().size());
+		out << bytes[2] << bytes[3];
+		
+		// fields info
+		for (auto & [fieldIdentifier, fieldEntity] : classEntity->getFields()) {
+			generate(out, fieldIdentifier, fieldEntity, &pool);
+		}
 
 		// methods count
-		bytes = intToBytes(0);
+		bytes = intToBytes(classEntity->getMethods().size());
 		out << bytes[2] << bytes[3];
+
+		// TODO constructor
+		generateGlobalClassConstructor(out, className, &pool);
+
+		for (auto & [methodIdentifier, methodEntity] : classEntity->getMethods()) {
+			generate(out, methodIdentifier, methodEntity, &pool);
+		}
 
         // atributes
 		out << (char)0x00 << (char)0x00;
     }
 }
+
+void Generator::generate(std::ostream& out, std::string fieldName, FieldEntity* field, ConstantPool* pool) {
+	std::vector<char> bytes;
+	
+	// flags Public and Static
+	out << (char)0x00 << (char)0x09;
+
+	// field name index
+	bytes = intToBytes(pool->FindUtf8(fieldName));
+	out << bytes[2] << bytes[3];
+	
+	// field descriptor index
+	bytes = intToBytes(pool->FindUtf8(field->type->toByteCode()));
+	out << bytes[2] << bytes[3];
+
+	// field attributes	(may add final flag and ConstValue attribute)
+	out << (char)0x00 << (char)0x00;
+}
+
+void Generator::generateGlobalClassConstructor(std::ostream& out, const std::string className, ConstantPool* pool) {
+	std::vector<char> bytes;
+
+	// flag Public
+	out << (char)0x00 << (char)0x01;
+
+	// class name index
+	bytes = intToBytes(pool->FindUtf8(className));
+	out << bytes[2] << bytes[3];
+
+	// field descriptor index
+	bytes = intToBytes(pool->FindUtf8("()V"));
+	out << bytes[2] << bytes[3];
+
+	// only code attribute
+	out << (char)0x00 << (char)0x01;
+
+	// attribute name index
+	bytes = intToBytes(pool->FindUtf8("Code"));
+	out << bytes[2] << bytes[3];
+
+	// attribute length
+
+	std::stringstream ss;
+
+	// TODO print code to ss
+}
+
+void Generator::generate(std::ostream& out, std::string methodName, MethodEntity* method, ConstantPool* pool) {
+	std::vector<char> bytes;
+
+	// flags Public and Static
+	out << (char)0x00 << (char)0x09;
+
+	// field name index
+	bytes = intToBytes(pool->FindUtf8(methodName));
+	out << bytes[2] << bytes[3];
+	
+	// field descriptor index
+	bytes = intToBytes(pool->FindUtf8(method->toTypeEntity()->toByteCode()));
+	out << bytes[2] << bytes[3];
+	
+	// field attributes (only Code attribute)
+	out << (char)0x00 << (char)0x01;	//TODO 0x01
+
+	// method atributes count (01)
+	out << (char)0x00 << (char)0x01;
+	// method atribute (Code - 0x01)
+	out << (char)0x00 << (char)0x01;
+
+	// size of operands stack
+	bytes = intToBytes(1000);
+	out << bytes[2] << bytes[3];
+
+	// size of local variables
+	bytes = intToBytes(method->getNumberLocalVariables());
+	out << bytes[2] << bytes[3];
+
+	// TODO code atribute
+	// Code attribute info
+}
+// std::vector<std::unordered_map<std::string, VariableEntity*>> scopesDeclarations;

@@ -100,8 +100,8 @@ public:
 
 class FieldEntity {
 public:
-    const TypeEntity * type;
-    const ExpressionAST * declaration;
+    TypeEntity * type;
+    ExpressionAST * declaration;
 
     FieldEntity(TypeEntity * type, ExpressionAST * declaration) : type(type), declaration(declaration) {};
 };
@@ -119,7 +119,7 @@ public:
     
     const std::unordered_map<std::string, MethodEntity*>& getMethods() { return methods; };
     const std::unordered_map<std::string, FieldEntity*>& getFields() { return fields; };
-
+    
 };
 
 

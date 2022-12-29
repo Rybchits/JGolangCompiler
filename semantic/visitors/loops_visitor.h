@@ -38,7 +38,6 @@ public:
 
     void onFinishVisit(IfStatement* node) override;
 
-    public:
     void transform(PackageAST* packageAst);
     explicit LoopsVisitor(Semantic* semantic): semantic(semantic) {};
     ~LoopsVisitor() override = default;
