@@ -21,7 +21,7 @@ private:
 
     std::list<FunctionDeclaration*> packageFunctions;
     std::list<VariableDeclaration*> packageVariables;
-
+    
     void analyzePackageScope();
     void transformRoot();
     void createGlobalClass();
@@ -34,6 +34,7 @@ public:
     static Semantic *GetInstance(PackageAST* package);
     static const std::unordered_map<std::string, TypeEntity*> BuiltInFunctions;
     ClassEntity* packageClass;
+    std::unordered_map<size_t, TypeEntity*> typesExpressions;
 
     bool analyze();
     std::vector<std::string> errors;

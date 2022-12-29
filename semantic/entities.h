@@ -102,8 +102,9 @@ class FieldEntity {
 public:
     TypeEntity * type;
     ExpressionAST * declaration;
-
     FieldEntity(TypeEntity * type, ExpressionAST * declaration) : type(type), declaration(declaration) {};
+    
+    bool hasDeclaration() { return declaration == nullptr ? false : true; }
 };
 
 
@@ -120,6 +121,9 @@ public:
     const std::unordered_map<std::string, MethodEntity*>& getMethods() { return methods; };
     const std::unordered_map<std::string, FieldEntity*>& getFields() { return fields; };
     
+    bool hasFieldsDeclaration() { 
+        for (auto & [_, field] : fields) {if (field->hasDeclaration()) return true; };
+                                                                       return false;}
 };
 
 

@@ -2,18 +2,43 @@
 #include "semantic.h"
 
 const std::unordered_map<std::string, TypeEntity*> Semantic::BuiltInFunctions = {
-    {"print", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Any)})),
+    {"printInt", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Int)})),
         new TypeEntity(TypeEntity::Void)))
     },
 
-    {"println", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Any)})),
+    {"printFloat", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Float)})),
         new TypeEntity(TypeEntity::Void)))
     },
 
-    {"len", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Any)))})),
+    {"printString", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::String)})),
+        new TypeEntity(TypeEntity::Void)))
+    },
+
+    {"printBoolean", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Boolean)})),
+        new TypeEntity(TypeEntity::Void)))
+    },
+
+    {"lenArrayInt", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Int)))})),
+        new TypeEntity(TypeEntity::Int)))
+    },
+
+    {"lenArrayFloat", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Float)))})),
+        new TypeEntity(TypeEntity::Int)))
+    },
+
+    {"lenArrayBoolean", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Boolean)))})),
+        new TypeEntity(TypeEntity::Int)))
+    },
+
+    {"lenArrayString", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::String)))})),
         new TypeEntity(TypeEntity::Int)))
     },
 
@@ -33,32 +58,35 @@ const std::unordered_map<std::string, TypeEntity*> Semantic::BuiltInFunctions = 
         *(new std::list<TypeEntity*>()), new TypeEntity(TypeEntity::Boolean)))
     },
 
-    {"append", new TypeEntity(new FunctionSignatureEntity(
+    {"appendIntArray", new TypeEntity(new FunctionSignatureEntity(
         *(new std::list<TypeEntity*>({
-            new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Any))),
-            new TypeEntity(TypeEntity::Any)
+            new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Int))),
+            new TypeEntity(TypeEntity::Int)
         })),
-        new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Any)))))
+        new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Int)))))
     },
 
-    // Conversions
-    {"int", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Any)})),
-        new TypeEntity(TypeEntity::Int)))
+    {"appendFloatArray", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({
+            new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Float))),
+            new TypeEntity(TypeEntity::Float)
+        })),
+        new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Float)))))
     },
 
-    {"float32", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Any)})),
-        new TypeEntity(TypeEntity::Float)))
+    {"appendStirngArray", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({
+            new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::String))),
+            new TypeEntity(TypeEntity::String)
+        })),
+        new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::String)))))
     },
 
-    {"float64", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Any)})),
-        new TypeEntity(TypeEntity::Float)))
-    },
-
-    {"string", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Any)})),
-        new TypeEntity(TypeEntity::String)))
+    {"appendBooleanArray", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({
+            new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Boolean))),
+            new TypeEntity(TypeEntity::Boolean)
+        })),
+        new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Boolean)))))
     },
 };

@@ -294,41 +294,7 @@ void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
     TypeEntity* baseType = typesExpressions[node->base->nodeId];
     auto appendBase = dynamic_cast<IdentifierAsExpression*>(node->base);
 
-    // TODO dirty hack
-    if (appendBase != nullptr && appendBase->identifier == "append") {
-
-        if (node->arguments.size() < 2) {
-            semantic->errors.push_back("Append function must take more than two arguments");
-            typesExpressions[node->nodeId] = new TypeEntity();
-            return;
-        }
-
-        int index = 0;
-        TypeEntity* arrayType = nullptr;
-        for (auto arg : node->arguments) {
-            if (index == 0) {
-                if (typesExpressions[arg->nodeId]->type == TypeEntity::Array) {
-                    arrayType = typesExpressions[arg->nodeId];
-                } else {
-                    semantic->errors.push_back("First agrument in 'append' must be array");
-                    typesExpressions[node->nodeId] = new TypeEntity();
-                    return;
-                }
-            } else {
-                TypeEntity* elementType = std::get<ArraySignatureEntity*>(arrayType->value)->type;
-                if (!elementType->equal(typesExpressions[arg->nodeId])) {
-                    semantic->errors.push_back("Agrument " + std::to_string(index) + " in 'append' must has element array type");
-                    typesExpressions[node->nodeId] = new TypeEntity();
-                    return;
-                }
-            }
-            index++;
-        }
-        
-        typesExpressions[node->nodeId] = arrayType;
-        return ;
-
-    } else if (baseType->type == TypeEntity::Function) {
+    if (baseType->type == TypeEntity::Function) {
 
         std::list<ExpressionAST*>::const_iterator argExprType = node->arguments.begin();
         auto signature = std::get<FunctionSignatureEntity*>(baseType->value);
@@ -563,4 +529,8 @@ void TypeCheckVisitor::onFinishVisit(IfStatement* node) {
     if (typesExpressions[node->condition->nodeId]->type != TypeEntity::Boolean) {
         semantic->errors.push_back("The non-bool value used as a condition");
     }
+}
+
+std::unordered_map<size_t, TypeEntity*> TypeCheckVisitor::getTypesExpressions() const {
+    return this->typesExpressions;
 }

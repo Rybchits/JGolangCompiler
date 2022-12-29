@@ -17,11 +17,11 @@ int main(int argc, char** argv) {
         yyparse();
         auto semantic = Semantic::GetInstance(Root);
         bool isSematicOk = semantic->analyze();
-        //CreateDotFile(Root);
+        CreateDotFile(Root);
         
         if (isSematicOk) {
             std::unordered_map<std::string, ClassEntity*> classes = {{ "$" + Root->packageName, semantic->packageClass}};
-            Generator().generate(classes);
+            Generator(classes, semantic->typesExpressions).generate();
         }
     }
     else {

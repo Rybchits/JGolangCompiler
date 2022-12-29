@@ -45,6 +45,9 @@ public:
 };
 
 class Generator {
+    std::unordered_map<size_t, TypeEntity*> typesExpressions;
+    std::unordered_map<std::string, ClassEntity*> classes;
+
     ConstantPool constantPool;
     ContextGenerator context;
     std::fstream outfile;
@@ -60,25 +63,32 @@ class Generator {
                 , std::vector<char>&& bodyCodeBytes);
 
     std::vector<char> generateGlobalClassConstructorCode();
-    std::vector<char> generateStaticConstuctorCode(ClassEntity* classEntity);
+    std::vector<char> generateStaticConstuctorCode(std::string_view className, ClassEntity* classEntity);
     std::vector<char> generateMethodBodyCode(MethodEntity* methodEntity);
 
     std::vector<char> generate(BlockStatement* block);
 
-    std::vector<char> generate(ReturnStatement* expr);
+    std::vector<char> generate(ReturnStatement* stmt);
     std::vector<char> generate(ExpressionStatement* stmt);
+    std::vector<char> generate(DeclarationStatement* stmt);
 
     std::vector<char> generate(CallableExpression* expr);
     std::vector<char> generate(IdentifierAsExpression* expr);
     std::vector<char> generate(StringExpression* expr);
+    std::vector<char> generate(IntegerExpression* expr);
+    std::vector<char> generate(FloatExpression* expr);
+    std::vector<char> generate(BooleanExpression* expr);
+    std::vector<char> generate(UnaryExpression* expr);
 
     std::vector<char> generate(ExpressionAST* expr);
     std::vector<char> generate(StatementAST* stmt);
 
-    void fillConstantPool(std::string className, ClassEntity* classEntity);
-    void addBuiltInFunctions(std::string nameBaseClass, std::unordered_map<std::string, TypeEntity*> functions);
+    void fillConstantPool(std::string_view className, ClassEntity* classEntity);
+    void addBuiltInFunctions(std::string_view nameBaseClass, const std::unordered_map<std::string, TypeEntity*>& functions);
 
 public:
-    void generate(std::unordered_map<std::string, ClassEntity*> & classPool);
+    Generator(std::unordered_map<std::string, ClassEntity*>& classPool
+                , std::unordered_map<size_t, TypeEntity*>& typesExprs): classes(classPool), typesExpressions(typesExprs) {};
     
+    void generate();
 };

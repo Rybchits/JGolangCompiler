@@ -42,6 +42,7 @@ void Semantic::transformRoot() {
 void Semantic::createGlobalClass() {
     auto typeVisitor = new TypeCheckVisitor(this);
     packageClass = typeVisitor->createGlobalClass(packageFunctions, packageVariables);
+    typesExpressions = typeVisitor->getTypesExpressions();
 }
 
 void Semantic::analyzePackageScope() {

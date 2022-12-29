@@ -39,5 +39,6 @@ private:
 
 public:
     explicit TypeCheckVisitor(Semantic* semantic): semantic(semantic) {};
+    std::unordered_map<size_t, TypeEntity*> getTypesExpressions() const;
     ClassEntity* createGlobalClass(std::list<FunctionDeclaration*>, std::list<VariableDeclaration*>& globalVariables);
 };
