@@ -28,6 +28,7 @@ private:
 
     static const std::string GlobalClassName;
     bool isGeneratedName(const std::string_view name);
+    void printErrors();
 
 public:
     static Semantic *GetInstance(PackageAST* package);

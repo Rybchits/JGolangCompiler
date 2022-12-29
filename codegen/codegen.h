@@ -49,6 +49,9 @@ class Generator {
     ContextGenerator context;
     std::fstream outfile;
 
+    MethodEntity* currentMethod;
+    int indexCurrentLocalVariable = 0;
+
     void generateConstant(Constant & constant);
 
     void generateField(std::string fieldName, FieldEntity* field);
@@ -59,6 +62,18 @@ class Generator {
     std::vector<char> generateGlobalClassConstructorCode();
     std::vector<char> generateStaticConstuctorCode(ClassEntity* classEntity);
     std::vector<char> generateMethodBodyCode(MethodEntity* methodEntity);
+
+    std::vector<char> generate(BlockStatement* block);
+
+    std::vector<char> generate(ReturnStatement* expr);
+    std::vector<char> generate(ExpressionStatement* stmt);
+
+    std::vector<char> generate(CallableExpression* expr);
+    std::vector<char> generate(IdentifierAsExpression* expr);
+    std::vector<char> generate(StringExpression* expr);
+
+    std::vector<char> generate(ExpressionAST* expr) { return std::vector<char>(); };
+    std::vector<char> generate(StatementAST* stmt) { return std::vector<char>(); };
 
     void fillConstantPool(std::string className, ClassEntity* classEntity);
     void addBuiltInFunctions(std::string nameBaseClass, std::unordered_map<std::string, TypeEntity*> functions);

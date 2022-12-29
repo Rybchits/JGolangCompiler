@@ -17,7 +17,7 @@ ClassEntity* TypeCheckVisitor::createGlobalClass(std::list<FunctionDeclaration*>
     for (auto function : functions) {
         auto method =  new MethodEntity(function);
         if (!packageClass->addMethod(function->identifier, method)) {
-            semantic->errors.push_back("Function " + function->identifier + " already declarated");
+            semantic->errors.push_back(function->identifier + "redclared in block");
         } else {
             scopesDeclarations.back().emplace(function->identifier, new VariableEntity(method->toTypeEntity()));
         }
@@ -39,7 +39,7 @@ ClassEntity* TypeCheckVisitor::createGlobalClass(std::list<FunctionDeclaration*>
             auto field = new FieldEntity(scopesDeclarations[0][identifier]->type, expressionNode);
 
             if (!packageClass->addField(identifier, field)) {
-                semantic->errors.push_back("Variable " + identifier + " already declarated");
+                semantic->errors.push_back(identifier + " redclared in block");
             }
         }
     }
@@ -51,7 +51,7 @@ ClassEntity* TypeCheckVisitor::createGlobalClass(std::list<FunctionDeclaration*>
 
         // Get arguments from current MethodEntity
         for (auto & [id, type] : methodSignature->getArguments()) {
-            scopesDeclarations.back().insert({id, new VariableEntity(type)});
+            scopesDeclarations.back().insert({id, new VariableEntity(type, false, true)});
             numberLocalVariables++;
         }
 
@@ -76,7 +76,7 @@ void TypeCheckVisitor::onStartVisit(BlockStatement* node) {
 
 void TypeCheckVisitor::onFinishVisit(BlockStatement* node) {
     for (auto & [id, var] : scopesDeclarations.back()) {
-        if (var->numberUsage == 0) {
+        if (var->numberUsage == 0 && !var->isArgument) {
             semantic->errors.push_back("Unused variable " + id);
         }
     }

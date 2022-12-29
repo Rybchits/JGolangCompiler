@@ -133,7 +133,7 @@ void Generator::generate(std::unordered_map<std::string, ClassEntity*> & classes
 		context = ContextGenerator();
 		
 		fillConstantPool(className, classEntity);
-		//addBuiltInFunctions("BuiltIn" ,Semantic::BuiltInFunctions);
+		addBuiltInFunctions("BuiltIn" ,Semantic::BuiltInFunctions);
 
         // Create class file
         const auto filename = std::string{ className } + ".class";
@@ -181,7 +181,7 @@ void Generator::generate(std::unordered_map<std::string, ClassEntity*> & classes
 		}
 
 		// methods count
-		bytes = intToBytes(classEntity->getMethods().size());
+		bytes = intToBytes(classEntity->getMethods().size() + 1);
 		outfile << bytes[2] << bytes[3];
 
 		// Generate constructor
@@ -297,7 +297,9 @@ std::vector<char> Generator::generateGlobalClassConstructorCode() {
 	bytes.push_back(char(0));
 
 	bytes.push_back(char(Command::invokespecial));
-	bytes.push_back(char(constantPool.FindMethodRef("java/lang/Object", "<init>", "()V")));
+	auto methodRefId = intToBytes(constantPool.FindMethodRef("java/lang/Object", "<init>", "()V"));
+	bytes.push_back(methodRefId[2]);
+	bytes.push_back(methodRefId[3]);
 
 	bytes.push_back(char(Command::return_));
 	return bytes;
@@ -309,8 +311,102 @@ std::vector<char> Generator::generateStaticConstuctorCode(ClassEntity* classEnti
 	return bytes;
 }
 
-std::vector<char> Generator::generateMethodBodyCode(MethodEntity* classEntity) {
-	std::vector<char> bytes;
-	bytes.push_back(char(Command::return_));
+std::vector<char> Generator::generateMethodBodyCode(MethodEntity* methodEntity) {
+	context.addScope();
+	indexCurrentLocalVariable = 0;
+	currentMethod = methodEntity;
+
+	for (auto &[name, _] : methodEntity->getArguments()) {
+		context.addConstant(name, new RefConstant(indexCurrentLocalVariable++, true));
+	}
+
+	auto bytes = generate(methodEntity->getCodeBlock());
+
+	context.popScope();
 	return bytes;
 }
+
+
+std::vector<char> Generator::generate(BlockStatement* block) {
+	std::vector<char> codeBytes;
+	std::vector<char> buffer;
+
+	context.addScope();
+
+	for (auto stmt : block->body) {
+		buffer = generate(stmt);
+		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
+	}
+
+	context.popScope();
+}
+
+std::vector<char> Generator::generate(ExpressionStatement* stmt) {
+	return generate(stmt->expression);
+}
+
+
+std::vector<char> Generator::generate(CallableExpression* expr) {
+	std::vector<char> codeBytes;
+	std::vector<char> buffer;
+
+	for (auto arg : expr->arguments) {
+		buffer = generate(arg);
+		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
+	}
+
+	if (auto idExpression = dynamic_cast<IdentifierAsExpression*>(expr->base)) {
+		codeBytes.push_back((char)Command::invokestatic);
+		int indexFunction = context.findConstant(idExpression->identifier)->index;
+		buffer = intToBytes(indexFunction);
+		codeBytes.push_back(buffer[2]);
+		codeBytes.push_back(buffer[3]);
+	}
+
+	return codeBytes;
+}
+
+std::vector<char> Generator::generate(IdentifierAsExpression* expr) {
+	std::vector<char> codeBytes;
+	std::vector<char> buffer;
+
+	int indexFunction = context.findConstant(expr->identifier)->index;
+	buffer = intToBytes(indexFunction);
+	codeBytes.push_back(buffer[2]);
+	codeBytes.push_back(buffer[3]);
+
+	return codeBytes;
+}
+
+std::vector<char> Generator::generate(StringExpression* expr) {
+	std::vector<char> codeBytes;
+	std::vector<char> buffer;
+
+	codeBytes.push_back((char)Command::ldc);
+	buffer = intToBytes(constantPool.FindString(expr->stringLit));
+	codeBytes.push_back(buffer[2]);
+	codeBytes.push_back(buffer[3]);
+
+	return codeBytes;
+}
+
+std::vector<char> Generator::generate(ReturnStatement* expr) {
+	std::vector<char> bytes;
+
+	switch (currentMethod->getReturnType()->type) {
+		case TypeEntity::TypeEntityEnum::Void: {
+			bytes.push_back(char(Command::return_));
+			break;
+		}
+
+		case TypeEntity::TypeEntityEnum::Int: {
+			bytes.push_back(char(Command::ireturn));
+			break;
+		}
+		default:
+			break;
+	}
+
+	return bytes;
+}
+

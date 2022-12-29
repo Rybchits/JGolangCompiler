@@ -548,8 +548,8 @@ public:
 
 class FunctionSignature : public TypeAST {
 public:
-    const std::list<IdentifiersWithType *> idsAndTypesArgs{};
-    const std::list<IdentifiersWithType *> idsAndTypesResults{};
+    std::list<IdentifiersWithType *> idsAndTypesArgs{};
+    std::list<IdentifiersWithType *> idsAndTypesResults{};
 
     FunctionSignature(std::list<IdentifiersWithType *> &args, std::list<IdentifiersWithType *> &results)
             : idsAndTypesArgs(args), idsAndTypesResults(results) {};

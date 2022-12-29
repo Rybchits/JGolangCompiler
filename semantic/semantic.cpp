@@ -13,20 +13,21 @@ bool Semantic::analyze() {
     transformRoot();
 
     if (!errors.empty()) {
-        for (auto err : errors) {
-            std::cout << err << std::endl;
-        }
+        printErrors();
         return false;
     }
 
     analyzePackageScope();
+
+    if (!errors.empty()) {
+        printErrors();
+        return false;
+    }
     
     createGlobalClass();
 
     if (!errors.empty()) {
-        for (auto err : errors) {
-            std::cout << err << std::endl;
-        }
+        printErrors();
         return false;
     }
 
@@ -44,14 +45,33 @@ void Semantic::createGlobalClass() {
 }
 
 void Semantic::analyzePackageScope() {
+    bool findMain = false;
+
     // Collect all functions
     for (auto decl : root->topDeclarations) {
         if (auto functionDeclaration = dynamic_cast<FunctionDeclaration*>(decl)) {
+            if (functionDeclaration->identifier == "main") {
+                if (!functionDeclaration->signature->idsAndTypesArgs.empty() 
+                        || !functionDeclaration->signature->idsAndTypesResults.empty()) {
+
+                            errors.push_back("Function main must have no arguments and no return values");
+                }
+
+                functionDeclaration->signature->idsAndTypesArgs.push_back(
+                    new IdentifiersWithType(*(new IdentifiersList({"args"})), new ArraySignature(new IdentifierAsType("string")))  
+                );
+                findMain = true;
+            }
+
             packageFunctions.push_back(functionDeclaration);
             
         } else if (auto variableDeclaration = dynamic_cast<VariableDeclaration*>(decl)) {
             packageVariables.push_back(variableDeclaration);
         }
+    }
+
+    if (!findMain) {
+        errors.push_back("Does not contain the 'main' function");
     }
 }
 
@@ -62,6 +82,12 @@ Semantic *Semantic::GetInstance(PackageAST *package) {
         instance = new Semantic(package);
     }
     return instance;
+}
+
+void Semantic::printErrors() {
+    for (auto err : errors) {
+        std::cout << "Error: " << err << std::endl;
+    }
 }
 
 const std::string Semantic::GlobalClassName = "$GLOBAL";

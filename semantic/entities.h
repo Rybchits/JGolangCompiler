@@ -127,8 +127,11 @@ class VariableEntity{
 public:
     TypeEntity* type;
     bool isConst;
+    bool isArgument;
     int numberUsage = 0;
 
-    VariableEntity(TypeEntity* type, bool isConst = false): type(type), isConst(isConst) {};
+    VariableEntity(TypeEntity* type, bool isConst = false, bool isArgument = false): 
+        type(type), isConst(isConst), isArgument(isArgument) {};
+
     void use() { numberUsage++; };
 };
