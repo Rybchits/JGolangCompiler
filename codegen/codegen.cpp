@@ -146,7 +146,7 @@ void Generator::generate(std::unordered_map<std::string, ClassEntity*> & classes
 		outfile << (char)0xCA << (char)0xFE << (char)0xBA << (char)0xBE;
 
 		// JAVA 8 (version 52.0 (0x34))
-		outfile << (char)0x00 << (char)0x00 << (char)0x00 << (char)0x34;
+		outfile << (char)0x00 << (char)0x00 << (char)0x00 << (char)0x3E;
 
 		// constants count
 		std::vector<char> sizeConstantPool = intToBytes(constantPool.pool.size() + 1);
@@ -185,7 +185,7 @@ void Generator::generate(std::unordered_map<std::string, ClassEntity*> & classes
 		outfile << bytes[2] << bytes[3];
 
 		// Generate constructor
-		generateMethod("<init>", "()V", 0, uint16_t(AccessFlags::Public),
+		generateMethod("<init>", "()V", 1, uint16_t(AccessFlags::Public),
 						generateGlobalClassConstructorCode());
 
 		for (auto & [methodIdentifier, methodEntity] : classEntity->getMethods()) {
@@ -322,6 +322,10 @@ std::vector<char> Generator::generateMethodBodyCode(MethodEntity* methodEntity) 
 
 	auto bytes = generate(methodEntity->getCodeBlock());
 
+	if (methodEntity->getReturnType()->type == TypeEntity::TypeEntityEnum::Void) {
+		bytes.push_back(char(Command::return_));
+	}
+
 	context.popScope();
 	return bytes;
 }
@@ -339,6 +343,7 @@ std::vector<char> Generator::generate(BlockStatement* block) {
 	}
 
 	context.popScope();
+	return codeBytes;
 }
 
 std::vector<char> Generator::generate(ExpressionStatement* stmt) {
@@ -382,7 +387,7 @@ std::vector<char> Generator::generate(StringExpression* expr) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	codeBytes.push_back((char)Command::ldc);
+	codeBytes.push_back((char)Command::ldc_w);
 	buffer = intToBytes(constantPool.FindString(expr->stringLit));
 	codeBytes.push_back(buffer[2]);
 	codeBytes.push_back(buffer[3]);
@@ -393,20 +398,43 @@ std::vector<char> Generator::generate(StringExpression* expr) {
 std::vector<char> Generator::generate(ReturnStatement* expr) {
 	std::vector<char> bytes;
 
-	switch (currentMethod->getReturnType()->type) {
-		case TypeEntity::TypeEntityEnum::Void: {
-			bytes.push_back(char(Command::return_));
-			break;
-		}
+	for (auto expression : expr->returnValues) {
+		auto buf = generate(expression);
+		bytes.insert(bytes.end(), buf.begin(), buf.end());
+	}
 
-		case TypeEntity::TypeEntityEnum::Int: {
+	if (currentMethod->getReturnType()->type == TypeEntity::TypeEntityEnum::Int) {
 			bytes.push_back(char(Command::ireturn));
-			break;
-		}
-		default:
-			break;
 	}
 
 	return bytes;
 }
 
+std::vector<char> Generator::generate(ExpressionAST* expr) { 
+	if (auto stringExpr = dynamic_cast<StringExpression*>(expr)) {
+		return generate(stringExpr);
+
+	} else if (auto callableExpression = dynamic_cast<CallableExpression*>(expr)) {
+		return generate(callableExpression);
+		
+	} else if (auto identifierAsExpression = dynamic_cast<IdentifierAsExpression*>(expr)) {
+		return generate(identifierAsExpression);
+	}
+
+	return {};
+};
+
+std::vector<char> Generator::generate(StatementAST* stmt) {
+
+	if (auto expressionStatement = dynamic_cast<ExpressionStatement*>(stmt)) {
+		return generate(expressionStatement);
+
+	} else if (auto returnStatement = dynamic_cast<ReturnStatement*>(stmt)) {
+		return generate(returnStatement);
+		
+	} else if (auto blockStatement = dynamic_cast<BlockStatement*>(stmt)) {
+		return generate(blockStatement);
+	}
+
+	return {};
+};

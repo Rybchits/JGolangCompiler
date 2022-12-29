@@ -72,8 +72,8 @@ class Generator {
     std::vector<char> generate(IdentifierAsExpression* expr);
     std::vector<char> generate(StringExpression* expr);
 
-    std::vector<char> generate(ExpressionAST* expr) { return std::vector<char>(); };
-    std::vector<char> generate(StatementAST* stmt) { return std::vector<char>(); };
+    std::vector<char> generate(ExpressionAST* expr);
+    std::vector<char> generate(StatementAST* stmt);
 
     void fillConstantPool(std::string className, ClassEntity* classEntity);
     void addBuiltInFunctions(std::string nameBaseClass, std::unordered_map<std::string, TypeEntity*> functions);
