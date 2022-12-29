@@ -200,7 +200,7 @@ void Generator::generate() {
 
 		for (auto & [methodIdentifier, methodEntity] : classEntity->getMethods()) {
 			generateMethod(methodIdentifier, methodEntity->toTypeEntity()->toByteCode()
-						 , methodEntity->getNumberLocalVariables(), uint16_t(AccessFlags::Public)
+						 , methodEntity->getNumberLocalVariables() + 1, uint16_t(AccessFlags::Public)
 																  | uint16_t(AccessFlags::Static)
 						 , generateMethodBodyCode(methodEntity));
 		}
@@ -336,7 +336,7 @@ std::vector<char> Generator::generateStaticConstuctorCode(std::string_view class
 
 std::vector<char> Generator::generateMethodBodyCode(MethodEntity* methodEntity) {
 	context.addScope();
-	indexCurrentLocalVariable = 0;
+	indexCurrentLocalVariable = 1;
 	currentMethod = methodEntity;
 
 	for (auto &[name, _] : methodEntity->getArguments()) {
@@ -416,8 +416,7 @@ std::vector<char> Generator::generate(IdentifierAsExpression* expr) {
 			break;
 
 		case TypeEntity::String:
-			codeBytes.push_back((char)Command::ldc_w);
-			codeBytes.push_back(buffer[2]);
+			codeBytes.push_back((char)Command::aload);
 			codeBytes.push_back(buffer[3]);
 		
 		default:
@@ -555,32 +554,45 @@ std::vector<char> Generator::generate(DeclarationStatement* stmt) {
 
 				switch (typesExpressions[(*valueIter)->nodeId]->type)
 				{
+				case TypeEntity::UntypedInt:
 				case TypeEntity::Int:
 					bytes.push_back((char)Command::istore);
 					buffer = intToBytes(context.findConstant(*idIter)->index);
 					bytes.push_back(buffer[3]);
 					break;
 				case TypeEntity::String:
-					/* code */
+					bytes.push_back((char)Command::astore); 	// TODO
+					buffer = intToBytes(context.findConstant(*idIter)->index);
+					bytes.push_back(buffer[3]);
 					break;
 
+				case TypeEntity::UntypedFloat:
 				case TypeEntity::Float:
-					
+					bytes.push_back((char)Command::fstore);
+					buffer = intToBytes(context.findConstant(*idIter)->index);
+					bytes.push_back(buffer[3]);
 					break;
 
 				case TypeEntity::Boolean:
+					bytes.push_back((char)Command::istore);
+					buffer = intToBytes(context.findConstant(*idIter)->index);
+					bytes.push_back(buffer[3]);
 					break;
 				default:
 					break;
 				}
 
 				idIter++;
-				varDecl++;
+				valueIter++;
 			}
 		}
 	}
 	
 	return bytes;
+}
+
+std::vector<char> Generator::generate(ShortVarDeclarationStatement* stmt) {
+
 }
 
 std::vector<char> Generator::generate(ExpressionAST* expr) { 

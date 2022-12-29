@@ -71,6 +71,7 @@ class Generator {
     std::vector<char> generate(ReturnStatement* stmt);
     std::vector<char> generate(ExpressionStatement* stmt);
     std::vector<char> generate(DeclarationStatement* stmt);
+    std::vector<char> generate(ShortVarDeclarationStatement* stmt);
 
     std::vector<char> generate(CallableExpression* expr);
     std::vector<char> generate(IdentifierAsExpression* expr);
