@@ -181,9 +181,7 @@ void Generator::generate() {
 			generateField(fieldIdentifier, fieldEntity);
 		}
 
-		// TODO можно сделать проверку на наличие инициализирующихся в <clinit>
 		bool hasClassInitializationConstructor = classEntity->hasFieldsDeclaration();
-
 
 		// methods count
 		buffer = intToBytes(classEntity->getMethods().size() + 1 + hasClassInitializationConstructor);
@@ -486,6 +484,7 @@ std::vector<char> Generator::generate(BooleanExpression* expr) {
 }
 
 
+// TODO here
 std::vector<char> Generator::generate(UnaryExpression* expr) {	
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
@@ -532,6 +531,28 @@ std::vector<char> Generator::generate(ReturnStatement* expr) {
 	return bytes;
 }
 
+std::vector<char> Generator::initializeLocalVariables(const IdentifiersList& identifiers, const ExpressionList& values) {
+	std::vector<char> bytes;
+	std::vector<char> buffer;
+	
+	auto idIter = identifiers.begin();
+	auto valueIter = values.begin();
+
+	while (idIter != identifiers.end() && valueIter != values.end()) {
+			
+		buffer = generate((*valueIter));
+		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+		
+		buffer = storeToLocalVariable(*idIter, typesExpressions[(*valueIter)->nodeId]->type);
+		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+
+		idIter++;
+		valueIter++;
+	}
+
+	return bytes;
+}
+
 std::vector<char> Generator::generate(DeclarationStatement* stmt) {
 	std::vector<char> bytes;
 	std::vector<char> buffer;
@@ -542,49 +563,8 @@ std::vector<char> Generator::generate(DeclarationStatement* stmt) {
 				context.addConstant(id, new RefConstant(indexCurrentLocalVariable++, true));
 			}
 
-			auto idIter = varDecl->identifiersWithType->identifiers.begin();
-			auto valueIter = varDecl->values.begin();
-
-			// с value пройти 
-			while (idIter != varDecl->identifiersWithType->identifiers.end() 
-				&& valueIter != varDecl->values.end()) {
-					
-				buffer = generate((*valueIter));
-				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
-
-				switch (typesExpressions[(*valueIter)->nodeId]->type)
-				{
-				case TypeEntity::UntypedInt:
-				case TypeEntity::Int:
-					bytes.push_back((char)Command::istore);
-					buffer = intToBytes(context.findConstant(*idIter)->index);
-					bytes.push_back(buffer[3]);
-					break;
-				case TypeEntity::String:
-					bytes.push_back((char)Command::astore); 	// TODO
-					buffer = intToBytes(context.findConstant(*idIter)->index);
-					bytes.push_back(buffer[3]);
-					break;
-
-				case TypeEntity::UntypedFloat:
-				case TypeEntity::Float:
-					bytes.push_back((char)Command::fstore);
-					buffer = intToBytes(context.findConstant(*idIter)->index);
-					bytes.push_back(buffer[3]);
-					break;
-
-				case TypeEntity::Boolean:
-					bytes.push_back((char)Command::istore);
-					buffer = intToBytes(context.findConstant(*idIter)->index);
-					bytes.push_back(buffer[3]);
-					break;
-				default:
-					break;
-				}
-
-				idIter++;
-				valueIter++;
-			}
+			buffer = initializeLocalVariables(varDecl->identifiersWithType->identifiers, varDecl->values);
+			bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 		}
 	}
 	
@@ -592,7 +572,11 @@ std::vector<char> Generator::generate(DeclarationStatement* stmt) {
 }
 
 std::vector<char> Generator::generate(ShortVarDeclarationStatement* stmt) {
+	for (auto id : stmt->identifiers) {
+		context.addConstant(id, new RefConstant(indexCurrentLocalVariable++, true));
+	}
 
+	return initializeLocalVariables(stmt->identifiers, stmt->values);;
 }
 
 std::vector<char> Generator::generate(ExpressionAST* expr) { 
@@ -613,10 +597,113 @@ std::vector<char> Generator::generate(ExpressionAST* expr) {
 
 	}  else if (auto booleanExpression = dynamic_cast<BooleanExpression*>(expr)) {
 		return generate(booleanExpression);
+
+	} else if (auto runeExpression = dynamic_cast<RuneExpression*>(expr)) {
+		std::cout << "не сделали rune expression";
+		
+	} else if (auto unaryExpression = dynamic_cast<UnaryExpression*>(expr)) {
+		std::cout << "не сделали unary expression";
+
+	} else if (auto binaryExpression = dynamic_cast<BinaryExpression*>(expr)) {
+		std::cout << "не сделали binary expression";
+
+	} else if (auto accessExpression = dynamic_cast<AccessExpression*>(expr)) {
+		std::cout << "не сделали access expression";
+
+	} else if (auto elementCompositeLiteral = dynamic_cast<ElementCompositeLiteral*>(expr)) {
+		std::cout << "не сделали elementComposite expression";
+
+	} else if (auto compositeLiteral = dynamic_cast<CompositeLiteral*>(expr)) {
+		std::cout << "не сделали compositeLiteral expression";
+		
 	}
 
 	return {};
 };
+
+std::vector<char> Generator::generate(AssignmentStatement* stmt) {
+	std::vector<char> bytes;
+	std::vector<char> buffer;
+
+	if (stmt->type == AssignmentEnum::SimpleAssign) {
+		
+		auto indexIterator = stmt->indexes.begin();
+        auto rightIterator = stmt->rhs.begin();
+        auto leftIterator = stmt->lhs.begin();
+		
+		while (indexIterator != stmt->indexes.end() && leftIterator != stmt->lhs.end() 
+													&& rightIterator != stmt->rhs.end()) {
+			
+			if (auto accessExpression = dynamic_cast<AccessExpression*>(*leftIterator)) {
+				// right aastore index left
+
+				//buffer = generate((*rightIterator));
+				//bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+				
+			} else if (auto identifierAsExpression = dynamic_cast<IdentifierAsExpression*>(*leftIterator)){
+				buffer = generate(*rightIterator);
+				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+
+				auto constantRef = context.findConstant(identifierAsExpression->identifier);
+
+				if (constantRef->isLocal) {
+					buffer = storeToLocalVariable(identifierAsExpression->identifier
+									   , typesExpressions[identifierAsExpression->nodeId]->type);
+				} else {
+					bytes.push_back(char(Command::putstatic));
+
+					buffer = intToBytes(constantRef->index);
+					bytes.push_back(buffer[2]);
+					bytes.push_back(buffer[3]);
+				}
+
+				bytes.insert(bytes.end(), buffer.begin(), buffer.end());		
+			}
+
+			indexIterator++;
+			rightIterator++;
+			leftIterator++;
+		}
+
+	} else {
+		
+	}
+
+	return bytes;
+}
+
+std::vector<char> Generator::storeToLocalVariable(std::string variableIdentifier, TypeEntity::TypeEntityEnum type) {
+	std::vector<char> bytes;
+	std::vector<char> buffer;
+
+	switch (type)
+	{
+		case TypeEntity::Boolean:
+		case TypeEntity::UntypedInt:
+		case TypeEntity::Int:
+			bytes.push_back((char)Command::istore);
+			buffer = intToBytes(context.findConstant(variableIdentifier)->index);
+			bytes.push_back(buffer[3]);
+			break;
+		case TypeEntity::String:
+			bytes.push_back((char)Command::astore);
+			buffer = intToBytes(context.findConstant(variableIdentifier)->index);
+			bytes.push_back(buffer[3]);
+			break;
+
+		case TypeEntity::UntypedFloat:
+		case TypeEntity::Float:
+			bytes.push_back((char)Command::fstore);
+			buffer = intToBytes(context.findConstant(variableIdentifier)->index);
+			bytes.push_back(buffer[3]);
+			break;
+
+		default:
+			break;
+	}
+
+	return bytes;
+}
 
 std::vector<char> Generator::generate(StatementAST* stmt) {
 
@@ -631,6 +718,33 @@ std::vector<char> Generator::generate(StatementAST* stmt) {
 
 	} else if (auto declarationStatement = dynamic_cast<DeclarationStatement*>(stmt)) {
 		return generate(declarationStatement);
+
+	} else if (auto shortDeclStatement = dynamic_cast<ShortVarDeclarationStatement*>(stmt)) {
+		return generate(shortDeclStatement);
+
+	} else if (auto keywordStatement = dynamic_cast<KeywordStatement*>(stmt)) {
+		// return generate(keywordStatement);
+		std::cout << "не сделали keyword statement";
+
+	} else if (auto assignmentStatement = dynamic_cast<AssignmentStatement*>(stmt)) {
+		return generate(assignmentStatement);
+		std::cout << "не сделали assignment statement";
+
+	} else if (auto whileStatement = dynamic_cast<WhileStatement*>(stmt)) {
+		// return generate(assignmentStatement);
+		std::cout << "не сделали while statement";
+
+	} else if (auto ifStatement = dynamic_cast<IfStatement*>(stmt)) {
+		// return generate(assignmentStatement);
+		std::cout << "не сделали if statement";
+
+	} else if (auto switchCaseClause = dynamic_cast<SwitchCaseClause*>(stmt)) {
+		// return generate(assignmentStatement);
+		std::cout << "не сделали switch case clause statement";
+
+	} else if (auto switchStatement = dynamic_cast<SwitchStatement*>(stmt)) {
+		// return generate(assignmentStatement);
+		std::cout << "не сделали switch statement";
 	}
 
 	return {};

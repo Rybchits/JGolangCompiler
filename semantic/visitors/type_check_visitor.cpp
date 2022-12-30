@@ -439,14 +439,18 @@ void TypeCheckVisitor::onFinishVisit(AssignmentStatement* node) {
                         && !typesExpressions[(*idIterator)->nodeId]->equal(typesExpressions[(*valueIterator)->nodeId])) {
                     semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented"));
 
-                } else if ((*indexIterator) != nullptr && typesExpressions[(*idIterator)->nodeId]->type == TypeEntity::Array) {
-                    TypeEntity* typeElement = std::get<ArraySignatureEntity*>(typesExpressions[(*idIterator)->nodeId]->value)->type;
+                } else if ((*indexIterator) != nullptr) {
+                    if (typesExpressions[(*idIterator)->nodeId]->type == TypeEntity::Array) {
+                        TypeEntity* typeElement = std::get<ArraySignatureEntity*>(typesExpressions[(*idIterator)->nodeId]->value)->type;
 
-                    if (!typeElement->equal(typesExpressions[(*valueIterator)->nodeId])) {
-                        semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented"));
+                        if (!typeElement->equal(typesExpressions[(*valueIterator)->nodeId])) {
+                            semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented"));
 
-                    } else if (!typesExpressions[(*indexIterator)->nodeId]->isInteger()) {
-                        semantic->errors.push_back("Index must be integer value");
+                        } else if (!typesExpressions[(*indexIterator)->nodeId]->isInteger()) {
+                            semantic->errors.push_back("Index must be integer value");
+                        }
+                    } else {
+                        semantic->errors.push_back("Cannot get value by index. Not array");
                     }
                 }
 

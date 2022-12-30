@@ -72,6 +72,7 @@ class Generator {
     std::vector<char> generate(ExpressionStatement* stmt);
     std::vector<char> generate(DeclarationStatement* stmt);
     std::vector<char> generate(ShortVarDeclarationStatement* stmt);
+    std::vector<char> generate(AssignmentStatement* stmt);
 
     std::vector<char> generate(CallableExpression* expr);
     std::vector<char> generate(IdentifierAsExpression* expr);
@@ -84,8 +85,12 @@ class Generator {
     std::vector<char> generate(ExpressionAST* expr);
     std::vector<char> generate(StatementAST* stmt);
 
+    std::vector<char> initializeLocalVariables(const IdentifiersList& identifiers, const ExpressionList& values);
+
     void fillConstantPool(std::string_view className, ClassEntity* classEntity);
     void addBuiltInFunctions(std::string_view nameBaseClass, const std::unordered_map<std::string, TypeEntity*>& functions);
+
+    std::vector<char> storeToLocalVariable(std::string variableIdentifier, TypeEntity::TypeEntityEnum type);
 
 public:
     Generator(std::unordered_map<std::string, ClassEntity*>& classPool
