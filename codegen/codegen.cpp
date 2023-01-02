@@ -1,23 +1,5 @@
 #include "codegen.h"
-
-
-std::vector<char> intToBytes(int value) {
-	std::vector<char> arrayOfByte(4);
-	for (int i = 0; i < 4; ++i) {
-		arrayOfByte[3 - i] = (value >> (i * 8));
-	}
-	return arrayOfByte;
-}
-
-
-std::vector<char> floatToBytes(float value)
-{
-	std::vector<char> arrayOfByte(4);
-
-	for (int i = 0; i < sizeof(float); ++i)
-		arrayOfByte[3 - i] = ((char*)&value)[i];
-	return arrayOfByte;
-}
+#include "../utils/bytes.hpp"
 
 void Generator::generateConstant(Constant & constant) {
 	// UTF-8
@@ -484,29 +466,84 @@ std::vector<char> Generator::generate(BooleanExpression* expr) {
 }
 
 
-// TODO here
 std::vector<char> Generator::generate(UnaryExpression* expr) {	
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	codeBytes = generate(expr->expression);
-
 	switch (expr->type)
 	{
-	case UnaryExpressionEnum::UnaryMinus:
-		codeBytes.push_back(char(Command::ineg));
+	case UnaryMinus:
+
+		codeBytes = generate(expr->expression);
+
+		if (typesExpressions[expr->nodeId]->isInteger()) {
+			codeBytes.push_back(char(Command::ineg));
+
+		} else if (typesExpressions[expr->nodeId]->isFloat()) {
+			codeBytes.push_back(char(Command::fneg));
+		}
+
 		break;
 
-	case UnaryExpressionEnum::Increment:
-		// codeBytes.push_back(char(Command))
+	case Decrement:
+	case Increment:
+		if (auto idExpression = dynamic_cast<IdentifierAsExpression*>(expr->expression)) {
+			RefConstant* ref = context.findConstant(idExpression->identifier);
+
+			if (typesExpressions[idExpression->nodeId]->isInteger()) {
+
+				if (ref->isLocal) {
+					codeBytes.push_back(char(Command::iinc));
+					buffer = intToBytes(ref->index);
+					codeBytes.push_back(buffer[3]);
+					codeBytes.push_back(uint8_t(expr->type == Increment? 1 : -1));
+
+				} else {
+
+					buffer = intToBytes(ref->index);
+
+					codeBytes.push_back((char)Command::getstatic);
+					codeBytes.push_back(buffer[2]);
+					codeBytes.push_back(buffer[3]);
+
+					codeBytes.push_back(uint8_t(Command::iconst_1));
+					codeBytes.push_back(uint8_t(expr->type == Increment? Command::iadd : Command::isub));
+
+					codeBytes.push_back((char)Command::putstatic);
+					codeBytes.push_back(buffer[2]);
+					codeBytes.push_back(buffer[3]);
+				}
+
+			} else if (typesExpressions[idExpression->nodeId]->isFloat()) {
+
+				buffer = intToBytes(ref->index);
+				codeBytes.push_back(ref->isLocal? (char)Command::fload : (char)Command::getstatic);
+				
+				if (!ref->isLocal) codeBytes.push_back(buffer[2]);
+				codeBytes.push_back(buffer[3]);
+
+				codeBytes.push_back(uint8_t(Command::fconst_1));
+				codeBytes.push_back(uint8_t(expr->type == Increment? Command::fadd : Command::fsub));
+
+				codeBytes.push_back(ref->isLocal? (char)Command::fstore : (char)Command::putstatic);
+				if (!ref->isLocal) codeBytes.push_back(buffer[2]);
+				codeBytes.push_back(buffer[3]);
+			}
+
+		} else if (auto accessExpression = dynamic_cast<AccessExpression*>(expr->expression)) {
+			// TODO arrays
+		}
+
 		break;
 
-	case UnaryExpressionEnum::Decrement:
-			codeBytes.push_back(char(Command::iinc));
+	case UnaryNot:
+		codeBytes = generate(expr->expression);
+		codeBytes.push_back(uint8_t(Command::ifne));
+		// TODO ifne offset
 		break;
 
-	case UnaryExpressionEnum::UnaryNot:
-		/* code */
+	case UnaryPlus:
+		codeBytes = generate(expr->expression);
 		break;
 	
 	default:
@@ -602,7 +639,7 @@ std::vector<char> Generator::generate(ExpressionAST* expr) {
 		std::cout << "не сделали rune expression";
 		
 	} else if (auto unaryExpression = dynamic_cast<UnaryExpression*>(expr)) {
-		std::cout << "не сделали unary expression";
+		return generate(unaryExpression);
 
 	} else if (auto binaryExpression = dynamic_cast<BinaryExpression*>(expr)) {
 		std::cout << "не сделали binary expression";
