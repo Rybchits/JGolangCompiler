@@ -1,9 +1,9 @@
-#include "./type_check_visitor.h"
+#include "./types_visitor.h"
 #include <unordered_map>
 #include <map>
 #include <iostream>
 
-ClassEntity* TypeCheckVisitor::createGlobalClass(std::list<FunctionDeclaration*> functions, std::list<VariableDeclaration*>& variables) {
+ClassEntity* TypesVisitor::createGlobalClass(std::list<FunctionDeclaration*> functions, std::list<VariableDeclaration*>& variables) {
     // Add started scope
     scopesDeclarations.push_back(std::unordered_map<std::string, VariableEntity*>());
     auto packageClass = new ClassEntity();
@@ -67,14 +67,14 @@ ClassEntity* TypeCheckVisitor::createGlobalClass(std::list<FunctionDeclaration*>
 }
 
 
-void TypeCheckVisitor::onStartVisit(BlockStatement* node) {
+void TypesVisitor::onStartVisit(BlockStatement* node) {
     if (!lastAddedScopeInFuncDecl) {
         scopesDeclarations.push_back(std::unordered_map<std::string, VariableEntity*>());
     }
     lastAddedScopeInFuncDecl = false;
 }
 
-void TypeCheckVisitor::onFinishVisit(BlockStatement* node) {
+void TypesVisitor::onFinishVisit(BlockStatement* node) {
     for (auto & [id, var] : scopesDeclarations.back()) {
         if (var->numberUsage == 0 && !var->isArgument) {
             semantic->errors.push_back("Unused variable " + id);
@@ -84,7 +84,7 @@ void TypeCheckVisitor::onFinishVisit(BlockStatement* node) {
     scopesDeclarations.pop_back();
 }
 
-void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
+void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
 
     if (node->identifiersWithType->identifiers.size() != node->values.size() && node->values.size() != 0) {
         semantic->errors.push_back("Assignment count mismatch");
@@ -139,7 +139,7 @@ void TypeCheckVisitor::onFinishVisit(VariableDeclaration* node) {
     }
 }
 
-void TypeCheckVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
+void TypesVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
     
     if (node->identifiers.size() != node->values.size() && node->values.size() != 0) {
         semantic->errors.push_back("Short variable declaration: assignment count mismatch");
@@ -169,7 +169,7 @@ void TypeCheckVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
     }
 }
 
-void TypeCheckVisitor::onFinishVisit(IdentifierAsExpression* node) {
+void TypesVisitor::onFinishVisit(IdentifierAsExpression* node) {
 
     // TODO create context class
     for (auto scope = scopesDeclarations.rbegin(); scope != scopesDeclarations.rend(); ++scope) {
@@ -186,37 +186,37 @@ void TypeCheckVisitor::onFinishVisit(IdentifierAsExpression* node) {
 }
 
 
-void TypeCheckVisitor::onFinishVisit(IntegerExpression* node) {
+void TypesVisitor::onFinishVisit(IntegerExpression* node) {
     typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::UntypedInt);
 }
 
 
-void TypeCheckVisitor::onFinishVisit(BooleanExpression* node) {
+void TypesVisitor::onFinishVisit(BooleanExpression* node) {
     typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
 }
 
 
-void TypeCheckVisitor::onFinishVisit(FloatExpression* node) {
+void TypesVisitor::onFinishVisit(FloatExpression* node) {
     typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::UntypedFloat);
 }
 
 
-void TypeCheckVisitor::onFinishVisit(StringExpression* node) {
+void TypesVisitor::onFinishVisit(StringExpression* node) {
     typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::String);
 }
 
 
-void TypeCheckVisitor::onFinishVisit(RuneExpression* node) {
+void TypesVisitor::onFinishVisit(RuneExpression* node) {
     typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Rune);
 }
 
 
-void TypeCheckVisitor::onFinishVisit(NilExpression* node) {
+void TypesVisitor::onFinishVisit(NilExpression* node) {
     typesExpressions[node->nodeId] = new TypeEntity();
 }
 
 
-void TypeCheckVisitor::onFinishVisit(UnaryExpression* node) {
+void TypesVisitor::onFinishVisit(UnaryExpression* node) {
     if (typesExpressions[node->expression->nodeId]->type == TypeEntity::Invalid) {
         typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
         return ;
@@ -249,7 +249,7 @@ void TypeCheckVisitor::onFinishVisit(UnaryExpression* node) {
 }
 
 
-void TypeCheckVisitor::onFinishVisit(BinaryExpression* node) {
+void TypesVisitor::onFinishVisit(BinaryExpression* node) {
     if (typesExpressions[node->lhs->nodeId]->type == TypeEntity::Invalid) {
         typesExpressions[node->nodeId] = typesExpressions[node->lhs->nodeId];
         return ;
@@ -288,7 +288,7 @@ void TypeCheckVisitor::onFinishVisit(BinaryExpression* node) {
 }
 
 
-void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
+void TypesVisitor::onFinishVisit(CallableExpression* node) {
 
     // Call declarated function
     TypeEntity* baseType = typesExpressions[node->base->nodeId];
@@ -323,7 +323,7 @@ void TypeCheckVisitor::onFinishVisit(CallableExpression* node) {
 }
 
 
-void TypeCheckVisitor::onFinishVisit(AccessExpression* node) {
+void TypesVisitor::onFinishVisit(AccessExpression* node) {
     if (node->type == AccessExpressionEnum::Indexing) {
         if (typesExpressions[node->base->nodeId]->type != TypeEntity::Array) {
             semantic->errors.push_back("Base for indexing must be array");
@@ -345,7 +345,7 @@ void TypeCheckVisitor::onFinishVisit(AccessExpression* node) {
 }
 
 
-void TypeCheckVisitor::onFinishVisit(CompositeLiteral* node) {
+void TypesVisitor::onFinishVisit(CompositeLiteral* node) {
     if (auto arrayType = dynamic_cast<ArraySignature*>(node->type)) {
         auto declaredElementType = new TypeEntity(arrayType->arrayElementType);
 
@@ -365,7 +365,7 @@ void TypeCheckVisitor::onFinishVisit(CompositeLiteral* node) {
 }
 
 
-void TypeCheckVisitor::onFinishVisit(ElementCompositeLiteral* node) {
+void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
 
     if (std::holds_alternative<ExpressionAST *>(node->value)) {
         typesExpressions[node->nodeId] = typesExpressions[std::get<ExpressionAST*>(node->value)->nodeId];
@@ -391,7 +391,7 @@ void TypeCheckVisitor::onFinishVisit(ElementCompositeLiteral* node) {
 }
 
 
-void TypeCheckVisitor::onFinishVisit(AssignmentStatement* node) {
+void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
     
     // Check const variables
     for (auto var : node->lhs) {
@@ -488,7 +488,7 @@ void TypeCheckVisitor::onFinishVisit(AssignmentStatement* node) {
     }
 }
 
-void TypeCheckVisitor::onFinishVisit(ReturnStatement* node) {
+void TypesVisitor::onFinishVisit(ReturnStatement* node) {
 
     if (node->returnValues.size() > 1) {
         semantic->errors.push_back("'return' cannot take more than one value");
@@ -505,7 +505,7 @@ void TypeCheckVisitor::onFinishVisit(ReturnStatement* node) {
 }
 
 
-void TypeCheckVisitor::onStartVisit(ExpressionStatement* node) {
+void TypesVisitor::onStartVisit(ExpressionStatement* node) {
     // Increment and decrement can be statements
     if (auto unaryExpression = dynamic_cast<UnaryExpression*>(node->expression)) {
         if (unaryExpression->type == UnaryExpressionEnum::Decrement || unaryExpression->type == UnaryExpressionEnum::Increment) {
@@ -523,18 +523,18 @@ void TypeCheckVisitor::onStartVisit(ExpressionStatement* node) {
     semantic->errors.push_back(node->expression->name() + " expression not available for statement");
 }
 
-void TypeCheckVisitor::onFinishVisit(WhileStatement* node) {
+void TypesVisitor::onFinishVisit(WhileStatement* node) {
     if (typesExpressions[node->conditionExpression->nodeId]->type != TypeEntity::Boolean) {
         semantic->errors.push_back("The non-bool value used as a condition");
     }
 }
 
-void TypeCheckVisitor::onFinishVisit(IfStatement* node) {
+void TypesVisitor::onFinishVisit(IfStatement* node) {
     if (typesExpressions[node->condition->nodeId]->type != TypeEntity::Boolean) {
         semantic->errors.push_back("The non-bool value used as a condition");
     }
 }
 
-std::unordered_map<size_t, TypeEntity*> TypeCheckVisitor::getTypesExpressions() const {
+std::unordered_map<size_t, TypeEntity*> TypesVisitor::getTypesExpressions() const {
     return this->typesExpressions;
 }

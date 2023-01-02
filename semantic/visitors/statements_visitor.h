@@ -2,7 +2,7 @@
 
 #include <stack>
 
-class LoopsVisitor : public Visitor {
+class StatementsVisitor : public Visitor {
 private:
     Semantic* semantic;
 
@@ -11,7 +11,7 @@ private:
 
     StatementList transformStatements(StatementList& list);
     StatementAST* transformIfStatement(IfStatement* ifStmt);
-    StatementAST* transformSwitchStament(SwitchStatement* switchStmt);
+    StatementAST* transformSwitchStatement(SwitchStatement* switchStmt);
     BlockStatement* transformForToWhile(ForStatement* forStmt);
     BlockStatement* transformForRangeToWhile(ForRangeStatement *forRangeStmt);
     StatementList transformStatementsWithContinues(StatementList body);
@@ -39,6 +39,6 @@ public:
     void onFinishVisit(IfStatement* node) override;
 
     void transform(PackageAST* packageAst);
-    explicit LoopsVisitor(Semantic* semantic): semantic(semantic) {};
-    ~LoopsVisitor() override = default;
+    explicit StatementsVisitor(Semantic* semantic): semantic(semantic) {};
+    ~StatementsVisitor() override = default;
 };

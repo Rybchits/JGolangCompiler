@@ -9,7 +9,7 @@
 #include <string_view>
 
 class Semantic {
-    friend class TypeCheckVisitor;
+    friend class TypesVisitor;
 private:
     Semantic(PackageAST* package): root(package) {};
     static Semantic* instance;

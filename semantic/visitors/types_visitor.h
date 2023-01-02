@@ -1,7 +1,7 @@
 #include "../semantic.h"
 #include <vector>
 
-class TypeCheckVisitor : public Visitor {
+class TypesVisitor : public Visitor {
 private:
     Semantic* semantic;
     std::vector<std::unordered_map<std::string, VariableEntity*>> scopesDeclarations;
@@ -38,7 +38,7 @@ private:
 
 
 public:
-    explicit TypeCheckVisitor(Semantic* semantic): semantic(semantic) {};
+    explicit TypesVisitor(Semantic* semantic): semantic(semantic) {};
     std::unordered_map<size_t, TypeEntity*> getTypesExpressions() const;
     ClassEntity* createGlobalClass(std::list<FunctionDeclaration*>, std::list<VariableDeclaration*>& globalVariables);
 };

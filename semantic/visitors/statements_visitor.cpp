@@ -1,8 +1,8 @@
-#include "loops_visitor.h"
+#include "statements_visitor.h"
 
-const std::string LoopsVisitor::indexPrivateVariableName = "$index";
+const std::string StatementsVisitor::indexPrivateVariableName = "$index";
 
-BlockStatement* LoopsVisitor::transformForToWhile(ForStatement *forStmt) {
+BlockStatement* StatementsVisitor::transformForToWhile(ForStatement *forStmt) {
     StatementList list;
 
     if (forStmt->initStatement != nullptr)
@@ -21,7 +21,7 @@ BlockStatement* LoopsVisitor::transformForToWhile(ForStatement *forStmt) {
     return new BlockStatement(list);
 }
 
-StatementAST* LoopsVisitor::transformIfStatement(IfStatement* ifStmt) {
+StatementAST* StatementsVisitor::transformIfStatement(IfStatement* ifStmt) {
     if (ifStmt->preStatement) {
         StatementList newStatement;
 
@@ -36,7 +36,7 @@ StatementAST* LoopsVisitor::transformIfStatement(IfStatement* ifStmt) {
     }
 }
 
-StatementAST* LoopsVisitor::transformSwitchStament(SwitchStatement* switchStmt) {
+StatementAST* StatementsVisitor::transformSwitchStatement(SwitchStatement *switchStmt) {
     if (switchStmt->statement) {
         StatementList newStatement;
 
@@ -53,7 +53,7 @@ StatementAST* LoopsVisitor::transformSwitchStament(SwitchStatement* switchStmt) 
 
 
 // Перед каждым Continue добавить statement перехода
-StatementList LoopsVisitor::transformStatementsWithContinues(StatementList body) {
+StatementList StatementsVisitor::transformStatementsWithContinues(StatementList body) {
     StatementList newBody;
 
     for (auto stmt: body) {
@@ -73,7 +73,7 @@ StatementList LoopsVisitor::transformStatementsWithContinues(StatementList body)
     return newBody;
 }
 
-BlockStatement* LoopsVisitor::transformForRangeToWhile(ForRangeStatement *forRangeStmt) {
+BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *forRangeStmt) {
     StatementList list;
 
     auto indexDeclaration = new VariableDeclaration(
@@ -163,7 +163,7 @@ BlockStatement* LoopsVisitor::transformForRangeToWhile(ForRangeStatement *forRan
     return new BlockStatement(list);
 }
 
-StatementList LoopsVisitor::transformStatements(StatementList& list) {
+StatementList StatementsVisitor::transformStatements(StatementList& list) {
     StatementList newBody;
 
     for (auto stmt : list) {
@@ -180,7 +180,7 @@ StatementList LoopsVisitor::transformStatements(StatementList& list) {
             newBody.push_back(transformIfStatement(ifStatement));
 
         } else if (auto switchStatement = dynamic_cast<SwitchStatement*>(stmt)) {
-            newBody.push_back(transformSwitchStament(switchStatement));
+            newBody.push_back(transformSwitchStatement(switchStatement));
 
         } else {
             newBody.push_back(stmt);
@@ -189,37 +189,37 @@ StatementList LoopsVisitor::transformStatements(StatementList& list) {
     return newBody;
 }
 
-void LoopsVisitor::onFinishVisit(BlockStatement *node) {
+void StatementsVisitor::onFinishVisit(BlockStatement *node) {
     node->body = transformStatements(node->body);
 }
 
-void LoopsVisitor::onFinishVisit(IfStatement* node) {
+void StatementsVisitor::onFinishVisit(IfStatement* node) {
     if (auto ifStatement = dynamic_cast<IfStatement*>(node->elseStatement)) {
         node->elseStatement = transformIfStatement(ifStatement);
     }
 }
 
-void LoopsVisitor::onStartVisit(BlockStatement *node) {
+void StatementsVisitor::onStartVisit(BlockStatement *node) {
     node->body = transformStatementsWithContinues(node->body);
 }
 
-void LoopsVisitor::onStartVisit(ForStatement* node) {
+void StatementsVisitor::onStartVisit(ForStatement* node) {
     nextIterationsLoops.push(node->iterationStatement);
 }
 
-void LoopsVisitor::onFinishVisit(ForStatement* node) {
+void StatementsVisitor::onFinishVisit(ForStatement* node) {
     nextIterationsLoops.pop();
 }
 
-void LoopsVisitor::onStartVisit(WhileStatement* node) {
+void StatementsVisitor::onStartVisit(WhileStatement* node) {
     nextIterationsLoops.push(nullptr);
 }
 
-void LoopsVisitor::onFinishVisit(WhileStatement* node) {
+void StatementsVisitor::onFinishVisit(WhileStatement* node) {
     nextIterationsLoops.pop();
 }
 
-void LoopsVisitor::onStartVisit(ForRangeStatement* node) {
+void StatementsVisitor::onStartVisit(ForRangeStatement* node) {
     StatementAST* nextIteration = new ExpressionStatement(
         new UnaryExpression(
             UnaryExpressionEnum::Increment,
@@ -228,27 +228,27 @@ void LoopsVisitor::onStartVisit(ForRangeStatement* node) {
     nextIterationsLoops.push(nextIteration);
 }
 
-void LoopsVisitor::onFinishVisit(ForRangeStatement* node) {
+void StatementsVisitor::onFinishVisit(ForRangeStatement* node) {
     nextIterationsLoops.pop();
 }
 
-void LoopsVisitor::transform(PackageAST* packageAst) {
+void StatementsVisitor::transform(PackageAST* packageAst) {
     packageAst->acceptVisitor(this);
 }
 
-void LoopsVisitor::onStartVisit(SwitchCaseClause *node) {
+void StatementsVisitor::onStartVisit(SwitchCaseClause *node) {
     node->statementsList = transformStatementsWithContinues(node->statementsList);
 }
 
-void LoopsVisitor::onStartVisit(SwitchStatement *node) {
+void StatementsVisitor::onStartVisit(SwitchStatement *node) {
     node->defaultStatement = transformStatementsWithContinues(node->defaultStatement);
 }
 
-void LoopsVisitor::onFinishVisit(SwitchCaseClause* node) {
+void StatementsVisitor::onFinishVisit(SwitchCaseClause* node) {
     node->statementsList = transformStatements(node->statementsList);
 }
 
-void LoopsVisitor::onFinishVisit(SwitchStatement* node) {
+void StatementsVisitor::onFinishVisit(SwitchStatement* node) {
     node->defaultStatement = transformStatements(node->defaultStatement);
 }
 
