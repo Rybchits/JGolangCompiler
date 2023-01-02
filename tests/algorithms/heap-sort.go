@@ -1,5 +1,11 @@
 package main
 
+func printArray(array []int) {
+	for i := 0; i < lenArrayInt(array); i++ {
+		printInt(array[i])
+	}
+}
+
 func sift(arr []int, i int, arrLen int) []int {
 	done := false
 
@@ -32,11 +38,11 @@ func HeapSort(arr []int) {
 	i := 0
 	tmp := 0
 
-	for i = len(arr)/2 - 1; i >= 0; i-- {
-		arr = sift(arr, i, len(arr))
+	for i = lenArrayInt(arr)/2 - 1; i >= 0; i-- {
+		arr = sift(arr, i, lenArrayInt(arr))
 	}
 
-	for i = len(arr) - 1; i >= 1; i-- {
+	for i = lenArrayInt(arr) - 1; i >= 1; i-- {
 		tmp = arr[0]
 		arr[0] = arr[i]
 		arr[i] = tmp
@@ -47,8 +53,10 @@ func HeapSort(arr []int) {
 
 func main() {
 	arr := []int{5, 3, 4, 7, 8, 9}
-	println("Initial array is:", arr)
+	printString("Initial array is: ")
+	printArray(arr)
 	HeapSort(arr)
-	println("")
-	println("Sorted array is: ", arr)
+	printString("\n")
+	printString("Sorted array is: ")
+	printArray(arr)
 }

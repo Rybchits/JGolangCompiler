@@ -1,15 +1,22 @@
 package main
 
+func printArray(array []int) {
+	for i := 0; i < lenArrayInt(array); i++ {
+		printInt(array[i])
+	}
+}
+
 func main() {
 	searchValue := 0
 
 	arr := []int{1, 5, 100, 0, -100, 15, 4, 102, 30, 1000}
-	println(arr)
+
+	printArray(arr)
 
 	// Sort the numbers
 	var tmp = 0
-	for i := 0; i < len(arr); i++ {
-		for j := 0; j < len(arr)-1; j++ {
+	for i := 0; i < lenArrayInt(arr); i++ {
+		for j := 0; j < lenArrayInt(arr)-1; j++ {
 			if arr[j] > arr[j+1] {
 				tmp = arr[j]
 				arr[j] = arr[j+1]
@@ -18,13 +25,13 @@ func main() {
 		}
 	}
 
-	println(arr)
+	printArray(arr)
 
 	left := 0
-	right := len(arr) - 1
+	right := lenArrayInt(arr) - 1
 
 	if right < left {
-		println("Not found")
+		printString("Not found")
 		return
 	}
 
@@ -32,7 +39,8 @@ func main() {
 		mid := (left + right) / 2
 
 		if arr[mid] == searchValue {
-			println("Found at position: ", mid)
+			printString("Found at position: ")
+			printInt(mid)
 			return
 		} else if arr[mid] < searchValue {
 			left = mid + 1
@@ -41,5 +49,5 @@ func main() {
 		}
 	}
 
-	println("Not found")
+	printString("Not found")
 }
