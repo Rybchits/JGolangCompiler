@@ -4,6 +4,7 @@
 #include "./commands.h"
 #include "./constant_visitor.h"
 #include "../visitor.h"
+#include "../context.h"
 #include "../semantic/entities.h"
 #include "../semantic/semantic.h"
 
@@ -20,36 +21,12 @@ struct RefConstant {
     RefConstant(int index, bool isLocalVariable): index(index), isLocal(isLocalVariable) {};
 };
 
-class ContextGenerator {
-private:
-    std::vector<std::unordered_map<std::string, RefConstant*>> scopes;
-
-public:
-    void addScope() { scopes.push_back(std::unordered_map<std::string, RefConstant*>()); };
-    void popScope() { scopes.pop_back(); }
-
-    bool addConstant(std::string id, RefConstant* constant) { 
-        return scopes.back()[id] = constant; 
-    }
-
-    RefConstant* findConstant(std::string name) {
-        for (auto scope = scopes.rbegin(); scope != scopes.rend(); ++scope) {
-            if ((*scope).count(name)) 
-                return (*scope)[name];
-        }
-
-        return nullptr;
-    };
-
-    ContextGenerator() { addScope(); };
-};
-
 class Generator {
     std::unordered_map<size_t, TypeEntity*> typesExpressions;
     std::unordered_map<std::string, ClassEntity*> classes;
 
     ConstantPool constantPool;
-    ContextGenerator context;
+    Context<RefConstant*> context;
     std::fstream outfile;
 
     MethodEntity* currentMethod;

@@ -73,7 +73,7 @@ void Generator::generateConstant(Constant & constant) {
 void Generator::addBuiltInFunctions(std::string_view nameBaseClass, const std::unordered_map<std::string, TypeEntity*>& functions) {
 	for (auto &[id, descriptor] : functions) {
 		int index = constantPool.FindMethodRef(nameBaseClass, id, descriptor->toByteCode());
-		context.addConstant(id, new RefConstant(index, false));
+		context.add(id, new RefConstant(index, false));
 	}
 }
 
@@ -93,13 +93,13 @@ void Generator::fillConstantPool(std::string_view className, ClassEntity* classE
     // Add name of name, name of types and N&T of fields
     for (auto & [fieldIdentifier, field] : classEntity->getFields()) {
         int index = constantPool.FindFieldRef(className, fieldIdentifier, field->type->toByteCode());
-		context.addConstant(fieldIdentifier, new RefConstant(index, false));
+		context.add(fieldIdentifier, new RefConstant(index, false));
 		constantVisitor->getConstants(field->declaration);
     }
 
     for (auto & [methodIdentifier, method] : classEntity->getMethods()) {
         int index = constantPool.FindMethodRef(className, methodIdentifier, method->toTypeEntity()->toByteCode());
-		context.addConstant(methodIdentifier, new RefConstant(index, false));
+		context.add(methodIdentifier, new RefConstant(index, false));
 		constantVisitor->getConstants(method->getCodeBlock());
     }
 
@@ -113,7 +113,7 @@ void Generator::generate() {
 
     for (auto & [className, classEntity] : classes) {
 		constantPool = ConstantPool();
-		context = ContextGenerator();
+		context = Context<RefConstant*>();
 		
 		fillConstantPool(className, classEntity);
 		addBuiltInFunctions("$Base", Semantic::BuiltInFunctions);
@@ -315,12 +315,12 @@ std::vector<char> Generator::generateStaticConstuctorCode(std::string_view class
 }
 
 std::vector<char> Generator::generateMethodBodyCode(MethodEntity* methodEntity) {
-	context.addScope();
+	context.pushScope();
 	indexCurrentLocalVariable = 1;
 	currentMethod = methodEntity;
 
 	for (auto &[name, _] : methodEntity->getArguments()) {
-		context.addConstant(name, new RefConstant(indexCurrentLocalVariable++, true));
+		context.add(name, new RefConstant(indexCurrentLocalVariable++, true));
 	}
 
 	auto bytes = generate(methodEntity->getCodeBlock());
@@ -338,7 +338,7 @@ std::vector<char> Generator::generate(BlockStatement* block) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	context.addScope();
+	context.pushScope();
 
 	for (auto stmt : block->body) {
 		buffer = generate(stmt);
@@ -365,7 +365,7 @@ std::vector<char> Generator::generate(CallableExpression* expr) {
 
 	if (auto idExpression = dynamic_cast<IdentifierAsExpression*>(expr->base)) {
 		codeBytes.push_back((char)Command::invokestatic);
-		int indexFunction = context.findConstant(idExpression->identifier)->index;
+		int indexFunction = context.find(idExpression->identifier)->index;
 		buffer = intToBytes(indexFunction);
 		codeBytes.push_back(buffer[2]);
 		codeBytes.push_back(buffer[3]);
@@ -378,7 +378,7 @@ std::vector<char> Generator::generate(IdentifierAsExpression* expr) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	auto refConst = context.findConstant(expr->identifier);
+	auto refConst = context.find(expr->identifier);
 	buffer = intToBytes(refConst->index);
 
 	if (refConst->isLocal) {
@@ -488,7 +488,7 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 	case Decrement:
 	case Increment:
 		if (auto idExpression = dynamic_cast<IdentifierAsExpression*>(expr->expression)) {
-			RefConstant* ref = context.findConstant(idExpression->identifier);
+			RefConstant* ref = context.find(idExpression->identifier);
 
 			if (typesExpressions[idExpression->nodeId]->isInteger()) {
 
@@ -597,7 +597,7 @@ std::vector<char> Generator::generate(DeclarationStatement* stmt) {
 	for (auto decl : stmt->declarations) {
 		if (auto varDecl = dynamic_cast<VariableDeclaration*>(decl)) {
 			for (auto id : varDecl->identifiersWithType->identifiers) {
-				context.addConstant(id, new RefConstant(indexCurrentLocalVariable++, true));
+				context.add(id, new RefConstant(indexCurrentLocalVariable++, true));
 			}
 
 			buffer = initializeLocalVariables(varDecl->identifiersWithType->identifiers, varDecl->values);
@@ -610,7 +610,7 @@ std::vector<char> Generator::generate(DeclarationStatement* stmt) {
 
 std::vector<char> Generator::generate(ShortVarDeclarationStatement* stmt) {
 	for (auto id : stmt->identifiers) {
-		context.addConstant(id, new RefConstant(indexCurrentLocalVariable++, true));
+		context.add(id, new RefConstant(indexCurrentLocalVariable++, true));
 	}
 
 	return initializeLocalVariables(stmt->identifiers, stmt->values);;
@@ -681,7 +681,7 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 				buffer = generate(*rightIterator);
 				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
-				auto constantRef = context.findConstant(identifierAsExpression->identifier);
+				auto constantRef = context.find(identifierAsExpression->identifier);
 
 				if (constantRef->isLocal) {
 					buffer = storeToLocalVariable(identifierAsExpression->identifier
@@ -719,19 +719,19 @@ std::vector<char> Generator::storeToLocalVariable(std::string variableIdentifier
 		case TypeEntity::UntypedInt:
 		case TypeEntity::Int:
 			bytes.push_back((char)Command::istore);
-			buffer = intToBytes(context.findConstant(variableIdentifier)->index);
+			buffer = intToBytes(context.find(variableIdentifier)->index);
 			bytes.push_back(buffer[3]);
 			break;
 		case TypeEntity::String:
 			bytes.push_back((char)Command::astore);
-			buffer = intToBytes(context.findConstant(variableIdentifier)->index);
+			buffer = intToBytes(context.find(variableIdentifier)->index);
 			bytes.push_back(buffer[3]);
 			break;
 
 		case TypeEntity::UntypedFloat:
 		case TypeEntity::Float:
 			bytes.push_back((char)Command::fstore);
-			buffer = intToBytes(context.findConstant(variableIdentifier)->index);
+			buffer = intToBytes(context.find(variableIdentifier)->index);
 			bytes.push_back(buffer[3]);
 			break;
 

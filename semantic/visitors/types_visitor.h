@@ -1,10 +1,31 @@
 #include "../semantic.h"
+#include "../../context.h"
+
 #include <vector>
 
+class TypesVisitor;
+
+class ConstExpressionVisitor : private Visitor {
+private:
+    TypesVisitor* typesVisitor;
+    bool constValid = true;
+
+    void onFinishVisit(IdentifierAsExpression* node);
+    void onFinishVisit(CallableExpression* node);
+    void onFinishVisit(AccessExpression* node);
+    void onFinishVisit(CompositeLiteral* node);
+
+public:
+    bool isConstExpression(ExpressionAST* expr);
+    ConstExpressionVisitor(TypesVisitor* visitor): typesVisitor(visitor) {};
+};
+
+
 class TypesVisitor : public Visitor {
+friend class ConstExpressionVisitor;
 private:
     Semantic* semantic;
-    std::vector<std::unordered_map<std::string, VariableEntity*>> scopesDeclarations;
+    Context<VariableEntity*> scopesDeclarations;
     std::unordered_map<size_t, TypeEntity*> typesExpressions;
 
     MethodEntity* currentMethodEntity;

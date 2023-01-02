@@ -5,12 +5,12 @@
 
 ClassEntity* TypesVisitor::createGlobalClass(std::list<FunctionDeclaration*> functions, std::list<VariableDeclaration*>& variables) {
     // Add started scope
-    scopesDeclarations.push_back(std::unordered_map<std::string, VariableEntity*>());
+    scopesDeclarations.pushScope();
     auto packageClass = new ClassEntity();
 
     // Add builtIn functions
     for (auto & [identifier, functionSignature] : Semantic::BuiltInFunctions) {
-        scopesDeclarations.back().emplace(identifier, new VariableEntity(functionSignature));
+        scopesDeclarations.add(identifier, new VariableEntity(functionSignature));
     }
 
     // Add package functions
@@ -19,7 +19,7 @@ ClassEntity* TypesVisitor::createGlobalClass(std::list<FunctionDeclaration*> fun
         if (!packageClass->addMethod(function->identifier, method)) {
             semantic->errors.push_back(function->identifier + "redclared in block");
         } else {
-            scopesDeclarations.back().emplace(function->identifier, new VariableEntity(method->toTypeEntity()));
+            scopesDeclarations.add(function->identifier, new VariableEntity(method->toTypeEntity()));
         }
     }
 
@@ -36,7 +36,7 @@ ClassEntity* TypesVisitor::createGlobalClass(std::list<FunctionDeclaration*> fun
                 expressionsIter++;
             }
 
-            auto field = new FieldEntity(scopesDeclarations[0][identifier]->type, expressionNode);
+            auto field = new FieldEntity(scopesDeclarations.find(identifier)->type, expressionNode);
 
             if (!packageClass->addField(identifier, field)) {
                 semantic->errors.push_back(identifier + " redclared in block");
@@ -47,11 +47,11 @@ ClassEntity* TypesVisitor::createGlobalClass(std::list<FunctionDeclaration*> fun
     for (auto & [identifier, methodSignature] : packageClass->getMethods()) {
         currentMethodEntity = methodSignature;
 
-        scopesDeclarations.push_back(std::unordered_map<std::string, VariableEntity*>());
+        scopesDeclarations.pushScope();
 
         // Get arguments from current MethodEntity
         for (auto & [id, type] : methodSignature->getArguments()) {
-            scopesDeclarations.back().insert({id, new VariableEntity(type, false, true)});
+            scopesDeclarations.add(id, new VariableEntity(type, false, true));
             numberLocalVariables++;
         }
 
@@ -63,25 +63,33 @@ ClassEntity* TypesVisitor::createGlobalClass(std::list<FunctionDeclaration*> fun
         numberLocalVariables = 0;
     }
 
+    // Debug expressions type
+    std::map<size_t, TypeEntity*> ordered(typesExpressions.begin(), typesExpressions.end());
+
+    for(auto it = ordered.begin(); it != ordered.end(); ++it) {
+        std::cout << (*it).first << ": " << (*it).second->toByteCode() << std::endl;
+    }
+
     return packageClass;
 }
 
 
 void TypesVisitor::onStartVisit(BlockStatement* node) {
     if (!lastAddedScopeInFuncDecl) {
-        scopesDeclarations.push_back(std::unordered_map<std::string, VariableEntity*>());
+        scopesDeclarations.pushScope();
     }
     lastAddedScopeInFuncDecl = false;
 }
 
 void TypesVisitor::onFinishVisit(BlockStatement* node) {
-    for (auto & [id, var] : scopesDeclarations.back()) {
+    for (auto & [id, var] : scopesDeclarations.getLastScope()) {
+
         if (var->numberUsage == 0 && !var->isArgument) {
             semantic->errors.push_back("Unused variable " + id);
         }
     }
 
-    scopesDeclarations.pop_back();
+    scopesDeclarations.popScope();
 }
 
 void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
@@ -90,11 +98,13 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
         semantic->errors.push_back("Assignment count mismatch");
 
     } else {
+        auto constCheckVisitor = ConstExpressionVisitor(this);
+
         auto currentValue = node->values.begin();
         for (auto id : node->identifiersWithType->identifiers) {
             numberLocalVariables++;
 
-            if (scopesDeclarations.back().count(id)) {
+            if (scopesDeclarations.find(id) != nullptr) {
                 semantic->errors.push_back(id + " redeclared in this block");
                 continue;
             }
@@ -103,6 +113,14 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
                 semantic->errors.push_back("Variable " + id + " collides with the 'builtin' type");
                 continue;
             }
+
+            // Const checking
+            if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::Array && node->isConst) {
+                semantic->errors.push_back("Go does not support constant arrays, maps or slices");
+
+            } else if (!constCheckVisitor.isConstExpression(*currentValue)) {
+                semantic->errors.push_back("Cannot assignment not const expression for " + id);
+            }
             
             if (node->identifiersWithType->type != nullptr) {
                 auto generalType = new TypeEntity(node->identifiersWithType->type);
@@ -110,27 +128,24 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
                 // Compare types expressions with the declared type
                 if (node->values.size() != 0 ) {
                     if (typesExpressions[(*currentValue)->nodeId]->equal(generalType)) {
-                        scopesDeclarations.back()[id] = new VariableEntity(generalType, node->isConst);
+                        scopesDeclarations.add(id, new VariableEntity(generalType, node->isConst));
 
                     } else {
                         semantic->errors.push_back("Assignment variable " + id + " must have equals types");
                     }
                 } else {
-                    scopesDeclarations.back()[id] = new VariableEntity(generalType, node->isConst);
+                    scopesDeclarations.add(id, new VariableEntity(generalType, node->isConst));
                 }
                 
             } else {
-                if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::Array && node->isConst) {
-                    semantic->errors.push_back("Go does not support constant arrays, maps or slices");
-
-                } else if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedFloat) {
-                    scopesDeclarations.back()[id] = new VariableEntity(new TypeEntity(TypeEntity::Float), node->isConst);
+                if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedFloat) {
+                    scopesDeclarations.add(id, new VariableEntity(new TypeEntity(TypeEntity::Float), node->isConst));
 
                 } else if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedInt) {
-                    scopesDeclarations.back()[id] = new VariableEntity(new TypeEntity(TypeEntity::Int), node->isConst);
+                    scopesDeclarations.add(id, new VariableEntity(new TypeEntity(TypeEntity::Int), node->isConst));
 
                 } else {
-                    scopesDeclarations.back()[id] = new VariableEntity(typesExpressions[(*currentValue)->nodeId], node->isConst);
+                    scopesDeclarations.add(id, new VariableEntity(typesExpressions[(*currentValue)->nodeId], node->isConst));
                 }
             }
 
@@ -155,13 +170,13 @@ void TypesVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
             }
 
             if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedFloat) {
-                scopesDeclarations.back()[id] = new VariableEntity(new TypeEntity(TypeEntity::Float));
+                scopesDeclarations.add(id, new VariableEntity(new TypeEntity(TypeEntity::Float)));
                     
             } else if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedInt) {
-                scopesDeclarations.back()[id] = new VariableEntity(new TypeEntity(TypeEntity::Int));
+                scopesDeclarations.add(id, new VariableEntity(new TypeEntity(TypeEntity::Int)));
 
             } else {
-                scopesDeclarations.back()[id] = new VariableEntity(typesExpressions[(*currentValue)->nodeId]);
+                scopesDeclarations.add(id, new VariableEntity(typesExpressions[(*currentValue)->nodeId]));
             }
 
             currentValue++;
@@ -171,14 +186,12 @@ void TypesVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
 
 void TypesVisitor::onFinishVisit(IdentifierAsExpression* node) {
 
-    // TODO create context class
-    for (auto scope = scopesDeclarations.rbegin(); scope != scopesDeclarations.rend(); ++scope) {
+    VariableEntity* variable = scopesDeclarations.find(node->identifier);
 
-        if ((*scope).count(node->identifier)) {
-            typesExpressions[node->nodeId] = (*scope)[node->identifier]->type;
-            (*scope)[node->identifier]->use();
-            return ;
-        }
+    if (variable != nullptr) {
+        typesExpressions[node->nodeId] = variable->type;
+        variable->use();
+        return ;
     }
     
     semantic->errors.push_back("Undefined: " + node->identifier);
@@ -292,12 +305,17 @@ void TypesVisitor::onFinishVisit(CallableExpression* node) {
 
     // Call declarated function
     TypeEntity* baseType = typesExpressions[node->base->nodeId];
-    auto appendBase = dynamic_cast<IdentifierAsExpression*>(node->base);
 
     if (baseType->type == TypeEntity::Function) {
 
         std::list<ExpressionAST*>::const_iterator argExprType = node->arguments.begin();
         auto signature = std::get<FunctionSignatureEntity*>(baseType->value);
+
+        if (signature->argsTypes.size() != node->arguments.size()) {
+            semantic->errors.push_back("Invalid number of arguments");
+            typesExpressions[node->nodeId] = new TypeEntity();
+            return;
+        }
 
         int index = 0;
         for (auto argType : signature->argsTypes) {
@@ -313,9 +331,6 @@ void TypesVisitor::onFinishVisit(CallableExpression* node) {
         typesExpressions[node->nodeId] = signature->returnType;
         return ;
 
-    } else if (baseType->type == TypeEntity::Invalid) {
-        typesExpressions[node->nodeId] = new TypeEntity();
-        return ;
     }
 
     semantic->errors.push_back("Cannot call non-function");
@@ -397,24 +412,16 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
     for (auto var : node->lhs) {
         if (auto idVariable = dynamic_cast<IdentifierAsExpression*>(var)) {
                     
-            VariableEntity* variable = nullptr;
-            for (auto scope = scopesDeclarations.rbegin(); scope != scopesDeclarations.rend(); ++scope) {
+            VariableEntity* variable = scopesDeclarations.find(idVariable->identifier);
 
-                if ((*scope).count(idVariable->identifier)) {
-                    variable = (*scope)[idVariable->identifier];
-
-                    if (node->type == AssignmentEnum::SimpleAssign) {
-                        (*scope)[idVariable->identifier]->numberUsage--;
-                    }
-                    
-                    break;
-                }
+            if (variable != nullptr && node->type == AssignmentEnum::SimpleAssign) {
+                variable->numberUsage--;
             }
 
-            // TODO check right const expressions
             if (variable != nullptr && variable->isConst) {
                 semantic->errors.push_back("Cannot assign to " + idVariable->identifier);
             }
+            
         } else if (dynamic_cast<AccessExpression*>(var) == nullptr) {
             semantic->errors.push_back("Cannot assign to " + var->name());
         }
@@ -537,4 +544,30 @@ void TypesVisitor::onFinishVisit(IfStatement* node) {
 
 std::unordered_map<size_t, TypeEntity*> TypesVisitor::getTypesExpressions() const {
     return this->typesExpressions;
+}
+
+bool ConstExpressionVisitor::isConstExpression(ExpressionAST* expr) {
+    constValid = true;
+    expr->acceptVisitor(this);
+    return constValid;
+}
+
+void ConstExpressionVisitor::onFinishVisit(IdentifierAsExpression* node) {
+    VariableEntity* variable = typesVisitor->scopesDeclarations.find(node->identifier);
+
+    if (variable != nullptr) {
+        constValid &= variable->isConst;
+    }
+}
+
+void ConstExpressionVisitor::onFinishVisit(CallableExpression* node) {
+    constValid &= false;
+}
+
+void ConstExpressionVisitor::onFinishVisit(AccessExpression* node) {
+    constValid &= false;
+}
+
+void ConstExpressionVisitor::onFinishVisit(CompositeLiteral* node) {
+    constValid &= false;
 }

@@ -84,6 +84,7 @@ BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *f
 
     list.push_back(new DeclarationStatement(*(new DeclarationList{indexDeclaration})));
 
+    // TODO len
     auto condition = new BinaryExpression(
             BinaryExpressionEnum::Less,
             new IdentifierAsExpression(indexPrivateVariableName),
