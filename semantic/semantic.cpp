@@ -1,6 +1,7 @@
 #include "semantic.h"
 #include "visitors/statements_visitor.h"
 #include "visitors/types_visitor.h"
+#include "visitors/expressions_visitor.h"
 
 #include <iostream>
 
@@ -17,6 +18,7 @@ bool Semantic::analyze() {
         return false;
     }
 
+    transformExpressions();
     analyzePackageScope();
 
     if (!errors.empty()) {
@@ -37,6 +39,11 @@ bool Semantic::analyze() {
 void Semantic::transformRoot() {
     auto loopVisitor = new StatementsVisitor(this);
     loopVisitor->transform(root);
+}
+
+void Semantic::transformExpressions() {
+    auto expressionsVisitor = new ExpressionsVisitor(this);
+    expressionsVisitor->transform(root);
 }
 
 void Semantic::createGlobalClass() {

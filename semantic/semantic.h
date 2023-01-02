@@ -24,6 +24,7 @@ private:
     
     void analyzePackageScope();
     void transformRoot();
+    void transformExpressions();
     void createGlobalClass();
 
     static const std::string GlobalClassName;
