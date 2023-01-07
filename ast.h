@@ -256,6 +256,9 @@ public:
     ExpressionAST *lhs;
     ExpressionAST *rhs;
 
+    bool isLogical();
+    bool isComparison();
+
     BinaryExpression(BinaryExpressionEnum type, ExpressionAST *lhs, ExpressionAST *rhs)
             : type(type), lhs(lhs), rhs(rhs) {};
 

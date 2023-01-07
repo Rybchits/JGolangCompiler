@@ -75,6 +75,9 @@ void Generator::addBuiltInFunctions(std::string_view nameBaseClass, const std::u
 		int index = constantPool.FindMethodRef(nameBaseClass, id, descriptor->toByteCode());
 		context.add(id, new RefConstant(index, false));
 	}
+
+	// dirty
+	constantPool.FindMethodRef("java/lang/String", "concat", "(Ljava/lang/String;)Ljava/lang/String;");
 }
 
 
@@ -362,6 +365,7 @@ std::vector<char> Generator::generate(CallableExpression* expr) {
 		buffer = generate(arg);
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 	}
+	
 
 	if (auto idExpression = dynamic_cast<IdentifierAsExpression*>(expr->base)) {
 		codeBytes.push_back((char)Command::invokestatic);
@@ -428,7 +432,7 @@ std::vector<char> Generator::generate(IntegerExpression* expr) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	if (expr->intLit > -1 && expr->intLit < 6) {
+	if (expr->intLit > -2 && expr->intLit < 6) {
 		codeBytes.push_back(char(Command::iconst_0) + expr->intLit);
 
 	} else {
@@ -553,6 +557,82 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 	return codeBytes;
 }
 
+std::vector<char> Generator::generate(BinaryExpression* expr) {
+	std::vector<char> codeBytes;
+	std::vector<char> buffer;
+
+	if (expr->isLogical() || expr->isComparison()) {
+		// TODO
+	} else {
+		codeBytes = generate(expr->lhs);
+
+		buffer = generate(expr->rhs);
+		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
+
+		switch (expr->type)
+		{
+		case Addition:
+			if (typesExpressions[expr->nodeId]->isInteger()) {
+				codeBytes.push_back(char(Command::iadd));
+
+			} else if (typesExpressions[expr->nodeId]->isFloat()) {
+				codeBytes.push_back(char(Command::fadd));
+
+			} else if (typesExpressions[expr->nodeId]->type == TypeEntity::String) {
+				codeBytes.push_back(char(Command::invokevirtual));
+
+				auto concatRef = constantPool.FindMethodRef("java/lang/String", "concat", "(Ljava/lang/String;)Ljava/lang/String;");
+				buffer = intToBytes(concatRef);
+
+				codeBytes.push_back(buffer[2]);
+				codeBytes.push_back(buffer[3]);
+			}
+			break;
+
+		case Subtraction:
+			if (typesExpressions[expr->nodeId]->isInteger()) {
+				codeBytes.push_back(char(Command::isub));
+
+			} else if (typesExpressions[expr->nodeId]->isFloat()) {
+				codeBytes.push_back(char(Command::fsub));
+			}
+			break;
+
+		case Multiplication:
+			if (typesExpressions[expr->nodeId]->isInteger()) {
+				codeBytes.push_back(char(Command::imul));
+
+			} else if (typesExpressions[expr->nodeId]->isFloat()) {
+				codeBytes.push_back(char(Command::fmul));
+			}
+			break;
+
+		case Division:
+			if (typesExpressions[expr->nodeId]->isInteger()) {
+				codeBytes.push_back(char(Command::idiv));
+
+			} else if (typesExpressions[expr->nodeId]->isFloat()) {
+				codeBytes.push_back(char(Command::fdiv));
+			}
+			break;
+
+		case Mod:
+			if (typesExpressions[expr->nodeId]->isInteger()) {
+				codeBytes.push_back(char(Command::irem));
+
+			} else if (typesExpressions[expr->nodeId]->isFloat()) {
+				codeBytes.push_back(char(Command::frem));
+			}
+			break;
+		
+		default:
+			break;
+		}
+	}
+
+	return codeBytes;
+}
+
 std::vector<char> Generator::generate(ReturnStatement* expr) {
 	std::vector<char> bytes;
 
@@ -636,13 +716,13 @@ std::vector<char> Generator::generate(ExpressionAST* expr) {
 		return generate(booleanExpression);
 
 	} else if (auto runeExpression = dynamic_cast<RuneExpression*>(expr)) {
-		std::cout << "не сделали rune expression";
+		std::cout << "Rune expression is not exists";
 		
 	} else if (auto unaryExpression = dynamic_cast<UnaryExpression*>(expr)) {
 		return generate(unaryExpression);
 
 	} else if (auto binaryExpression = dynamic_cast<BinaryExpression*>(expr)) {
-		std::cout << "не сделали binary expression";
+		return generate(binaryExpression);
 
 	} else if (auto accessExpression = dynamic_cast<AccessExpression*>(expr)) {
 		std::cout << "не сделали access expression";
@@ -672,6 +752,7 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 													&& rightIterator != stmt->rhs.end()) {
 			
 			if (auto accessExpression = dynamic_cast<AccessExpression*>(*leftIterator)) {
+				// TODO
 				// right aastore index left
 
 				//buffer = generate((*rightIterator));

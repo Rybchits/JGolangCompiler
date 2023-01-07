@@ -58,6 +58,7 @@ class Generator {
     std::vector<char> generate(FloatExpression* expr);
     std::vector<char> generate(BooleanExpression* expr);
     std::vector<char> generate(UnaryExpression* expr);
+    std::vector<char> generate(BinaryExpression* expr);
 
     std::vector<char> generate(ExpressionAST* expr);
     std::vector<char> generate(StatementAST* stmt);

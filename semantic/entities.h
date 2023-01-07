@@ -42,7 +42,6 @@ public:
         Float,
         UntypedFloat,
         Boolean,
-        Rune,
         String,
         Array,
         Function,

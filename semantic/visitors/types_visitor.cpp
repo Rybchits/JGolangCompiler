@@ -220,7 +220,7 @@ void TypesVisitor::onFinishVisit(StringExpression* node) {
 
 
 void TypesVisitor::onFinishVisit(RuneExpression* node) {
-    typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Rune);
+    typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::UntypedInt);
 }
 
 
@@ -263,18 +263,25 @@ void TypesVisitor::onFinishVisit(UnaryExpression* node) {
 
 
 void TypesVisitor::onFinishVisit(BinaryExpression* node) {
-    if (typesExpressions[node->lhs->nodeId]->type == TypeEntity::Invalid) {
-        typesExpressions[node->nodeId] = typesExpressions[node->lhs->nodeId];
+    auto leftExprType = typesExpressions[node->lhs->nodeId];
+    auto rightExprType = typesExpressions[node->rhs->nodeId];
+
+    if (leftExprType->type == TypeEntity::Invalid) {
+        typesExpressions[node->nodeId] = leftExprType;
         return ;
 
-    } else if (typesExpressions[node->rhs->nodeId]->type == TypeEntity::Invalid) {
-        typesExpressions[node->nodeId] = typesExpressions[node->rhs->nodeId];
+    } else if (rightExprType->type == TypeEntity::Invalid) {
+        typesExpressions[node->nodeId] = rightExprType;
         return ;
     }
 
-    if (node->type == Addition || node->type == Subtraction || node->type == Multiplication || node->type == Division || node->type == Mod) {
-        if (typesExpressions[node->lhs->nodeId]->isNumeric() && typesExpressions[node->rhs->nodeId]->isNumeric()) {
-            typesExpressions[node->nodeId] = typesExpressions[node->lhs->nodeId]->determinePriorityType(typesExpressions[node->rhs->nodeId]);
+    if (leftExprType->type == TypeEntity::String && rightExprType->type == TypeEntity::String && node->type == Addition) {
+        typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::String);
+
+    } else if (node->type == Addition || node->type == Subtraction || node->type == Multiplication || node->type == Division || node->type == Mod) {
+
+        if (leftExprType->isNumeric() && rightExprType->isNumeric()) {
+            typesExpressions[node->nodeId] = leftExprType->determinePriorityType(rightExprType);
 
         } else {
             typesExpressions[node->nodeId] = new TypeEntity();
@@ -282,17 +289,16 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
         }
 
     } else if (node->type == Or || node->type == And) {
-        if (typesExpressions[node->lhs->nodeId]->type == TypeEntity::Boolean && typesExpressions[node->rhs->nodeId]->type == TypeEntity::Boolean) {
+        if (leftExprType->type == TypeEntity::Boolean && rightExprType->type == TypeEntity::Boolean) {
             typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
         } else {
             typesExpressions[node->nodeId] = new TypeEntity();
             semantic->errors.push_back(node->name() + " must have boolean expressions");
         }
     } else {
-        if (typesExpressions[node->lhs->nodeId]->equal(typesExpressions[node->rhs->nodeId]) 
-            && typesExpressions[node->lhs->nodeId]->type != TypeEntity::Array
-            && typesExpressions[node->lhs->nodeId]->type != TypeEntity::UserType) {
+        if (leftExprType->equal(rightExprType) && leftExprType->type != TypeEntity::Array && leftExprType->type != TypeEntity::UserType) {
             typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
+
         } else {
             typesExpressions[node->nodeId] = new TypeEntity();
             semantic->errors.push_back(node->name() + " must have equals types expressions. Comparison of arrays and functions are'nt supported");

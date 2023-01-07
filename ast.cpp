@@ -134,6 +134,14 @@ std::string AccessExpression::name() const noexcept {
     return "AccessExpr";
 }
 
+bool BinaryExpression::isLogical() {
+    return type == Or || type == And;
+}
+
+bool BinaryExpression::isComparison() {
+    return type == Equal || type == Greater || type == Less || type == NotEqual || type == LessOrEqual || type == GreatOrEqual;
+}
+
 // If there is an indexing, we decompose the left part of the assignment
 AssignmentStatement::AssignmentStatement(AssignmentEnum type, ExpressionAST* lExp, ExpressionAST* rExp) {
     this->type = type;
