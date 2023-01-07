@@ -1,7 +1,7 @@
 package main
 
 func printArray(array []int) {
-	for i := 0; i < lenArrayInt(array); i++ {
+	for i := 0; i < lenArray(array); i++ {
 		printInt(array[i])
 	}
 }
@@ -38,11 +38,11 @@ func HeapSort(arr []int) {
 	i := 0
 	tmp := 0
 
-	for i = lenArrayInt(arr)/2 - 1; i >= 0; i-- {
-		arr = sift(arr, i, lenArrayInt(arr))
+	for i = lenArray(arr)/2 - 1; i >= 0; i-- {
+		arr = sift(arr, i, lenArray(arr))
 	}
 
-	for i = lenArrayInt(arr) - 1; i >= 1; i-- {
+	for i = lenArray(arr) - 1; i >= 1; i-- {
 		tmp = arr[0]
 		arr[0] = arr[i]
 		arr[i] = tmp

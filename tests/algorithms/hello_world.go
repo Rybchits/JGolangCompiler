@@ -1,11 +1,9 @@
 package main
 
-func newFloat() float64 {
-	return 3.14
-}
-
-const i = 1 + 2
-
 func main() {
-	i = 1
+	const hello = "Hello "
+	const world = "world"
+	printString(hello + world)
+	printRune(':')
+	printInt(lenString(hello + world))
 }

@@ -26,21 +26,11 @@ public class $Base {
 
     public static void printBoolean(boolean b) { System.out.print(b); }
 
-    public static int lenArrayInt(int[] array) {
-        return array.length;
-    }
+    public static void printRune(int r) { System.out.print((char)r); }
 
-    public static int lenArrayFloat(float[] array) {
-        return array.length;
-    }
+    public static int lenArray(Object[] array) { return array.length; }
 
-    public static int lenArrayString(String[] array) {
-        return array.length;
-    }
-
-    public static int lenArrayBoolean(boolean[] array) {
-        return array.length;
-    }
+    public static int lenString(String string) { return string.length(); }
 
     public static int[] appendIntArray(int[] array, int element) {
         int[] newArray = Arrays.copyOf(array, array.length+1);

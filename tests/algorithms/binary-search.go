@@ -1,7 +1,7 @@
 package main
 
 func printArray(array []int) {
-	for i := 0; i < lenArrayInt(array); i++ {
+	for i := 0; i < lenArray(array); i++ {
 		printInt(array[i])
 	}
 }
@@ -15,8 +15,8 @@ func main() {
 
 	// Sort the numbers
 	var tmp = 0
-	for i := 0; i < lenArrayInt(arr); i++ {
-		for j := 0; j < lenArrayInt(arr)-1; j++ {
+	for i := 0; i < lenArray(arr); i++ {
+		for j := 0; j < lenArray(arr)-1; j++ {
 			if arr[j] > arr[j+1] {
 				tmp = arr[j]
 				arr[j] = arr[j+1]
@@ -28,7 +28,7 @@ func main() {
 	printArray(arr)
 
 	left := 0
-	right := lenArrayInt(arr) - 1
+	right := lenArray(arr) - 1
 
 	if right < left {
 		printString("Not found")

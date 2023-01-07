@@ -115,10 +115,10 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
             }
 
             // Const checking
-            if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::Array && node->isConst) {
+            if (node->isConst && typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::Array) {
                 semantic->errors.push_back("Go does not support constant arrays, maps or slices");
 
-            } else if (!constCheckVisitor.isConstExpression(*currentValue)) {
+            } else if (node->isConst && !constCheckVisitor.isConstExpression(*currentValue)) {
                 semantic->errors.push_back("Cannot assignment not const expression for " + id);
             }
             

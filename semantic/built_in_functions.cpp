@@ -22,23 +22,18 @@ const std::unordered_map<std::string, TypeEntity*> Semantic::BuiltInFunctions = 
         new TypeEntity(TypeEntity::Void)))
     },
 
-    {"lenArrayInt", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Int)))})),
+    {"printRune", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Int)})),
+        new TypeEntity(TypeEntity::Void)))
+    },
+
+    {"lenArray", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Any)))})),
         new TypeEntity(TypeEntity::Int)))
     },
 
-    {"lenArrayFloat", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Float)))})),
-        new TypeEntity(TypeEntity::Int)))
-    },
-
-    {"lenArrayBoolean", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Boolean)))})),
-        new TypeEntity(TypeEntity::Int)))
-    },
-
-    {"lenArrayString", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::String)))})),
+    {"lenString", new TypeEntity(new FunctionSignatureEntity(
+        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::String)})),
         new TypeEntity(TypeEntity::Int)))
     },
 

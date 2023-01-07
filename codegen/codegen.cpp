@@ -562,7 +562,19 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 	std::vector<char> buffer;
 
 	if (expr->isLogical() || expr->isComparison()) {
-		// TODO
+		switch (expr->type)
+		{
+		case And:
+			/* code */
+			break;
+
+		case Or:
+			/* code */
+			break;
+		
+		default:
+			break;
+		}
 	} else {
 		codeBytes = generate(expr->lhs);
 
