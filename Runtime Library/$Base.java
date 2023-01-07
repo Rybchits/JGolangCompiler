@@ -13,7 +13,7 @@ public class $Base {
     }
 
     public static String readString() {
-        return new String(in.next());
+        return new String(in.nextLine());
     }
 
     public static boolean readBool() { return in.nextBoolean(); }

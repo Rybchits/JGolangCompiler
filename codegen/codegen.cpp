@@ -1,72 +1,88 @@
 #include "codegen.h"
 #include "../utils/bytes.hpp"
 
-void Generator::generateConstant(Constant & constant) {
-	// UTF-8
-	if (constant.type == Constant::TypeT::Utf8) {
+std::vector<char> Generator::generateConstant(Constant & constant) {
+	std::vector<char> bytes;
+	std::vector<char> buffer;
+
+	switch (constant.type)
+	{
+	case Constant::TypeT::Utf8: {
 		char const* c = constant.utf8.c_str();
-	    outfile << (char)Constant::TypeT::Utf8;
-		std::vector<char> len = intToBytes(strlen(c));
-	    outfile << (char)len[2] << (char)len[3];
-		for (int i = 0; i < strlen(c); ++i) {
-			outfile << c[i];
-		}
+	    bytes.push_back((char)Constant::TypeT::Utf8);
+
+		buffer = intToBytes(strlen(c));
+	    bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+		bytes.insert(bytes.end(), c, c + strlen(c));
+		break;
+	}
+	case Constant::TypeT::Integer: {
+		bytes.push_back((char)Constant::TypeT::Integer);
+
+		buffer = intToBytes(constant.integer);
+		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+		break;
+	}
+		
+	case Constant::TypeT::Float: {
+		bytes.push_back((char)Constant::TypeT::Float);
+
+		buffer = floatToBytes(constant.floating);
+		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+		break;
 	}
 
-	// Integer
-	if (constant.type == Constant::TypeT::Integer) {
-		outfile << (char)Constant::TypeT::Integer;
-		std::vector<char> len = intToBytes(constant.integer);
-		outfile << len[0] << len[1] << len[2] << len[3];
+	case Constant::TypeT::Class: {
+		bytes.push_back((char)Constant::TypeT::Class);
+
+		buffer = intToBytes(constant.classNameId);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+		break;
+	}
+	
+	case Constant::TypeT::String: {
+		bytes.push_back((char)Constant::TypeT::String);
+
+		buffer = intToBytes(constant.utf8Id);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+		break;
 	}
 
-	// Float
-	if (constant.type == Constant::TypeT::Float) {
-		outfile << (char)Constant::TypeT::Float;
-		std::vector<char> len = floatToBytes(constant.floating);
-		outfile << len[0] << len[1] << len[2] << len[3];
+	case Constant::TypeT::FieldRef: {
+		bytes.push_back((char)Constant::TypeT::FieldRef);
+
+		buffer = intToBytes(constant.classId);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+
+		buffer = intToBytes(constant.nameAndTypeId);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+		break;
 	}
 
-	// Class
-	if (constant.type == Constant::TypeT::Class) {
-		outfile << (char)Constant::TypeT::Class;
-		std::vector<char> len = intToBytes(constant.classNameId);
-		outfile << len[2] << len[3];
+	case Constant::TypeT::MethodRef: {
+		bytes.push_back((char)Constant::TypeT::MethodRef);
+		
+		buffer = intToBytes(constant.classId);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+
+		buffer = intToBytes(constant.nameAndTypeId);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+		break;
 	}
 
-	// String
-	if (constant.type == Constant::TypeT::String) {
-		outfile << (char)Constant::TypeT::String;
-		std::vector<char> len = intToBytes(constant.utf8Id);
-		outfile << len[2] << len[3];
+	case Constant::TypeT::NameAndType: {
+		bytes.push_back((char)Constant::TypeT::NameAndType);
+
+		buffer = intToBytes(constant.nameId);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+
+		buffer = intToBytes(constant.typeId);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+		break;
+	}
 	}
 
-	// Fieldref
-	if (constant.type == Constant::TypeT::FieldRef) {
-		outfile << (char)Constant::TypeT::FieldRef;
-		std::vector<char> len = intToBytes(constant.classId);
-		outfile << len[2] << len[3];
-		len = intToBytes(constant.nameAndTypeId);
-		outfile << len[2] << len[3];
-	}
-
-	// Methodref
-	if (constant.type == Constant::TypeT::MethodRef) {
-		outfile << (char)Constant::TypeT::MethodRef;
-		std::vector<char> len = intToBytes(constant.classId);
-		outfile << len[2] << len[3];
-		len = intToBytes(constant.nameAndTypeId);
-		outfile << len[2] << len[3];
-	}
-
-	// NameAndTypeT
-	if (constant.type == Constant::TypeT::NameAndType) {
-		outfile << (char)Constant::TypeT::NameAndType;
-		std::vector<char> len = intToBytes(constant.nameId);
-		outfile << len[2] << len[3];
-		len = intToBytes(constant.typeId);
-		outfile << len[2] << len[3];
-	}
+	return bytes;
 }
 
 
@@ -74,10 +90,7 @@ void Generator::addBuiltInFunctions(std::string_view nameBaseClass, const std::u
 	for (auto &[id, descriptor] : functions) {
 		int index = constantPool.FindMethodRef(nameBaseClass, id, descriptor->toByteCode());
 		context.add(id, new RefConstant(index, false));
-	}
-
-	// dirty
-	constantPool.FindMethodRef("java/lang/String", "concat", "(Ljava/lang/String;)Ljava/lang/String;");
+	}	
 }
 
 
@@ -97,7 +110,9 @@ void Generator::fillConstantPool(std::string_view className, ClassEntity* classE
     for (auto & [fieldIdentifier, field] : classEntity->getFields()) {
         int index = constantPool.FindFieldRef(className, fieldIdentifier, field->type->toByteCode());
 		context.add(fieldIdentifier, new RefConstant(index, false));
-		constantVisitor->getConstants(field->declaration);
+		if (field->declaration) {
+			constantVisitor->getConstants(field->declaration);
+		}
     }
 
     for (auto & [methodIdentifier, method] : classEntity->getMethods()) {
@@ -113,6 +128,7 @@ void Generator::generate() {
     using namespace std::filesystem;
 	create_directory(current_path() / "output");
 	std::vector<char> buffer;
+	std::vector<char> classFileTail;
 
     for (auto & [className, classEntity] : classes) {
 		constantPool = ConstantPool();
@@ -126,7 +142,10 @@ void Generator::generate() {
 
         auto filepath = current_path() / "output" / filename;
 		
+		std::fstream outfile;
         outfile.open(filepath, std::ios_base::binary | std::ios_base::out | std::ios_base::trunc);
+
+		// write to file class file head
 
 		// CAFEBABE
 		outfile << (char)0xCA << (char)0xFE << (char)0xBA << (char)0xBE;
@@ -134,153 +153,159 @@ void Generator::generate() {
 		// JAVA 8 (version 52.0 (0x34))
 		outfile << (char)0x00 << (char)0x00 << (char)0x00 << (char)0x3E;
 
-		// constants count
-		std::vector<char> sizeConstantPool = intToBytes(constantPool.pool.size() + 1);
-		outfile << sizeConstantPool[2] << sizeConstantPool[3];
-
-		//constants table
-        for (auto & constant : constantPool.pool) {
-            generateConstant(constant);
-        }
+		// fill class file tail to buffer
 
 		// class flags ()
-		outfile << (char)0x00 << (char)0x21;
+		classFileTail = {(char)0x00, (char)0x21};
 
 		// This class constant
 		buffer = intToBytes(constantPool.FindClass(className));
-		outfile << buffer[2] << buffer[3];
+		classFileTail.insert(classFileTail.end(), buffer.begin() + 2, buffer.end());
 
 		// Parent class constant
 		buffer = intToBytes(constantPool.FindClass("java/lang/Object"));
-		outfile << buffer[2] << buffer[3];
+		classFileTail.insert(classFileTail.end(), buffer.begin() + 2, buffer.end());
 
 		// Interfaces table
-		outfile << (char)0x00 << (char)0x00;
+		classFileTail.push_back((char)0x00); classFileTail.push_back((char)0x00);
 
 		// fields count
 		buffer = intToBytes(classEntity->getFields().size());
-		outfile << buffer[2] << buffer[3];
+		classFileTail.insert(classFileTail.end(), buffer.begin() + 2, buffer.end());
 		
 		// fields info
 		for (auto & [fieldIdentifier, fieldEntity] : classEntity->getFields()) {
-			generateField(fieldIdentifier, fieldEntity);
+			buffer = generateField(fieldIdentifier, fieldEntity);
+			classFileTail.insert(classFileTail.end(), buffer.begin(), buffer.end());
 		}
 
 		bool hasClassInitializationConstructor = classEntity->hasFieldsDeclaration();
 
 		// methods count
 		buffer = intToBytes(classEntity->getMethods().size() + 1 + hasClassInitializationConstructor);
-		outfile << buffer[2] << buffer[3];
+		classFileTail.insert(classFileTail.end(), buffer.begin() + 2, buffer.end());
 
 		// Generate constructor
-		generateMethod("<init>", "()V", 1, uint16_t(AccessFlags::Public),
+		buffer = generateMethod("<init>", "()V", 1, uint16_t(AccessFlags::Public),
 						generateGlobalClassConstructorCode());
+		classFileTail.insert(classFileTail.end(), buffer.begin(), buffer.end());
 
 		if (hasClassInitializationConstructor) {
-			generateMethod("<clinit>", "()V", 0, uint16_t(AccessFlags::Static)
+			buffer = generateMethod("<clinit>", "()V", 0, uint16_t(AccessFlags::Static)
 						  , generateStaticConstuctorCode(className, classEntity));
+			classFileTail.insert(classFileTail.end(), buffer.begin(), buffer.end());
 		}
 
 		for (auto & [methodIdentifier, methodEntity] : classEntity->getMethods()) {
-			generateMethod(methodIdentifier, methodEntity->toTypeEntity()->toByteCode()
+			buffer = generateMethod(methodIdentifier, methodEntity->toTypeEntity()->toByteCode()
 						 , methodEntity->getNumberLocalVariables() + 1, uint16_t(AccessFlags::Public)
 																  | uint16_t(AccessFlags::Static)
 						 , generateMethodBodyCode(methodEntity));
+			classFileTail.insert(classFileTail.end(), buffer.begin(), buffer.end());
 		}
 
-        // atributes
-		outfile << (char)0x00 << (char)0x00;
+		// atributes
+		classFileTail.push_back((char)0x00); classFileTail.push_back((char)0x00);
+
+		// continue to write class file head
+
+		// constants count
+		std::vector<char> sizeConstantPool = intToBytes(constantPool.pool.size() + 1);
+		outfile << sizeConstantPool[2] << sizeConstantPool[3];
+
+		//constants table
+        for (auto & constant : constantPool.pool) {
+            buffer = generateConstant(constant);
+			outfile.write(buffer.data(), buffer.size());
+        }
+
+		// write to file filled class file tail
+		outfile.write(classFileTail.data(), classFileTail.size());
 
 		outfile.close();
     }
 }
 
-void Generator::generateField(std::string fieldName, FieldEntity* field) {
+std::vector<char> Generator::generateField(std::string fieldName, FieldEntity* field) {
 	std::vector<char> bytes;
+	std::vector<char> buffer;
 	
 	// flags Public and Static
-	outfile << (char)0x00 << (char)0x09;
+	bytes = {(char)0x00, (char)0x09};
 
 	// field name index
-	bytes = intToBytes(constantPool.FindUtf8(fieldName));
-	outfile << bytes[2] << bytes[3];
+	buffer = intToBytes(constantPool.FindUtf8(fieldName));
+	bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 	
 	// field descriptor index
-	bytes = intToBytes(constantPool.FindUtf8(field->type->toByteCode()));
-	outfile << bytes[2] << bytes[3];
+	buffer = intToBytes(constantPool.FindUtf8(field->type->toByteCode()));
+	bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 
 	// field attributes	(may add final flag and ConstValue attribute)
-	outfile << (char)0x00 << (char)0x00;
+	bytes.push_back((char)0x00); bytes.push_back((char)0x00);
+	
+	return bytes;
 }
 
-void Generator::generateMethod(std::string_view methodName, std::string_view descriptor
+std::vector<char> Generator::generateMethod(std::string_view methodName, std::string_view descriptor
 					   , uint numeberLocals, uint accessFlags
 					   , std::vector<char>&& bodyCodeBytes) {
 
 	std::vector<char> bytes;
+	std::vector<char> buffer;
 
 	// flags Public and Static
-	bytes = intToBytes(accessFlags);
-	outfile << bytes[2] << bytes[3];
+	buffer = intToBytes(accessFlags);
+	bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 
 	// field name index
 	if (!methodName.empty()) {
-		bytes = intToBytes(constantPool.FindUtf8(methodName));
-		outfile << bytes[2] << bytes[3];
+		buffer = intToBytes(constantPool.FindUtf8(methodName));
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 	}
 	
 	// field descriptor index
-	bytes = intToBytes(constantPool.FindUtf8(descriptor));
-	outfile << bytes[2] << bytes[3];
+	buffer = intToBytes(constantPool.FindUtf8(descriptor));
+	bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 	
 	// Only code attribute
-	outfile << (char)0x00 << (char)0x01;
+	bytes.push_back((char)0x00); bytes.push_back((char)0x01);
 
 	// method atribute (Code - 0x01)
-	bytes = intToBytes(constantPool.FindUtf8("Code"));
-	outfile << bytes[2] << bytes[3];
+	buffer = intToBytes(constantPool.FindUtf8("Code"));
+	bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 
 	std::vector<char> codeAttributeBytes;
 
 	// size of operands stack
-	bytes = intToBytes(1000);
-	codeAttributeBytes.push_back(bytes[2]);
-	codeAttributeBytes.push_back(bytes[3]);
+	buffer = intToBytes(1000);
+	codeAttributeBytes.insert(codeAttributeBytes.end(), buffer.begin() + 2, buffer.end());
 
 	// size of local variables
-	bytes = intToBytes(numeberLocals);
-	codeAttributeBytes.push_back(bytes[2]);
-	codeAttributeBytes.push_back(bytes[3]);
+	buffer = intToBytes(numeberLocals);
+	codeAttributeBytes.insert(codeAttributeBytes.end(), buffer.begin() + 2, buffer.end());
 
 	// size of code
-	bytes = intToBytes(bodyCodeBytes.size());
-	for (auto i : bytes) {
-		codeAttributeBytes.push_back(i);
-	}
+	buffer = intToBytes(bodyCodeBytes.size());
+	codeAttributeBytes.insert(codeAttributeBytes.end(), buffer.begin(), buffer.end());
 
 	// code from bodyCodeBytes
-	for (auto i : bodyCodeBytes) {
-		codeAttributeBytes.push_back(i);
-	}
+	codeAttributeBytes.insert(codeAttributeBytes.end(), bodyCodeBytes.begin(), bodyCodeBytes.end());
 
 	// exception table 
-	codeAttributeBytes.push_back((char)0x00);
-	codeAttributeBytes.push_back((char)0x00);
+	codeAttributeBytes.push_back((char)0x00); codeAttributeBytes.push_back((char)0x00);
 
 	// attrs table
-	codeAttributeBytes.push_back((char)0x00);
-	codeAttributeBytes.push_back((char)0x00);
+	codeAttributeBytes.push_back((char)0x00); codeAttributeBytes.push_back((char)0x00);
 
 	// attribute length
-	bytes = intToBytes(codeAttributeBytes.size());
-	for (auto i : bytes) {
-		outfile << i;
-	}
+	buffer = intToBytes(codeAttributeBytes.size());
+	bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
 	// tail of attribute
-	for (auto i : codeAttributeBytes) {
-		outfile << i;
-	}
+	bytes.insert(bytes.end(), codeAttributeBytes.begin(), codeAttributeBytes.end());
+
+	return bytes;
 }
 
 std::vector<char> Generator::generateGlobalClassConstructorCode() {
@@ -309,8 +334,7 @@ std::vector<char> Generator::generateStaticConstuctorCode(std::string_view class
 		bytes.push_back(char(Command::putstatic));
 
 		buffer = intToBytes(constantPool.FindFieldRef(className, fieldIdentifier, field->type->toByteCode()));
-		bytes.push_back(buffer[2]);
-		bytes.push_back(buffer[3]);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 	}
 
 	bytes.push_back(char(Command::return_));
@@ -371,8 +395,7 @@ std::vector<char> Generator::generate(CallableExpression* expr) {
 		codeBytes.push_back((char)Command::invokestatic);
 		int indexFunction = context.find(idExpression->identifier)->index;
 		buffer = intToBytes(indexFunction);
-		codeBytes.push_back(buffer[2]);
-		codeBytes.push_back(buffer[3]);
+		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 	}
 
 	return codeBytes;
@@ -409,8 +432,7 @@ std::vector<char> Generator::generate(IdentifierAsExpression* expr) {
 
 	} else {
 		codeBytes.push_back((char)Command::getstatic);
-		codeBytes.push_back(buffer[2]);
-		codeBytes.push_back(buffer[3]);
+		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 	}
 
 	return codeBytes;
@@ -422,8 +444,7 @@ std::vector<char> Generator::generate(StringExpression* expr) {
 
 	codeBytes.push_back((char)Command::ldc_w);
 	buffer = intToBytes(constantPool.FindString(expr->stringLit));
-	codeBytes.push_back(buffer[2]);
-	codeBytes.push_back(buffer[3]);
+	codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 
 	return codeBytes;
 }
@@ -438,8 +459,7 @@ std::vector<char> Generator::generate(IntegerExpression* expr) {
 	} else {
 		codeBytes.push_back((char)Command::ldc_w);
 		buffer = intToBytes(constantPool.FindInt(expr->intLit));
-		codeBytes.push_back(buffer[2]);
-		codeBytes.push_back(buffer[3]);
+		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 	}
 	
 	return codeBytes;
@@ -452,8 +472,7 @@ std::vector<char> Generator::generate(FloatExpression* expr) {
 
 	codeBytes.push_back((char)Command::ldc_w);
 	buffer = intToBytes(constantPool.FindFloat(expr->floatLit));
-	codeBytes.push_back(buffer[2]);
-	codeBytes.push_back(buffer[3]);
+	codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 
 	return codeBytes;
 }
@@ -507,15 +526,13 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 					buffer = intToBytes(ref->index);
 
 					codeBytes.push_back((char)Command::getstatic);
-					codeBytes.push_back(buffer[2]);
-					codeBytes.push_back(buffer[3]);
+					codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 
 					codeBytes.push_back(uint8_t(Command::iconst_1));
 					codeBytes.push_back(uint8_t(expr->type == Increment? Command::iadd : Command::isub));
 
 					codeBytes.push_back((char)Command::putstatic);
-					codeBytes.push_back(buffer[2]);
-					codeBytes.push_back(buffer[3]);
+					codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 				}
 
 			} else if (typesExpressions[idExpression->nodeId]->isFloat()) {
@@ -582,23 +599,20 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 			buffer = intToBytes(trueValueOffset);
 		}
 
-		codeBytes.push_back(buffer[2]);
-		codeBytes.push_back(buffer[3]);
+		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 		
 		codeBytes.insert(codeBytes.end(), rightExprBytes.begin(), rightExprBytes.end());
 
 		codeBytes.push_back((char)Command::ifeq);
 
 		buffer = intToBytes(ifeqLength + gotoLength + iconstLength);
-		codeBytes.push_back(buffer[2]);
-		codeBytes.push_back(buffer[3]);
+		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 
 		codeBytes.push_back((char)Command::iconst_1);
 		codeBytes.push_back((char)Command::goto_);
 
 		buffer = intToBytes(gotoLength + iconstLength);
-		codeBytes.push_back(buffer[2]);
-		codeBytes.push_back(buffer[3]);
+		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 
 		codeBytes.push_back((char)Command::iconst_0);
 
@@ -622,8 +636,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 				auto concatRef = constantPool.FindMethodRef("java/lang/String", "concat", "(Ljava/lang/String;)Ljava/lang/String;");
 				buffer = intToBytes(concatRef);
 
-				codeBytes.push_back(buffer[2]);
-				codeBytes.push_back(buffer[3]);
+				codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 			}
 			break;
 
@@ -671,6 +684,15 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 	return codeBytes;
 }
 
+std::vector<char> Generator::generate(CompositeLiteral* expr) {
+	return {};
+}
+
+
+std::vector<char> Generator::generate(ElementCompositeLiteral* expr) {
+	return {};
+}
+
 std::vector<char> Generator::generate(ReturnStatement* expr) {
 	std::vector<char> bytes;
 
@@ -685,6 +707,7 @@ std::vector<char> Generator::generate(ReturnStatement* expr) {
 
 	return bytes;
 }
+
 
 std::vector<char> Generator::initializeLocalVariables(const IdentifiersList& identifiers, const ExpressionList& values) {
 	std::vector<char> bytes;
@@ -906,10 +929,3 @@ std::vector<char> Generator::generate(StatementAST* stmt) {
 	return {};
 };
 
-std::vector<char> Generator::generate(CompositeLiteral* expr) {
-	return {};
-}
-
-std::vector<char> Generator::generate(ElementCompositeLiteral* expr) {
-	return {};
-}

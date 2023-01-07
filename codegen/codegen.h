@@ -27,15 +27,14 @@ class Generator {
 
     ConstantPool constantPool;
     Context<RefConstant*> context;
-    std::fstream outfile;
 
     MethodEntity* currentMethod;
     int indexCurrentLocalVariable = 0;
 
-    void generateConstant(Constant & constant);
+    std::vector<char> generateConstant(Constant & constant);
 
-    void generateField(std::string fieldName, FieldEntity* field);
-    void generateMethod(std::string_view methodName, std::string_view descriptor
+    std::vector<char> generateField(std::string fieldName, FieldEntity* field);
+    std::vector<char> generateMethod(std::string_view methodName, std::string_view descriptor
                 , uint numeberLocals, uint accessFlags
                 , std::vector<char>&& bodyCodeBytes);
 
