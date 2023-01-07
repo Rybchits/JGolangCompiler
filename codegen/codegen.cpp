@@ -561,28 +561,54 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	if (expr->isLogical() || expr->isComparison()) {
-		switch (expr->type)
-		{
-		case And:
-			/* code */
-			break;
+	if (expr->isLogical()) {
 
-		case Or:
-			/* code */
-			break;
-		
-		default:
-			break;
+		constexpr auto ifeqLength = 3;
+        constexpr auto gotoLength = 3;
+        constexpr auto iconstLength = 1;
+
+		codeBytes = generate(expr->lhs);
+
+		std::vector<char> rightExprBytes = generate(expr->rhs);
+		const auto trueValueOffset = rightExprBytes.size() + ifeqLength * 2;
+        const auto falseValueOffset = rightExprBytes.size() + ifeqLength * 2 + iconstLength + gotoLength;
+
+		if (expr->type == And) {
+			codeBytes.push_back(char(Command::ifeq));
+			buffer = intToBytes(falseValueOffset);
+
+		} else if (expr->type == Or) {
+			codeBytes.push_back(char(Command::ifne));
+			buffer = intToBytes(trueValueOffset);
 		}
+
+		codeBytes.push_back(buffer[2]);
+		codeBytes.push_back(buffer[3]);
+		
+		codeBytes.insert(codeBytes.end(), rightExprBytes.begin(), rightExprBytes.end());
+
+		codeBytes.push_back((char)Command::ifeq);
+
+		buffer = intToBytes(ifeqLength + gotoLength + iconstLength);
+		codeBytes.push_back(buffer[2]);
+		codeBytes.push_back(buffer[3]);
+
+		codeBytes.push_back((char)Command::iconst_1);
+		codeBytes.push_back((char)Command::goto_);
+
+		buffer = intToBytes(gotoLength + iconstLength);
+		codeBytes.push_back(buffer[2]);
+		codeBytes.push_back(buffer[3]);
+
+		codeBytes.push_back((char)Command::iconst_0);
+
 	} else {
 		codeBytes = generate(expr->lhs);
 
 		buffer = generate(expr->rhs);
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
-		switch (expr->type)
-		{
+		switch (expr->type) {
 		case Addition:
 			if (typesExpressions[expr->nodeId]->isInteger()) {
 				codeBytes.push_back(char(Command::iadd));
@@ -879,3 +905,11 @@ std::vector<char> Generator::generate(StatementAST* stmt) {
 
 	return {};
 };
+
+std::vector<char> Generator::generate(CompositeLiteral* expr) {
+	return {};
+}
+
+std::vector<char> Generator::generate(ElementCompositeLiteral* expr) {
+	return {};
+}
