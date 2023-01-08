@@ -84,7 +84,7 @@ void TypesVisitor::onStartVisit(BlockStatement* node) {
 void TypesVisitor::onFinishVisit(BlockStatement* node) {
     for (auto & [id, var] : scopesDeclarations.getLastScope()) {
 
-        if (var->numberUsage == 0 && !var->isArgument) {
+        if (var->numberUsage == 0 && !var->isArgument && !var->isConst) {
             semantic->errors.push_back("Unused variable " + id);
         }
     }
@@ -358,7 +358,7 @@ void TypesVisitor::onFinishVisit(AccessExpression* node) {
         }
         typesExpressions[node->nodeId] = new TypeEntity();
 
-    } else if (node->type == AccessExpressionEnum::FieldSelect && typesExpressions[node->accessor->nodeId]->type == TypeEntity::UserType) {
+    } else if (node->type == AccessExpressionEnum::FieldSelect || typesExpressions[node->accessor->nodeId]->type == TypeEntity::UserType) {
         // struct aren't supported yet
     }
 

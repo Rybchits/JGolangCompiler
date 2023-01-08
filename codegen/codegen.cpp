@@ -95,8 +95,7 @@ void Generator::addBuiltInFunctions(std::string_view nameBaseClass, const std::u
 
 
 void Generator::fillConstantPool(std::string_view className, ClassEntity* classEntity) {
-	auto constantVisitor = new ConstantVisitor(&constantPool);
-	
+		
     // Add name of "Code" attribute
     constantPool.pool.push_back(Constant::CreateUtf8("Code"));
     
@@ -110,15 +109,11 @@ void Generator::fillConstantPool(std::string_view className, ClassEntity* classE
     for (auto & [fieldIdentifier, field] : classEntity->getFields()) {
         int index = constantPool.FindFieldRef(className, fieldIdentifier, field->type->toByteCode());
 		context.add(fieldIdentifier, new RefConstant(index, false));
-		if (field->declaration) {
-			constantVisitor->getConstants(field->declaration);
-		}
     }
 
     for (auto & [methodIdentifier, method] : classEntity->getMethods()) {
         int index = constantPool.FindMethodRef(className, methodIdentifier, method->toTypeEntity()->toByteCode());
 		context.add(methodIdentifier, new RefConstant(index, false));
-		constantVisitor->getConstants(method->getCodeBlock());
     }
 
 	constantPool.FindUtf8("<clinit>");
@@ -684,7 +679,50 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 	return codeBytes;
 }
 
+// [3]int{1, 2, 3, 4}
+// if (тип == int, bool, float) --> newarray, id of base java type
+	//									** array element initialization **
+	//									copy array
+	//									push index of element
+	//									push element
+	//									iastore / fastore / bastore
+
+	// if (тип == array, String) --> anewarray,
 std::vector<char> Generator::generate(CompositeLiteral* expr) {
+	std::vector<char> codeBytes;
+	std::vector<char> buffer;
+
+	auto arraySignature = std::get<ArraySignatureEntity*>(typesExpressions[expr->nodeId]->value);
+	
+	codeBytes = generate(new IntegerExpression(arraySignature->dims));
+
+	// TODO
+	switch (arraySignature->type->type)
+	{
+	case TypeEntity::Int:
+		codeBytes.push_back((char)Command::newarray);
+		break;
+
+	case TypeEntity::Float:
+		codeBytes.push_back((char)Command::newarray);
+		break;
+
+	case TypeEntity::Boolean:
+		codeBytes.push_back((char)Command::newarray);
+		break;
+
+	case TypeEntity::Array:
+		codeBytes.push_back((char)Command::anewarray);
+		break;
+
+	case TypeEntity::String:
+		codeBytes.push_back((char)Command::anewarray);
+		break;
+	
+	default:
+		break;
+	}
+
 	return {};
 }
 
@@ -812,12 +850,24 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 		while (indexIterator != stmt->indexes.end() && leftIterator != stmt->lhs.end() 
 													&& rightIterator != stmt->rhs.end()) {
 			
+			// TODO Гриша сказал что хуйня с AccessExpression
 			if (auto accessExpression = dynamic_cast<AccessExpression*>(*leftIterator)) {
-				// TODO
-				// right aastore index left
+				bytes.push_back((char)Command::aload);
+				
+				buffer = generate(accessExpression->base);
+				bytes.insert(bytes.begin(), buffer.begin(), buffer.end());
+				
+				buffer = generate(accessExpression->accessor);
+				bytes.insert(bytes.begin(), buffer.begin(), buffer.end());
 
-				//buffer = generate((*rightIterator));
-				//bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+				buffer = generate(*rightIterator);
+				bytes.insert(bytes.begin(), buffer.begin(), buffer.end());
+
+				//switch (typesExpressions[accessExpression->nodeId]->type) {
+				//	case 
+				//}
+				// TODO switch (Integer -> iastore, Float -> fastore, Boolean -> bastore, String, Array -> aastore)
+				// Где взять тип?
 				
 			} else if (auto identifierAsExpression = dynamic_cast<IdentifierAsExpression*>(*leftIterator)){
 				buffer = generate(*rightIterator);

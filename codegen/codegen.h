@@ -2,7 +2,6 @@
 
 #include "./constant.h"
 #include "./commands.h"
-#include "./constant_visitor.h"
 #include "../visitor.h"
 #include "../context.h"
 #include "../semantic/entities.h"
