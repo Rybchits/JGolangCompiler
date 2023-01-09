@@ -252,4 +252,62 @@ void StatementsVisitor::onFinishVisit(SwitchStatement* node) {
     node->defaultStatement = transformStatements(node->defaultStatement);
 }
 
+bool StatementsVisitor::checkReturnStatements(StatementAST* stmt) {
 
+    if (auto returnStmt = dynamic_cast<ReturnStatement*>(stmt)) {
+        return true;
+
+    } else if (auto ifStmt = dynamic_cast<IfStatement*>(stmt)) {
+        return checkReturnStatements(ifStmt);
+
+    } else if (auto block = dynamic_cast<BlockStatement*>(stmt)) {
+        return checkReturnStatements(block);
+
+    } else if (auto switchStmt = dynamic_cast<SwitchStatement*>(stmt)) {
+        return checkReturnStatements(switchStmt);
+    }
+
+    return false;
+}
+
+bool StatementsVisitor::checkReturnStatements(BlockStatement* block) {
+    if (block->body.size() != 0) {
+        return checkReturnStatements(*(--block->body.end()));
+    }
+    return false;
+}
+
+bool StatementsVisitor::checkReturnStatements(IfStatement* ifStatement) {
+    bool hasReturnInThenBlock = ifStatement->thenStatement->body.size() != 0? 
+            checkReturnStatements(*(--ifStatement->thenStatement->body.end())) : false;
+
+    if (ifStatement->elseStatement != nullptr) {
+        return hasReturnInThenBlock && checkReturnStatements(ifStatement->elseStatement);
+    }
+
+    return false;
+}
+
+bool StatementsVisitor::checkReturnStatements(SwitchStatement* switchStmt) {
+    bool casesHaveReturn = switchStmt->defaultStatement.size() != 0? 
+            checkReturnStatements(*(--switchStmt->defaultStatement.end())) : false;
+
+    for (auto caseClause : switchStmt->clauseList) {
+
+        if (caseClause->statementsList.size() != 0) {
+            casesHaveReturn &= checkReturnStatements(*(--caseClause->statementsList.end()));
+
+        } else {
+            casesHaveReturn = false;
+        }
+    }
+
+    return casesHaveReturn;
+}
+
+void StatementsVisitor::onFinishVisit(FunctionDeclaration* node) {
+    if (node->signature->idsAndTypesResults.size() != 0 && !checkReturnStatements(node->block)) {
+
+        semantic->errors.push_back("Missing the 'return' statement at the end of the function");
+    }
+}

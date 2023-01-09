@@ -10,11 +10,18 @@ private:
     static const std::string indexPrivateVariableName;
 
     StatementList transformStatements(StatementList& list);
+
     StatementAST* transformIfStatement(IfStatement* ifStmt);
     StatementAST* transformSwitchStatement(SwitchStatement* switchStmt);
     BlockStatement* transformForToWhile(ForStatement* forStmt);
     BlockStatement* transformForRangeToWhile(ForRangeStatement *forRangeStmt);
+
     StatementList transformStatementsWithContinues(StatementList body);
+
+    bool checkReturnStatements(StatementAST* stmt);
+    bool checkReturnStatements(BlockStatement* block);
+    bool checkReturnStatements(IfStatement* ifStatement);
+    bool checkReturnStatements(SwitchStatement* switchStmt);
 
 public:
 
@@ -37,6 +44,9 @@ public:
     void onFinishVisit(SwitchStatement* node) override;
 
     void onFinishVisit(IfStatement* node) override;
+
+    void onFinishVisit(FunctionDeclaration* node) override;
+
 
     void transform(PackageAST* packageAst);
     explicit StatementsVisitor(Semantic* semantic): semantic(semantic) {};

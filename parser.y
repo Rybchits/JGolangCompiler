@@ -157,7 +157,7 @@
     LiteralType: SliceDeclType                                                      { $$ = $1; }
                 | FunctionType                                                      { $$ = $1; }
                 | ArrayDeclType                                                     { $$ = $1; }
-                | StructType                                                        { $$ = $1; }
+                | StructType                                                        { yyerror("structs are not supported yet"); }
                 | InterfaceType                                                     { $$ = $1; }
                 | '*' Type %prec POINTER                                            { $$ = $2; $$ -> isPointer = true; }
     ;
@@ -213,7 +213,7 @@
     InterfaceMembersMoreTwo: IDENTIFIER Signature SCs IDENTIFIER Signature          { $$ = new FunctionList({new FunctionDeclaration($1, $2, nullptr), new FunctionDeclaration($4, $5, nullptr)}); }
                 | InterfaceMembersMoreTwo SCs IDENTIFIER Signature                  { $$ = $1; $$ -> push_back(new FunctionDeclaration($3, $4, nullptr)); }
 
-    SliceDeclType: '[' ']' Type                                                     { $$ = new ArraySignature($3); }
+    SliceDeclType: '[' ']' Type                                                     { yyerror("slices are not supported yet"); }
     ;
 
     ArrayDeclType: '[' INT_LIT ']' Type                                             { $$ = new ArraySignature($4, $2); }
@@ -382,7 +382,7 @@
                 | '(' Expression ')'                                                { $$ = $2; }
     ;
 
-    ObjectCompositeLit: IDENTIFIER CompositeLiteralBody                             { $$ = new CompositeLiteral(new IdentifierAsType($1), *$2); }
+    ObjectCompositeLit: IDENTIFIER CompositeLiteralBody                             { yyerror("structs are not supported yet"); }
     ;
 
     BasicLiteral: INT_LIT                                                           { $$ = new IntegerExpression($1);     }
@@ -626,6 +626,7 @@
 
     ExprCaseClause: CASE Expression ':' StatementMoreTwo  SCs                       { $$ = new SwitchCaseClause($2, *$4); }
                 | CASE Expression ':' Statement SCs                                 { $$ = new SwitchCaseClause($2, *(new StatementList({$4}))); }
+                | CASE Expression ':'                                               { $$ = new SwitchCaseClause($2, *(new StatementList({}))); }
     ;
 
     ExprCaseClauseList: ExprCaseClause                                              { $$ = new SwitchCaseList({$1}); }
