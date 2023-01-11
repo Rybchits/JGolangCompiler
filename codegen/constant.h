@@ -100,3 +100,15 @@ enum class AccessFlags : uint16_t
 };
 
 
+enum class ArrayType : uint8_t
+{
+    Boolean = 4,
+    Char = 5,
+    Float = 6,
+    Double = 7,
+    Byte = 8,
+    Short = 9,
+    Int = 10,
+    Long = 11
+};
+

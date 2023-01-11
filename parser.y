@@ -213,7 +213,7 @@
     InterfaceMembersMoreTwo: IDENTIFIER Signature SCs IDENTIFIER Signature          { $$ = new FunctionList({new FunctionDeclaration($1, $2, nullptr), new FunctionDeclaration($4, $5, nullptr)}); }
                 | InterfaceMembersMoreTwo SCs IDENTIFIER Signature                  { $$ = $1; $$ -> push_back(new FunctionDeclaration($3, $4, nullptr)); }
 
-    SliceDeclType: '[' ']' Type                                                     { yyerror("slices are not supported yet"); }
+    SliceDeclType: '[' ']' Type                                                     { $$ = new ArraySignature($3); }
     ;
 
     ArrayDeclType: '[' INT_LIT ']' Type                                             { $$ = new ArraySignature($4, $2); }

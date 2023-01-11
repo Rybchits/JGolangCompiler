@@ -1,10 +1,8 @@
 package main
 
-func main() {
-	myTrue := true
-	myFalse := false
+var i int = 5
 
-	printBoolean(myTrue && myFalse)
-	printRune(' ')
-	printBoolean(myTrue || myFalse)
+func main() {
+	var array = [][]int{{10, 20, 30}}
+	printInt(lenArray(array))
 }
