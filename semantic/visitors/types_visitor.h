@@ -29,13 +29,20 @@ private:
     std::unordered_map<size_t, TypeEntity*> typesExpressions;
 
     MethodEntity* currentMethodEntity;
-    bool lastAddedScopeInFuncDecl = false;
     int numberLocalVariables = 0;
 
+    // supporting 
+    bool lastAddedScopeInFuncDecl = false;
+
+    int nodeIdCurrentArray;
+    int indexCurrentAxisArray;
+
+    void onStartVisit(CompositeLiteral* node);
+    void onStartVisit(ElementCompositeLiteral* node);
     void onStartVisit(BlockStatement* node);
-    void onFinishVisit(BlockStatement* node);
-    
     void onStartVisit(ExpressionStatement* node);
+
+    void onFinishVisit(BlockStatement* node);
     void onFinishVisit(VariableDeclaration* node);
     void onFinishVisit(ShortVarDeclarationStatement* node);
     void onFinishVisit(AssignmentStatement* node);

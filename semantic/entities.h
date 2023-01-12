@@ -14,11 +14,12 @@ class MethodEntity;
 class ArraySignatureEntity {
 public:
     int dims;
-    TypeEntity* type;
-    ArraySignatureEntity(int dims, TypeEntity* TypeEntity): dims(dims), type(TypeEntity) {};
-    ArraySignatureEntity(TypeEntity* TypeEntity): dims(-1), type(TypeEntity) {};
+    TypeEntity* elementType;
+    ArraySignatureEntity(int dims, TypeEntity* TypeEntity): dims(dims), elementType(TypeEntity) {};
+    ArraySignatureEntity(TypeEntity* TypeEntity): dims(-1), elementType(TypeEntity) {};
     
     bool equals(const ArraySignatureEntity* other) const;
+    TypeEntity* typeAxis(int indexAxis);
 };
 
 

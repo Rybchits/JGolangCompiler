@@ -32,6 +32,21 @@ public class $Base {
 
     public static int lenString(String string) { return string.length(); }
 
+    public static int compare(String lhs, String rhs) {
+        int lhsLen = lhs.length();
+        int rhsLen = rhs.length();
+
+        if (lhsLen < rhsLen) return -1;
+        else if (lhsLen > rhsLen) return 1;
+
+        for (int i = 0; i < lhsLen; ++i) {
+            if (lhs.charAt(i) < rhs.charAt(i)) return -1;
+            else if (lhs.charAt(i) > rhs.charAt(i)) return 1;
+        }
+
+        return 0;
+    }
+
     public static int[] appendIntArray(int[] array, int element) {
         int[] newArray = Arrays.copyOf(array, array.length+1);
         newArray[array.length] = element;

@@ -1,7 +1,8 @@
 #include "entities.h"
 
+// Dims not checking
 bool ArraySignatureEntity::equals(const ArraySignatureEntity* other) const {
-    return this->dims == other->dims && this->type->equal(other->type);
+    return this->elementType->equal(other->elementType);
 }
 
 bool FunctionSignatureEntity::equals(const FunctionSignatureEntity* other) const {
@@ -81,10 +82,16 @@ bool TypeEntity::equal(const TypeEntity* other) {
         
     } else if ((this->type == UntypedInt && other->type == UntypedFloat)
                || (this->type == UntypedFloat && other->type == UntypedInt)
+               
                || (this->type == Int && other->type == UntypedInt)
                || (this->type == UntypedInt && other->type == Int)
+
                || (this->type == UntypedFloat && other->type == Float)
                || (this->type == Float && other->type == UntypedFloat)
+
+               || (this->type == Float && other->type == UntypedInt)
+               || (this->type == UntypedInt && other->type == Float)
+
                || (this->type == Any || other->type == Any)
                || (this->type == other->type)) { 
                 return true;
@@ -95,6 +102,7 @@ bool TypeEntity::equal(const TypeEntity* other) {
 
 // Определение рузультирующего типа
 TypeEntity* TypeEntity::determinePriorityType(const TypeEntity* other) {
+
     if (this->equal(other)) {
         if ((type == UntypedInt && other->type == UntypedFloat) || (type == UntypedFloat && other->type == UntypedInt)) {
             return new TypeEntity(UntypedFloat);
@@ -103,6 +111,9 @@ TypeEntity* TypeEntity::determinePriorityType(const TypeEntity* other) {
             return new TypeEntity(Int);
             
         } else if ((type == UntypedFloat && other->type == Float) || (type == Float && other->type == UntypedFloat)) {
+            return new TypeEntity(Float);
+            
+        } else if ((type == UntypedInt && other->type == Float) || (type == Float && other->type == UntypedInt)) {
             return new TypeEntity(Float);
             
         } else {
@@ -130,7 +141,7 @@ bool TypeEntity::isNumeric() {
 
 std::string TypeEntity::toByteCode() const {
     if (type == Array)
-        return "[" + std::get<ArraySignatureEntity*>(value)->type->toByteCode();
+        return "[" + std::get<ArraySignatureEntity*>(value)->elementType->toByteCode();
     
     else if (type == Int || type == UntypedInt)
         return "I";
@@ -169,6 +180,23 @@ std::string TypeEntity::toByteCode() const {
         
     return "Invalid";
 }
+
+
+TypeEntity* ArraySignatureEntity::typeAxis(int indexAxis) {
+    auto currentElementType = new TypeEntity(this);
+
+    while (indexAxis != 0) {
+        indexAxis--;
+        if (std::holds_alternative<ArraySignatureEntity*>(currentElementType->value)) {
+            currentElementType = std::get<ArraySignatureEntity*>(currentElementType->value)->elementType;
+        } else {
+            return nullptr;
+        }
+    }
+
+    return currentElementType;
+}
+
 
 TypeEntity* MethodEntity::toTypeEntity() {
     std::list<TypeEntity*> args;

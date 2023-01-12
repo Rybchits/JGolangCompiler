@@ -449,12 +449,19 @@ std::vector<char> Generator::generate(IntegerExpression* expr) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	if (expr->intLit > -2 && expr->intLit < 6) {
+	if (typesExpressions[expr->nodeId]->isInteger()) {
+		if (expr->intLit > -2 && expr->intLit < 6) {
 		codeBytes.push_back(char(Command::iconst_0) + expr->intLit);
 
-	} else {
+		} else {
+			codeBytes.push_back((char)Command::ldc_w);
+			buffer = intToBytes(constantPool.FindInt(expr->intLit));
+			codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+		}
+
+	} else if (typesExpressions[expr->nodeId]->isFloat()) {
 		codeBytes.push_back((char)Command::ldc_w);
-		buffer = intToBytes(constantPool.FindInt(expr->intLit));
+		buffer = intToBytes(constantPool.FindFloat(expr->intLit));
 		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 	}
 	
@@ -573,16 +580,17 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 std::vector<char> Generator::generate(BinaryExpression* expr) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
+	std::vector<char> rightExprBytes;
+
+	constexpr auto ifeqLength = 3;
+	constexpr auto gotoLength = 3;
+	constexpr auto iconstLength = 1;
+
+	codeBytes 	   = generate(expr->lhs);
+	rightExprBytes = generate(expr->rhs);
 
 	if (expr->isLogical()) {
 
-		constexpr auto ifeqLength = 3;
-        constexpr auto gotoLength = 3;
-        constexpr auto iconstLength = 1;
-
-		codeBytes = generate(expr->lhs);
-
-		std::vector<char> rightExprBytes = generate(expr->rhs);
 		const auto trueValueOffset = rightExprBytes.size() + ifeqLength * 2;
         const auto falseValueOffset = rightExprBytes.size() + ifeqLength * 2 + iconstLength + gotoLength;
 
@@ -596,7 +604,6 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 		}
 
 		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
-		
 		codeBytes.insert(codeBytes.end(), rightExprBytes.begin(), rightExprBytes.end());
 
 		codeBytes.push_back((char)Command::ifeq);
@@ -612,11 +619,92 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 
 		codeBytes.push_back((char)Command::iconst_0);
 
-	} else {
-		codeBytes = generate(expr->lhs);
+	} else if (expr->isComparison()) {
+		codeBytes.insert(codeBytes.end(), rightExprBytes.begin(), rightExprBytes.end());
 
-		buffer = generate(expr->rhs);
-		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
+		if (typesExpressions[expr->lhs->nodeId]->isFloat()
+		 && (expr->type == Less || expr->type == LessOrEqual)) {
+			codeBytes.push_back((char)Command::fcmpg);
+
+		} else if (typesExpressions[expr->lhs->nodeId]->isFloat()) { 
+			codeBytes.push_back((char)Command::fcmpl); 
+		}
+
+		switch(expr->type) {
+			case Equal:
+				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
+				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
+				 	codeBytes.push_back((char)Command::if_icmpne);
+
+				else if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+					codeBytes.push_back((char)Command::ifne);
+
+				else
+					codeBytes.push_back((char)Command::if_acmpne);
+
+				break;
+
+			case NotEqual:
+				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
+				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
+				 	codeBytes.push_back((char)Command::if_icmpeq);
+
+				else if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+					codeBytes.push_back((char)Command::ifeq);
+
+				else
+					codeBytes.push_back((char)Command::if_acmpeq);
+
+				break;
+
+			case Greater:
+				if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+					codeBytes.push_back((char)Command::ifle);
+				else
+					codeBytes.push_back((char)Command::if_icmple);
+				//TODO string
+
+				break;
+
+			case GreatOrEqual:
+				if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+					codeBytes.push_back((char)Command::iflt);
+				else 
+					codeBytes.push_back((char)Command::if_icmplt);
+
+				break;
+			case Less:
+				if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+					codeBytes.push_back((char)Command::ifge);
+				else 
+					codeBytes.push_back((char)Command::if_icmpge);
+
+				break;
+			case LessOrEqual:
+				if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+					codeBytes.push_back((char)Command::ifgt);
+				else 
+					codeBytes.push_back((char)Command::if_icmpgt);
+
+				break;
+
+			default:
+				break;
+		}
+
+		buffer = intToBytes(ifeqLength + gotoLength + iconstLength);
+		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+
+		codeBytes.push_back((char)Command::iconst_1);
+		codeBytes.push_back((char)Command::goto_);
+
+		buffer = intToBytes(gotoLength + iconstLength);
+		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+
+		codeBytes.push_back((char)Command::iconst_0);
+
+	} else {
+		codeBytes.insert(codeBytes.end(), rightExprBytes.begin(), rightExprBytes.end());
 
 		switch (expr->type) {
 		case Addition:
@@ -671,7 +759,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 				codeBytes.push_back(char(Command::frem));
 			}
 			break;
-		
+
 		default:
 			break;
 		}
@@ -697,7 +785,7 @@ std::vector<char> Generator::generate(CompositeLiteral* expr) {
 	
 	codeBytes = generate(new IntegerExpression(arraySignature->dims == -1? expr->elements.size() : arraySignature->dims));
 
-	switch (arraySignature->type->type)
+	switch (arraySignature->elementType->type)
 	{
 	case TypeEntity::Int:
 		codeBytes.push_back((char)Command::newarray);
@@ -716,7 +804,7 @@ std::vector<char> Generator::generate(CompositeLiteral* expr) {
 
 	case TypeEntity::Array:
 		codeBytes.push_back((char)Command::anewarray);
-		buffer = intToBytes(constantPool.FindClass(arraySignature->type->toByteCode()));
+		buffer = intToBytes(constantPool.FindClass(arraySignature->elementType->toByteCode()));
 		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 		break;
 
@@ -797,8 +885,14 @@ std::vector<char> Generator::generate(ReturnStatement* expr) {
 		bytes.insert(bytes.end(), buf.begin(), buf.end());
 	}
 
-	if (currentMethod->getReturnType()->type == TypeEntity::TypeEntityEnum::Int) {
-			bytes.push_back(char(Command::ireturn));
+	if (currentMethod->getReturnType()->isInteger() || currentMethod->getReturnType()->type == TypeEntity::Boolean) {
+		bytes.push_back(char(Command::ireturn));
+
+	} else if (currentMethod->getReturnType()->isFloat()) {
+		bytes.push_back(char(Command::freturn));
+
+	}  else {
+		bytes.push_back(char(Command::areturn));
 	}
 
 	return bytes;

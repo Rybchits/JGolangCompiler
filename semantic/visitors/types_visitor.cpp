@@ -128,6 +128,7 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
                 // Compare types expressions with the declared type
                 if (node->values.size() != 0 ) {
                     if (typesExpressions[(*currentValue)->nodeId]->equal(generalType)) {
+                        typesExpressions[(*currentValue)->nodeId] = typesExpressions[(*currentValue)->nodeId]->determinePriorityType(generalType);
                         scopesDeclarations.add(id, new VariableEntity(generalType, node->isConst));
 
                     } else {
@@ -329,6 +330,9 @@ void TypesVisitor::onFinishVisit(CallableExpression* node) {
                 typesExpressions[node->nodeId] = new TypeEntity();
                 semantic->errors.push_back("Cannot use expression index " + std::to_string(index) + " in argument");
                 return;
+
+            } else {
+                typesExpressions[(*argExprType)->nodeId] = typesExpressions[(*argExprType)->nodeId]->determinePriorityType(argType);
             }
             index++;
             argExprType++;
@@ -353,7 +357,7 @@ void TypesVisitor::onFinishVisit(AccessExpression* node) {
             semantic->errors.push_back("Index must be integer value");
 
         } else {
-            typesExpressions[node->nodeId] = std::get<ArraySignatureEntity*>(typesExpressions[node->base->nodeId]->value)->type;
+            typesExpressions[node->nodeId] = std::get<ArraySignatureEntity*>(typesExpressions[node->base->nodeId]->value)->elementType;
             return ;
         }
         typesExpressions[node->nodeId] = new TypeEntity();
@@ -365,10 +369,29 @@ void TypesVisitor::onFinishVisit(AccessExpression* node) {
     typesExpressions[node->nodeId] = new TypeEntity();
 }
 
+void TypesVisitor::onStartVisit(CompositeLiteral* node) {
+
+    // Если это массив, нам нужно записать его тип и запомнить id узла для проверки элементов
+    if (auto arrayType = dynamic_cast<ArraySignature*>(node->type)) {
+        typesExpressions[node->nodeId] = new TypeEntity(arrayType);
+        nodeIdCurrentArray = node->nodeId;
+        indexCurrentAxisArray = 0;
+    }
+}
+
+void TypesVisitor::onStartVisit(ElementCompositeLiteral* node) {
+    indexCurrentAxisArray++;
+}
+
 
 void TypesVisitor::onFinishVisit(CompositeLiteral* node) {
+
     if (auto arrayType = dynamic_cast<ArraySignature*>(node->type)) {
-        auto declaredElementType = new TypeEntity(arrayType->arrayElementType);
+        std::cout << "Current index axis " << indexCurrentAxisArray;
+        std::cout << " Node " << node->nodeId << std::get<ArraySignatureEntity*>(typesExpressions[nodeIdCurrentArray]->value)->typeAxis(indexCurrentAxisArray)->toByteCode() << std::endl;
+
+        // Тип текущего массива был вычислен при заходе в этот узел
+        auto declaredElementType = std::get<ArraySignatureEntity*>(typesExpressions[node->nodeId]->value)->elementType;
 
         int index = 0;
         for (auto element : node->elements) {
@@ -381,34 +404,45 @@ void TypesVisitor::onFinishVisit(CompositeLiteral* node) {
             index++;
         }
 
-        typesExpressions[node->nodeId] = new TypeEntity(arrayType);
+        nodeIdCurrentArray = -1;
+        indexCurrentAxisArray = -1;
     }
 }
 
 
 void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
+    std::cout << "Current index axis " << indexCurrentAxisArray;
+    std::cout << " Node " << node->nodeId << std::get<ArraySignatureEntity*>(typesExpressions[nodeIdCurrentArray]->value)->typeAxis(indexCurrentAxisArray)->toByteCode() << std::endl;
+
+    TypeEntity* declaratedElementType = 
+        std::get<ArraySignatureEntity*>(typesExpressions[nodeIdCurrentArray]->value)->typeAxis(indexCurrentAxisArray);
 
     if (std::holds_alternative<ExpressionAST *>(node->value)) {
-        typesExpressions[node->nodeId] = typesExpressions[std::get<ExpressionAST*>(node->value)->nodeId];
 
-    } else if (std::holds_alternative<std::list<ElementCompositeLiteral *>>(node->value)) {
-        TypeEntity* tentativeElementType = nullptr;
-
-        for (auto el : std::get<std::list<ElementCompositeLiteral *>>(node->value)) {
-            if (tentativeElementType == nullptr)
-                tentativeElementType = typesExpressions[el->nodeId];
-            else {
-                tentativeElementType = tentativeElementType->determinePriorityType(typesExpressions[el->nodeId]);
-            }
-        }
-
-        if (tentativeElementType->type == TypeEntity::Invalid) {
-            typesExpressions[node->nodeId] = tentativeElementType;
+        if (declaratedElementType->equal(typesExpressions[std::get<ExpressionAST*>(node->value)->nodeId])) {
+            typesExpressions[node->nodeId] = declaratedElementType;
 
         } else {
-            typesExpressions[node->nodeId] = new TypeEntity(new ArraySignatureEntity(tentativeElementType));
+            semantic->errors.push_back("Expression at " + std::to_string(indexCurrentAxisArray) + " axis has invalid type");
+        }
+
+    } else if (std::holds_alternative<std::list<ElementCompositeLiteral *>>(node->value)) {
+
+        if (auto declaratedTypeAxis = std::get<ArraySignatureEntity*>(declaratedElementType->value)) {
+
+            if (declaratedTypeAxis->dims < std::get<std::list<ElementCompositeLiteral *>>(node->value).size() ) {
+                typesExpressions[node->nodeId] = declaratedElementType;
+
+            } else {
+                semantic->errors.push_back("Array at " + std::to_string(indexCurrentAxisArray) + " axis has many values");
+            }
+
+        } else {
+            semantic->errors.push_back("Expression at " + std::to_string(indexCurrentAxisArray) + " axis has invalid type");
         }
     }
+
+    indexCurrentAxisArray--;
 }
 
 
@@ -454,7 +488,7 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
 
                 } else if ((*indexIterator) != nullptr) {
                     if (typesExpressions[(*idIterator)->nodeId]->type == TypeEntity::Array) {
-                        TypeEntity* typeElement = std::get<ArraySignatureEntity*>(typesExpressions[(*idIterator)->nodeId]->value)->type;
+                        TypeEntity* typeElement = std::get<ArraySignatureEntity*>(typesExpressions[(*idIterator)->nodeId]->value)->elementType;
 
                         if (!typeElement->equal(typesExpressions[(*valueIterator)->nodeId])) {
                             semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented"));
@@ -492,7 +526,9 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
                 semantic->errors.push_back("Lhs and rhs in " + node->name() + " must be numeric");
 
             } else if ((*index) != nullptr && typesExpressions[(*id)->nodeId]->type == TypeEntity::Array) {
-                TypeEntity* elementType = std::get<ArraySignatureEntity*>(typesExpressions[(*id)->nodeId]->value)->type;
+
+                TypeEntity* elementType = std::get<ArraySignatureEntity*>(typesExpressions[(*id)->nodeId]->value)->elementType;
+
                 if (!elementType->isNumeric() || !typesExpressions[(*value)->nodeId]->isNumeric()) {
                     semantic->errors.push_back("Lhs and rhs in " + node->name() + " must be numeric");
                 }
