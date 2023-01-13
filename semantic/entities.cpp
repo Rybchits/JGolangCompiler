@@ -93,7 +93,8 @@ bool TypeEntity::equal(const TypeEntity* other) {
                || (this->type == UntypedInt && other->type == Float)
 
                || (this->type == Any || other->type == Any)
-               || (this->type == other->type)) { 
+               || (this->type == other->type)) {
+                
                 return true;
     }
 
@@ -190,7 +191,7 @@ TypeEntity* ArraySignatureEntity::typeAxis(int indexAxis) {
         if (std::holds_alternative<ArraySignatureEntity*>(currentElementType->value)) {
             currentElementType = std::get<ArraySignatureEntity*>(currentElementType->value)->elementType;
         } else {
-            return nullptr;
+            return new TypeEntity();
         }
     }
 

@@ -282,7 +282,11 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
     } else if (node->type == Addition || node->type == Subtraction || node->type == Multiplication || node->type == Division || node->type == Mod) {
 
         if (leftExprType->isNumeric() && rightExprType->isNumeric()) {
-            typesExpressions[node->nodeId] = leftExprType->determinePriorityType(rightExprType);
+            auto resultExression = leftExprType->determinePriorityType(rightExprType);
+
+            typesExpressions[node->nodeId] = resultExression;
+            typesExpressions[node->lhs->nodeId] = resultExression;
+            typesExpressions[node->rhs->nodeId] = resultExression;
 
         } else {
             typesExpressions[node->nodeId] = new TypeEntity();
@@ -387,8 +391,6 @@ void TypesVisitor::onStartVisit(ElementCompositeLiteral* node) {
 void TypesVisitor::onFinishVisit(CompositeLiteral* node) {
 
     if (auto arrayType = dynamic_cast<ArraySignature*>(node->type)) {
-        std::cout << "Current index axis " << indexCurrentAxisArray;
-        std::cout << " Node " << node->nodeId << std::get<ArraySignatureEntity*>(typesExpressions[nodeIdCurrentArray]->value)->typeAxis(indexCurrentAxisArray)->toByteCode() << std::endl;
 
         // Тип текущего массива был вычислен при заходе в этот узел
         auto declaredElementType = std::get<ArraySignatureEntity*>(typesExpressions[node->nodeId]->value)->elementType;
@@ -411,15 +413,15 @@ void TypesVisitor::onFinishVisit(CompositeLiteral* node) {
 
 
 void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
-    std::cout << "Current index axis " << indexCurrentAxisArray;
-    std::cout << " Node " << node->nodeId << std::get<ArraySignatureEntity*>(typesExpressions[nodeIdCurrentArray]->value)->typeAxis(indexCurrentAxisArray)->toByteCode() << std::endl;
 
     TypeEntity* declaratedElementType = 
         std::get<ArraySignatureEntity*>(typesExpressions[nodeIdCurrentArray]->value)->typeAxis(indexCurrentAxisArray);
 
     if (std::holds_alternative<ExpressionAST *>(node->value)) {
+        auto expression = std::get<ExpressionAST*>(node->value);
 
-        if (declaratedElementType->equal(typesExpressions[std::get<ExpressionAST*>(node->value)->nodeId])) {
+        if (declaratedElementType->equal(typesExpressions[expression->nodeId])) {
+            typesExpressions[expression->nodeId] = declaratedElementType->determinePriorityType(typesExpressions[expression->nodeId]);
             typesExpressions[node->nodeId] = declaratedElementType;
 
         } else {
@@ -430,15 +432,17 @@ void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
 
         if (auto declaratedTypeAxis = std::get<ArraySignatureEntity*>(declaratedElementType->value)) {
 
-            if (declaratedTypeAxis->dims < std::get<std::list<ElementCompositeLiteral *>>(node->value).size() ) {
-                typesExpressions[node->nodeId] = declaratedElementType;
+            if (declaratedTypeAxis->dims < std::get<std::list<ElementCompositeLiteral*>>(node->value).size() ) {
+                semantic->errors.push_back("Array at " + std::to_string(indexCurrentAxisArray) + " axis has many values");
+                typesExpressions[node->nodeId] = new TypeEntity();
 
             } else {
-                semantic->errors.push_back("Array at " + std::to_string(indexCurrentAxisArray) + " axis has many values");
+                typesExpressions[node->nodeId] = declaratedElementType;
             }
 
         } else {
             semantic->errors.push_back("Expression at " + std::to_string(indexCurrentAxisArray) + " axis has invalid type");
+            typesExpressions[node->nodeId] = new TypeEntity();
         }
     }
 

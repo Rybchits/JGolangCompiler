@@ -193,7 +193,7 @@ void Generator::generate() {
 
 		for (auto & [methodIdentifier, methodEntity] : classEntity->getMethods()) {
 			buffer = generateMethod(methodIdentifier, methodEntity->toTypeEntity()->toByteCode()
-						 , methodEntity->getNumberLocalVariables() + 1, uint16_t(AccessFlags::Public)
+						 , methodEntity->getNumberLocalVariables(), uint16_t(AccessFlags::Public)
 																  | uint16_t(AccessFlags::Static)
 						 , generateMethodBodyCode(methodEntity));
 			classFileTail.insert(classFileTail.end(), buffer.begin(), buffer.end());
@@ -338,7 +338,7 @@ std::vector<char> Generator::generateStaticConstuctorCode(std::string_view class
 
 std::vector<char> Generator::generateMethodBodyCode(MethodEntity* methodEntity) {
 	context.pushScope();
-	indexCurrentLocalVariable = 1;
+	indexCurrentLocalVariable = 0;
 	currentMethod = methodEntity;
 
 	for (auto &[name, _] : methodEntity->getArguments()) {
@@ -449,6 +449,7 @@ std::vector<char> Generator::generate(IntegerExpression* expr) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
+	// TODO HERE ERROR IngererExpression always must have type
 	if (typesExpressions[expr->nodeId]->isInteger()) {
 		if (expr->intLit > -2 && expr->intLit < 6) {
 		codeBytes.push_back(char(Command::iconst_0) + expr->intLit);
