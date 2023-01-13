@@ -72,7 +72,6 @@
                 "./utils/dot_visitor.cpp",
                 "./codegen/constant.cpp",
                 "./codegen/codegen.cpp",
-                "./codegen/constant_visitor.cpp",
                 "-o",
                 "./parser"
             ],

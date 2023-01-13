@@ -31,7 +31,7 @@ func main() {
 	var f float32 = 1.255
 	printBoolean(e != f)
 
-	f = 2
+	f = 2.0
 	printBoolean(e != f)
 
 }

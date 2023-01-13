@@ -13,6 +13,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <variant>
 
 struct RefConstant {
     bool isLocal;

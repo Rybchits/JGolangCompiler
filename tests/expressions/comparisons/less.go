@@ -4,14 +4,18 @@ func main() {
 	printBoolean(0 < 1)
 	printBoolean(1 < 1)
 	printBoolean(2 < 1)
+
 	printBoolean(1.24 < 1.255)
 	printBoolean(1.255 < 1.255)
 	printBoolean(1.26 < 1.255)
+
 	printBoolean(false < true)
 	printBoolean(true < true) //TODO семантическая проверка. Нельзя сравнивать булини
 	printBoolean(true < false)
-	// printBoolean("abc" > "abc") //TODO надо сделать сравнения для строк / объектов
-	// printBoolean("abs" > "abc")
+
+	printBoolean("ab" < "abc")
+	printBoolean("abc" < "abc")
+	printBoolean("abs" < "abc")
 
 	var c int = 1
 	var d int = 1
@@ -24,6 +28,6 @@ func main() {
 	var f float32 = 1.255
 	printBoolean(e < f)
 
-	f = 2
+	f = 2.0
 	printBoolean(e < f)
 }

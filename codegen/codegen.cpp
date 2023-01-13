@@ -311,8 +311,7 @@ std::vector<char> Generator::generateGlobalClassConstructorCode() {
 
 	bytes.push_back(char(Command::invokespecial));
 	auto methodRefId = intToBytes(constantPool.FindMethodRef("java/lang/Object", "<init>", "()V"));
-	bytes.push_back(methodRefId[2]);
-	bytes.push_back(methodRefId[3]);
+	bytes.insert(bytes.end(), methodRefId.begin() + 2, methodRefId.end());
 
 	bytes.push_back(char(Command::return_));
 	return bytes;
@@ -642,7 +641,6 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 
 				else
 					codeBytes.push_back((char)Command::if_acmpne);
-
 				break;
 
 			case NotEqual:
@@ -655,38 +653,78 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 
 				else
 					codeBytes.push_back((char)Command::if_acmpeq);
-
 				break;
 
 			case Greater:
-				if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
-					codeBytes.push_back((char)Command::ifle);
-				else
-					codeBytes.push_back((char)Command::if_icmple);
-				//TODO string
+				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
+				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
+				 	codeBytes.push_back((char)Command::if_icmple);
 
+				else if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+
+					codeBytes.push_back((char)Command::ifle);
+				else {
+					codeBytes.push_back((char)Command::invokestatic);
+					buffer = intToBytes(constantPool.FindMethodRef("$Base", "compare", "(Ljava/lang/String;Ljava/lang/String;)I"));
+					codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+
+					codeBytes.push_back((char)Command::iconst_1);
+					codeBytes.push_back((char)Command::if_icmpne);
+				}
 				break;
 
 			case GreatOrEqual:
-				if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
-					codeBytes.push_back((char)Command::iflt);
-				else 
+				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
+				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
 					codeBytes.push_back((char)Command::if_icmplt);
 
+				else if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+					codeBytes.push_back((char)Command::iflt);
+
+				else {
+					codeBytes.push_back((char)Command::invokestatic);
+					buffer = intToBytes(constantPool.FindMethodRef("$Base", "compare", "(Ljava/lang/String;Ljava/lang/String;)I"));
+					codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+
+					codeBytes.push_back((char)Command::iconst_m1);
+					codeBytes.push_back((char)Command::if_icmpeq);
+				}
 				break;
+
 			case Less:
-				if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
-					codeBytes.push_back((char)Command::ifge);
-				else 
+				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
+				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
 					codeBytes.push_back((char)Command::if_icmpge);
 
-				break;
-			case LessOrEqual:
-				if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
-					codeBytes.push_back((char)Command::ifgt);
-				else 
-					codeBytes.push_back((char)Command::if_icmpgt);
+				else if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+					codeBytes.push_back((char)Command::ifge);
 
+				else {
+					codeBytes.push_back((char)Command::invokestatic);
+					buffer = intToBytes(constantPool.FindMethodRef("$Base", "compare", "(Ljava/lang/String;Ljava/lang/String;)I"));
+					codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+
+					codeBytes.push_back((char)Command::iconst_m1);
+					codeBytes.push_back((char)Command::if_icmpne);
+				}
+				break;
+				
+			case LessOrEqual:
+				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
+				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
+				 	codeBytes.push_back((char)Command::if_icmpgt);
+
+				else if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+					codeBytes.push_back((char)Command::ifgt);
+
+				else {
+					codeBytes.push_back((char)Command::invokestatic);
+					buffer = intToBytes(constantPool.FindMethodRef("$Base", "compare", "(Ljava/lang/String;Ljava/lang/String;)I"));
+					codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+
+					codeBytes.push_back((char)Command::iconst_1);
+					codeBytes.push_back((char)Command::if_icmpeq);
+				}
 				break;
 
 			default:
