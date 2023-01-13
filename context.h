@@ -1,6 +1,7 @@
 #include <vector>
 #include <unordered_map>
 #include <string>
+#include <iostream>
 
 template <typename T>
 class Context {
@@ -17,14 +18,16 @@ public:
     std::unordered_map<std::string, T> getLastScope() { return scopes.back(); }
 
     T find(std::string name) {
+        
         for (auto scope = scopes.rbegin(); scope != scopes.rend(); ++scope) {
-            
-            if ((*scope).count(name)) {
-                return (*scope)[name];
-            }
+            if ((*scope).count(name)) return (*scope)[name];
         }
         return nullptr;
     };
+
+    T findAtLastScope(std::string name) {
+        return scopes.back().count(name)? scopes.back()[name] : nullptr;
+    }
 
     Context() { pushScope(); };
 };

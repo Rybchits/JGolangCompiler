@@ -66,7 +66,7 @@ void Semantic::analyzePackageScope() {
                 }
 
                 functionDeclaration->signature->idsAndTypesArgs.push_back(
-                    new IdentifiersWithType(*(new IdentifiersList({"args"})), new ArraySignature(new IdentifierAsType("string")))  
+                    new IdentifiersWithType(*(new IdentifiersList({"$args"})), new ArraySignature(new IdentifierAsType("string")))  
                 );
                 findMain = true;
             }

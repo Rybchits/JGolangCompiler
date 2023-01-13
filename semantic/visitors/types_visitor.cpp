@@ -5,7 +5,6 @@
 
 ClassEntity* TypesVisitor::createGlobalClass(std::list<FunctionDeclaration*> functions, std::list<VariableDeclaration*>& variables) {
     // Add started scope
-    scopesDeclarations.pushScope();
     auto packageClass = new ClassEntity();
 
     // Add builtIn functions
@@ -104,7 +103,7 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
         for (auto id : node->identifiersWithType->identifiers) {
             numberLocalVariables++;
 
-            if (scopesDeclarations.find(id) != nullptr) {
+            if (scopesDeclarations.findAtLastScope(id) != nullptr) {
                 semantic->errors.push_back(id + " redeclared in this block");
                 continue;
             }
@@ -281,16 +280,16 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
 
     } else if (node->type == Addition || node->type == Subtraction || node->type == Multiplication || node->type == Division || node->type == Mod) {
 
-        if (leftExprType->isNumeric() && rightExprType->isNumeric()) {
-            auto resultExression = leftExprType->determinePriorityType(rightExprType);
+        if (leftExprType->isNumeric() && rightExprType->isNumeric() && leftExprType->equal(rightExprType)) {
+            auto resultTypeExression = leftExprType->determinePriorityType(rightExprType);
 
-            typesExpressions[node->nodeId] = resultExression;
-            typesExpressions[node->lhs->nodeId] = resultExression;
-            typesExpressions[node->rhs->nodeId] = resultExression;
+            typesExpressions[node->nodeId] = resultTypeExression;
+            typesExpressions[node->lhs->nodeId] = resultTypeExression;
+            typesExpressions[node->rhs->nodeId] = resultTypeExression;
 
         } else {
             typesExpressions[node->nodeId] = new TypeEntity();
-            semantic->errors.push_back(node->name() + " must have numeric expressions");
+            semantic->errors.push_back(node->name() + " must have same numeric types expressions");
         }
 
     } else if (node->type == Or || node->type == And) {
@@ -392,7 +391,13 @@ void TypesVisitor::onFinishVisit(CompositeLiteral* node) {
 
     if (auto arrayType = dynamic_cast<ArraySignature*>(node->type)) {
 
-        // Тип текущего массива был вычислен при заходе в этот узел
+        if (arrayType->dimensions < node->elements.size()) {
+            semantic->errors.push_back("Array has more elements than declarated");
+            typesExpressions[node->nodeId] = new TypeEntity();
+            return;
+        }
+
+        // Тип текущего массива был вычислен при первом заходе в этот узел
         auto declaredElementType = std::get<ArraySignatureEntity*>(typesExpressions[node->nodeId]->value)->elementType;
 
         int index = 0;
@@ -486,12 +491,22 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
 
             while (indexIterator != node->indexes.end() && idIterator != node->lhs.end() && valueIterator != node->rhs.end()) {
 
-                if ((*indexIterator) == nullptr 
-                        && !typesExpressions[(*idIterator)->nodeId]->equal(typesExpressions[(*valueIterator)->nodeId])) {
-                    semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented"));
+                // if right and left parts have same types ()
+                if ((*indexIterator) == nullptr) {
 
-                } else if ((*indexIterator) != nullptr) {
+                    if (!typesExpressions[(*idIterator)->nodeId]->equal(typesExpressions[(*valueIterator)->nodeId])) {
+                        semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented"));
+
+                    } else {
+                        typesExpressions[(*valueIterator)->nodeId] = 
+                            typesExpressions[(*valueIterator)->nodeId]->determinePriorityType(typesExpressions[(*idIterator)->nodeId]);
+                    }
+
+                } else {
+
+                    // Indexing access expression must have the base as array type
                     if (typesExpressions[(*idIterator)->nodeId]->type == TypeEntity::Array) {
+
                         TypeEntity* typeElement = std::get<ArraySignatureEntity*>(typesExpressions[(*idIterator)->nodeId]->value)->elementType;
 
                         if (!typeElement->equal(typesExpressions[(*valueIterator)->nodeId])) {
@@ -499,6 +514,9 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
 
                         } else if (!typesExpressions[(*indexIterator)->nodeId]->isInteger()) {
                             semantic->errors.push_back("Index must be integer value");
+
+                        } else {
+                            typesExpressions[(*valueIterator)->nodeId] = typesExpressions[(*valueIterator)->nodeId]->determinePriorityType(typeElement);
                         }
                     } else {
                         semantic->errors.push_back("Cannot get value by index. Not array");
