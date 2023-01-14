@@ -1,12 +1,12 @@
 {
     "tasks": [
         {
-            "type": "shell",
-            "label": "C/C++: build all",
+            "label": "[osx] C/C++: build all",
             "dependsOn": [
-                "C/C++: build parser",
-                "C/C++: build lexer",
-                "C/C++: build semantic"
+                "[osx] clean lldb cache",
+                "[osx] C/C++: build parser",
+                "[osx] C/C++: build lexer",
+                "[osx] C/C++: build semantic"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -18,8 +18,8 @@
         },
 
         {
+            "label": "[osx] C/C++: build lexer",
             "type": "shell",
-            "label": "C/C++: build lexer",
             "command": "flex",
             "args": [
                 "./lexer.lpp",
@@ -34,8 +34,8 @@
         },
 
         {
+            "label": "[osx] C/C++: build parser",
             "type": "shell",
-            "label": "C/C++: build parser",
             "command": "bison",
             "args": [
                 "./parser.y",
@@ -52,12 +52,11 @@
         },
 
         {
+            "label": "[osx] C/C++: build semantic",
             "type": "shell",
-            "label": "C/C++: build semantic",
             "command": "g++",
             "args": [
                 "-std=c++17",
-                "-stdlib=libc++",
                 "-g",
                 "./main.cpp",
                 "./ast.cpp",
@@ -83,6 +82,97 @@
                 "kind": "build",
                 "isDefault": false
             }
+        },
+
+        {
+            "label": "[linux] C/C++: build all",
+            "dependsOn": [
+                "[linux] C/C++: build parser",
+                "[linux] C/C++: build lexer",
+                "[linux] C/C++: build semantic"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+        },
+
+        {
+            "label": "[linux] C/C++: build lexer",
+            "type": "cppbuild",
+            "command": "/usr/bin/flex",
+            "args": [
+                "./lexer.lpp",
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+
+        {
+            "label": "[linux] C/C++: build parser",
+            "type": "cppbuild",
+            "command": "/usr/bin/bison",
+            "args": [
+                "./parser.y",
+                "-t",
+                "-d"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+
+        {
+            "label": "[linux] C/C++: build semantic",
+            "type": "cppbuild",
+            "command": "/usr/bin/g++",
+            "args": [
+                "-std=c++17",
+                "-g",
+                "./main.cpp",
+                "./ast.cpp",
+                "./semantic/visitors/statements_visitor.cpp",
+                "./semantic/visitors/expressions_visitor.cpp",
+                "./semantic/visitors/types_visitor.cpp",
+                "./semantic/semantic.cpp",
+                "./semantic/entities.cpp",
+                "./semantic/built_in_functions.cpp",
+                "./utils/dot_visitor.cpp",
+                "./codegen/constant.cpp",
+                "./codegen/codegen.cpp",
+                "-o",
+                "./parser"
+            ],
+            "options": {
+                "cwd": "${workspaceFolder}"
+            },
+            "problemMatcher": [
+                "$gcc"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
+        },
+
+        {
+            "label": "[osx] clean lldb cache",
+            "type": "shell",
+            "command": "rm",
+            "args": ["-rf", "parser.dSYM"]
+            //TODO 
         }
     ],
     "version": "2.0.0"

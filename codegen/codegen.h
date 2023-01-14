@@ -35,6 +35,7 @@ class Generator {
     std::vector<char> generateInteger(int64_t number);
     std::vector<char> generateFloating(float number);
 
+    std::vector<char> generateNewArray(ArraySignatureEntity* arrayType, ElementCompositeLiteralList elements);
     std::vector<char> generateNewArrayCommand(TypeEntity* elementType);
 
     std::vector<char> generateField(std::string fieldName, FieldEntity* field);
@@ -75,7 +76,9 @@ class Generator {
     void fillConstantPool(std::string_view className, ClassEntity* classEntity);
     void addBuiltInFunctions(std::string_view nameBaseClass, const std::unordered_map<std::string, TypeEntity*>& functions);
 
-    std::vector<char> storeToLocalVariable(std::string variableIdentifier, TypeEntity::TypeEntityEnum type);
+    std::vector<char> generateStoreToLocalVariableCommand(std::string variableIdentifier, TypeEntity::TypeEntityEnum type);
+    std::vector<char> generateStoreToArrayCommand(TypeEntity::TypeEntityEnum type);
+    std::vector<char> generateLoadFromArrayCommand(TypeEntity::TypeEntityEnum type);
 
 public:
     Generator(std::unordered_map<std::string, ClassEntity*>& classPool

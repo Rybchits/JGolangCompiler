@@ -18,7 +18,8 @@
                 "cwd": "${workspaceFolder}",
                 "program": "${workspaceFolder}/parser",
                 "MIMode": "gdb",
-                "miDebuggerPath": "/usr/bin/gdb"
+                "miDebuggerPath": "/usr/bin/gdb",
+                "preLaunchTask": "[linux] C/C++: build all"
             },
             "osx": {
                 "name": "Build and debug JGolangCompiler",
@@ -29,6 +30,7 @@
                 "MIMode": "lldb",
                 // TODO написать путь для линукса, если нужно
                 // "miDebuggerPath": ""
+                "preLaunchTask": "[osx] C/C++: build all"
             },
             "setupCommands": [
               {
@@ -37,7 +39,6 @@
                 "ignoreFailures": true
               }
             ],
-            "preLaunchTask": "C/C++: build all"
         }
     ]
   }

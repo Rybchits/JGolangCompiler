@@ -152,6 +152,52 @@ std::vector<char> Generator::generateNewArrayCommand(TypeEntity* elementType) {
 	return codeBytes;
 }
 
+std::vector<char> Generator::generateNewArray(ArraySignatureEntity* arrayType, ElementCompositeLiteralList elements) {
+	std::vector<char> codeBytes;
+	std::vector<char> buffer;
+
+	codeBytes = generateInteger(arrayType->dims == -1? elements.size() : arrayType->dims);
+
+	buffer = generateNewArrayCommand(arrayType->elementType);
+	codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
+
+	int index = 0;
+	for (auto element : elements) 
+	{
+		codeBytes.push_back((char)Command::dup);
+			
+		buffer = generateInteger(index++);
+		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
+
+		buffer = generate(element);
+		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
+	}
+
+	bool isArrayObjects = arrayType->elementType->type == TypeEntity::Array || arrayType->elementType->type == TypeEntity::String;
+	for (; index < arrayType->dims && isArrayObjects; index++)
+	{
+		codeBytes.push_back((char)Command::dup);
+			
+		buffer = generateInteger(index);
+		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
+
+		if (arrayType->elementType->type == TypeEntity::Array) {
+			buffer = generateNewArray(std::get<ArraySignatureEntity*>(arrayType->elementType->value), ElementCompositeLiteralList({}));
+
+		} else if (arrayType->elementType->type == TypeEntity::String) {
+			
+		}
+		// TODO clone
+		//"<java/lang/String.<init> : ()V>"
+
+		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
+
+		codeBytes.push_back((char)Command::aastore);
+	}
+
+	return codeBytes;
+}
+
 
 void Generator::addBuiltInFunctions(std::string_view nameBaseClass, const std::unordered_map<std::string, TypeEntity*>& functions) {
 	for (auto &[id, descriptor] : functions) {
@@ -526,7 +572,6 @@ std::vector<char> Generator::generate(IntegerExpression* expr) {
 	return codeBytes;
 }
 
-
 std::vector<char> Generator::generate(FloatExpression* expr) {
 	return generateFloating(expr->floatLit);
 }
@@ -858,38 +903,22 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 	return codeBytes;
 }
 
+
 std::vector<char> Generator::generate(AccessExpression* expr) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	buffer = generate(expr->base);
-	codeBytes.insert(codeBytes.begin(), buffer.begin(), buffer.end());
-				
-	buffer = generate(expr->accessor);
-	codeBytes.insert(codeBytes.begin(), buffer.begin(), buffer.end());
+	if (expr->type == AccessExpressionEnum::Indexing) {
 
-	/*
-		private static int[] arr2 = {1, 2, 3};
-		arr2[0] = 2;
+		buffer = generate(expr->base);
+		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
-		getstatic     #7
-		iconst_0
-		__________________________
-		private static int[][] arr2 = {{1, 2, 3}};
-		arr2[0][1] = 2;
+		buffer = generate(expr->accessor);
+		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
-		getstatic     #7                  // Field arr2:[[I
-        iconst_0
-        aaload
-		iconst_1
-		___________________________________________
-		getstatic     #7                  // Field arr2:[[[I
-        iconst_0
-        aaload
-        iconst_0
-        aaload
-		iconst_1
-	*/
+		buffer = generateLoadFromArrayCommand(typesExpressions[expr->nodeId]->type);
+		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
+	}
 
 	return codeBytes;
 }
@@ -902,21 +931,7 @@ std::vector<char> Generator::generate(CompositeLiteral* expr) {
 	if (typesExpressions[expr->nodeId]->type == TypeEntity::Array) {
 
 		auto arraySignature = std::get<ArraySignatureEntity*>(typesExpressions[expr->nodeId]->value);
-		codeBytes = generateInteger(arraySignature->dims == -1? expr->elements.size() : arraySignature->dims);
-
-		buffer = generateNewArrayCommand(arraySignature->elementType);
-		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
-
-		int index = 0;
-		for (auto element : expr->elements) {
-			codeBytes.push_back((char)Command::dup);
-			
-			buffer = generateInteger(index++);
-			codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
-
-			buffer = generate(element);
-			codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
-		}
+		codeBytes = generateNewArray(arraySignature, expr->elements);
 	}
 
 	return codeBytes;
@@ -932,40 +947,15 @@ std::vector<char> Generator::generate(ElementCompositeLiteral* expr) {
 		auto value = std::get<ExpressionAST *>(expr->value);
         codeBytes = generate(value);
 
-		if (typesExpressions[value->nodeId]->isInteger()) {
-			codeBytes.push_back((char)Command::iastore);
-
-		} else if (typesExpressions[value->nodeId]->isFloat()) {
-			codeBytes.push_back((char)Command::fastore);
-
-		} else if (typesExpressions[value->nodeId]->type == TypeEntity::Boolean) {
-			codeBytes.push_back((char)Command::bastore);
-
-		} else {
-			codeBytes.push_back((char)Command::aastore);
-		}
-
-    } else if (std::holds_alternative<std::list<ElementCompositeLiteral*>>(expr->value)) {
-
-        auto elements = std::get<std::list<ElementCompositeLiteral*>>(expr->value);
-		auto arrayType = std::get<ArraySignatureEntity*>(typesExpressions[expr->nodeId]->value);
-
-		codeBytes = generateInteger(arrayType->dims);
-
-		buffer = generateNewArrayCommand(arrayType->elementType);
+		buffer = generateStoreToArrayCommand(typesExpressions[value->nodeId]->type);
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
-		int index = 0;
-		for (auto element : elements) {
+    } else if (std::holds_alternative<ElementCompositeLiteralList>(expr->value)) {
 
-			codeBytes.push_back((char)Command::dup);
+        auto elements = std::get<ElementCompositeLiteralList>(expr->value);
+		auto arrayType = std::get<ArraySignatureEntity*>(typesExpressions[expr->nodeId]->value);
 
-			buffer = generateInteger(index++);
-			codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
-
-			buffer = generate(element);
-			codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
-		}
+		codeBytes = generateNewArray(arrayType, elements);
 		codeBytes.push_back((char)Command::aastore);
     }
 
@@ -980,7 +970,10 @@ std::vector<char> Generator::generate(ReturnStatement* expr) {
 		bytes.insert(bytes.end(), buf.begin(), buf.end());
 	}
 
-	if (currentMethod->getReturnType()->isInteger() || currentMethod->getReturnType()->type == TypeEntity::Boolean) {
+	if (currentMethod->getReturnType()->type == TypeEntity::Void) {
+		bytes.push_back(char(Command::return_));
+
+	} else if (currentMethod->getReturnType()->isInteger() || currentMethod->getReturnType()->type == TypeEntity::Boolean) {
 		bytes.push_back(char(Command::ireturn));
 
 	} else if (currentMethod->getReturnType()->isFloat()) {
@@ -1006,7 +999,7 @@ std::vector<char> Generator::initializeLocalVariables(const IdentifiersList& ide
 		buffer = generate((*valueIter));
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 		
-		buffer = storeToLocalVariable(*idIter, typesExpressions[(*valueIter)->nodeId]->type);
+		buffer = generateStoreToLocalVariableCommand(*idIter, typesExpressions[(*valueIter)->nodeId]->type);
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
 		idIter++;
@@ -1056,52 +1049,44 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 		while (indexIterator != stmt->indexes.end() && leftIterator != stmt->lhs.end() 
 													&& rightIterator != stmt->rhs.end()) {
 
-			/*
-				AccessExpression:
-				0: getstatic     #7                  // Field arr2:[I	// это самый нижний id base
-         		3: iconst_1												// index
-         		4: sipush        222									// value
-         		7: iastore												// store в соотвествии с типом
-
-				global IdentifierAsType:
-				0: sipush        222									// value
-         		3: putstatic     #7                  // Field arr2:I	// store в соотвествии с типом
-
-         		2: sipush        222									// value
-         		5: istore #1											// store в соотвествии с типом
-			*/
-
-			auto accessExpression = dynamic_cast<AccessExpression*>(*leftIterator);
 			auto identifierAsExpression = dynamic_cast<IdentifierAsExpression*>(*leftIterator);
 
-			if (accessExpression) {
+			// if lhs expression has index (i.e. array)
+			if (*indexIterator) {
+				// generate access array expression
 				buffer = generate(*leftIterator);
+				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+
+				// generate index expression
+				buffer = generate(*indexIterator);
 				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 			}
 
+			// generate value expression
 			buffer = generate(*rightIterator);
 			bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
-			// Если accessExpression или локальный identifierAsExpression
+			if (*indexIterator) {
+				buffer = generateStoreToArrayCommand(typesExpressions[(*rightIterator)->nodeId]->type);
+				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+			}
+			else if (identifierAsExpression) {
+				auto constRef = context.find(identifierAsExpression->identifier);
 
-			// Здесь надо понять, что происходит с storeToLocalVariable
-			// т.к. там предполагается загрузка в identifierAsExpression
-			// а нужно что-то сделать для AccessExpression (aastore, iastore и т.п.)
-			if (accessExpression 
-			|| (identifierAsExpression && context.find(identifierAsExpression->identifier)->isLocal)) {
+				if (constRef->isLocal) {
+					auto identifier = identifierAsExpression->identifier;
 
-				auto identifier = identifierAsExpression? identifierAsExpression->identifier : "";
-
-				buffer = storeToLocalVariable(identifier
+					buffer = generateStoreToLocalVariableCommand(identifier
 									, typesExpressions[(*leftIterator)->nodeId]->type);
 
-				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+					bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
-			} else {	// Только для identifierAsExpression
-				bytes.push_back(char(Command::putstatic));
+				} else {
+					bytes.push_back(char(Command::putstatic));
 
-				buffer = intToBytes(context.find(identifierAsExpression->identifier)->index);
-				bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+					buffer = intToBytes(constRef->index);
+					bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+				}
 			}
 
 			indexIterator++;
@@ -1116,7 +1101,7 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 	return bytes;
 }
 
-std::vector<char> Generator::storeToLocalVariable(std::string variableIdentifier, TypeEntity::TypeEntityEnum type) {
+std::vector<char> Generator::generateStoreToLocalVariableCommand(std::string variableIdentifier, TypeEntity::TypeEntityEnum type) {
 	std::vector<char> bytes;
 	std::vector<char> buffer;
 
@@ -1150,6 +1135,68 @@ std::vector<char> Generator::storeToLocalVariable(std::string variableIdentifier
 	return bytes;
 }
 
+std::vector<char> Generator::generateStoreToArrayCommand(TypeEntity::TypeEntityEnum type) {
+	std::vector<char> bytes;
+
+	switch (type)
+	{
+		case TypeEntity::Boolean:
+			bytes.push_back((char)Command::bastore);
+			break;
+
+		case TypeEntity::UntypedInt:
+		case TypeEntity::Int:
+			bytes.push_back((char)Command::iastore);
+			break;
+
+		case TypeEntity::UntypedFloat:
+		case TypeEntity::Float:
+			bytes.push_back((char)Command::fastore);
+			break;
+
+		case TypeEntity::Array:
+		case TypeEntity::String:
+			bytes.push_back((char)Command::aastore);
+			break;
+
+		default:
+			break;
+	}
+
+	return bytes;
+}
+
+std::vector<char> Generator::generateLoadFromArrayCommand(TypeEntity::TypeEntityEnum type) {
+	std::vector<char> bytes;
+
+	switch (type)
+	{
+		case TypeEntity::Boolean:
+			bytes.push_back((char)Command::baload);
+			break;
+
+		case TypeEntity::UntypedInt:
+		case TypeEntity::Int:
+			bytes.push_back((char)Command::iaload);
+			break;
+
+		case TypeEntity::UntypedFloat:
+		case TypeEntity::Float:
+			bytes.push_back((char)Command::faload);
+			break;
+
+		case TypeEntity::Array:
+		case TypeEntity::String:
+			bytes.push_back((char)Command::aaload);
+			break;
+
+		default:
+			break;
+	}
+
+	return bytes;
+}
+
 std::vector<char> Generator::generate(StatementAST* stmt) {
 
 	if (auto expressionStatement = dynamic_cast<ExpressionStatement*>(stmt)) {
@@ -1169,6 +1216,7 @@ std::vector<char> Generator::generate(StatementAST* stmt) {
 
 	} else if (auto keywordStatement = dynamic_cast<KeywordStatement*>(stmt)) {
 		// return generate(keywordStatement);
+		// TODO break, continue, fallthrow
 		std::cout << "не сделали keyword statement";
 
 	} else if (auto assignmentStatement = dynamic_cast<AssignmentStatement*>(stmt)) {
@@ -1176,25 +1224,28 @@ std::vector<char> Generator::generate(StatementAST* stmt) {
 
 	} else if (auto whileStatement = dynamic_cast<WhileStatement*>(stmt)) {
 		// return generate(assignmentStatement);
+		// TODO loops
 		std::cout << "не сделали while statement";
 
 	} else if (auto ifStatement = dynamic_cast<IfStatement*>(stmt)) {
 		// return generate(assignmentStatement);
+		// TODO if
 		std::cout << "не сделали if statement";
 
 	} else if (auto switchCaseClause = dynamic_cast<SwitchCaseClause*>(stmt)) {
 		// return generate(assignmentStatement);
+		// TODO switch case
 		std::cout << "не сделали switch case clause statement";
 
 	} else if (auto switchStatement = dynamic_cast<SwitchStatement*>(stmt)) {
 		// return generate(assignmentStatement);
+		// TODO switch
 		std::cout << "не сделали switch statement";
 	}
 
 	return {};
 };
 
-// TODO make as visitor
 std::vector<char> Generator::generate(ExpressionAST* expr) { 
 	if (auto stringExpr = dynamic_cast<StringExpression*>(expr)) {
 		return generate(stringExpr);
