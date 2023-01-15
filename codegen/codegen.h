@@ -76,9 +76,10 @@ class Generator {
     void fillConstantPool(std::string_view className, ClassEntity* classEntity);
     void addBuiltInFunctions(std::string_view nameBaseClass, const std::unordered_map<std::string, TypeEntity*>& functions);
 
-    std::vector<char> generateStoreToLocalVariableCommand(std::string variableIdentifier, TypeEntity::TypeEntityEnum type);
+    std::vector<char> generateStoreToVariableCommand(std::string variableIdentifier, TypeEntity::TypeEntityEnum type);
     std::vector<char> generateStoreToArrayCommand(TypeEntity::TypeEntityEnum type);
     std::vector<char> generateLoadFromArrayCommand(TypeEntity::TypeEntityEnum type);
+    std::vector<char> generateCloneArrayCommand(ExpressionAST* array);
 
 public:
     Generator(std::unordered_map<std::string, ClassEntity*>& classPool

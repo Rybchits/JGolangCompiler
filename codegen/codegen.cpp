@@ -152,6 +152,24 @@ std::vector<char> Generator::generateNewArrayCommand(TypeEntity* elementType) {
 	return codeBytes;
 }
 
+// If is not array returns empty vector bytes
+std::vector<char> Generator::generateCloneArrayCommand(ExpressionAST* array) {
+	std::vector<char> codeBytes;
+
+	auto arrayType = typesExpressions[array->nodeId];
+
+	if (arrayType->type == TypeEntity::Array 
+			&& !std::get<ArraySignatureEntity*>(arrayType->value)->isSlice() && !dynamic_cast<CompositeLiteral*>(array)) {
+
+		codeBytes.push_back(char(Command::invokevirtual));
+
+		std::vector<char> buffer = intToBytes(constantPool.FindMethodRef(arrayType->toByteCode(), "clone", "()Ljava/lang/Object;"));
+		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+	}
+
+	return codeBytes;
+}
+
 std::vector<char> Generator::generateNewArray(ArraySignatureEntity* arrayType, ElementCompositeLiteralList elements) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
@@ -173,8 +191,8 @@ std::vector<char> Generator::generateNewArray(ArraySignatureEntity* arrayType, E
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 	}
 
-	bool isArrayObjects = arrayType->elementType->type == TypeEntity::Array || arrayType->elementType->type == TypeEntity::String;
-	for (; index < arrayType->dims && isArrayObjects; index++)
+	bool isObjectNeedToInitialize = arrayType->elementType->type == TypeEntity::Array || arrayType->elementType->type == TypeEntity::String;
+	for (; index < arrayType->dims && isObjectNeedToInitialize; index++)
 	{
 		codeBytes.push_back((char)Command::dup);
 			
@@ -183,14 +201,20 @@ std::vector<char> Generator::generateNewArray(ArraySignatureEntity* arrayType, E
 
 		if (arrayType->elementType->type == TypeEntity::Array) {
 			buffer = generateNewArray(std::get<ArraySignatureEntity*>(arrayType->elementType->value), ElementCompositeLiteralList({}));
+			codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
 		} else if (arrayType->elementType->type == TypeEntity::String) {
-			
-		}
-		// TODO clone
-		//"<java/lang/String.<init> : ()V>"
+			codeBytes.push_back(char(Command::new_));
 
-		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
+			buffer = intToBytes(constantPool.FindClass("java/lang/String"));
+			codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+
+			codeBytes.push_back(char(Command::dup));
+			
+			codeBytes.push_back(char(Command::invokespecial));
+			buffer = intToBytes(constantPool.FindMethodRef("java/lang/String", "<init>", "()V"));
+			codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+		}
 
 		codeBytes.push_back((char)Command::aastore);
 	}
@@ -438,10 +462,11 @@ std::vector<char> Generator::generateStaticConstuctorCode(std::string_view class
 
 		auto buffer = generate(field->declaration);
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
-		bytes.push_back(char(Command::putstatic));
 
-		buffer = intToBytes(constantPool.FindFieldRef(className, fieldIdentifier, field->type->toByteCode()));
-		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+		buffer = generateCloneArrayCommand(field->declaration);
+		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+
+		buffer = generateStoreToVariableCommand(fieldIdentifier, typesExpressions[field->declaration->nodeId]->type);
 	}
 
 	bytes.push_back(char(Command::return_));
@@ -495,11 +520,16 @@ std::vector<char> Generator::generate(CallableExpression* expr) {
 	for (auto arg : expr->arguments) {
 		buffer = generate(arg);
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
+
+		buffer = generateCloneArrayCommand(arg);
+		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 	}
 	
 
 	if (auto idExpression = dynamic_cast<IdentifierAsExpression*>(expr->base)) {
+
 		codeBytes.push_back((char)Command::invokestatic);
+
 		int indexFunction = context.find(idExpression->identifier)->index;
 		buffer = intToBytes(indexFunction);
 		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
@@ -609,58 +639,57 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 
 	case Decrement:
 	case Increment:
-		if (auto idExpression = dynamic_cast<IdentifierAsExpression*>(expr->expression)) {
-			RefConstant* ref = context.find(idExpression->identifier);
+		buffer = generate(expr->expression);
+		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
-			if (typesExpressions[idExpression->nodeId]->isInteger()) {
-
-				if (ref->isLocal) {
-					codeBytes.push_back(char(Command::iinc));
-					buffer = intToBytes(ref->index);
-					codeBytes.push_back(buffer[3]);
-					codeBytes.push_back(uint8_t(expr->type == Increment? 1 : -1));
-
-				} else {
-
-					buffer = intToBytes(ref->index);
-
-					codeBytes.push_back((char)Command::getstatic);
-					codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
-
-					codeBytes.push_back(uint8_t(Command::iconst_1));
-					codeBytes.push_back(uint8_t(expr->type == Increment? Command::iadd : Command::isub));
-
-					codeBytes.push_back((char)Command::putstatic);
-					codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
-				}
-
-			} else if (typesExpressions[idExpression->nodeId]->isFloat()) {
-
-				buffer = intToBytes(ref->index);
-				codeBytes.push_back(ref->isLocal? (char)Command::fload : (char)Command::getstatic);
-				
-				if (!ref->isLocal) codeBytes.push_back(buffer[2]);
-				codeBytes.push_back(buffer[3]);
-
-				codeBytes.push_back(uint8_t(Command::fconst_1));
-				codeBytes.push_back(uint8_t(expr->type == Increment? Command::fadd : Command::fsub));
-
-				codeBytes.push_back(ref->isLocal? (char)Command::fstore : (char)Command::putstatic);
-				if (!ref->isLocal) codeBytes.push_back(buffer[2]);
-				codeBytes.push_back(buffer[3]);
-			}
-
-		} else if (auto accessExpression = dynamic_cast<AccessExpression*>(expr->expression)) {
-			// TODO arrays
+		// dirty (duplicate array for loading and storing)
+		if (dynamic_cast<AccessExpression*>(expr->expression)) {
+			codeBytes.insert(codeBytes.end() - 1, (char)Command::dup2);
 		}
 
+		if (typesExpressions[expr->expression->nodeId]->isInteger()) {
+			codeBytes.push_back(uint8_t(Command::iconst_1));
+			codeBytes.push_back(uint8_t(expr->type == Increment? Command::iadd : Command::isub));
+			
+		} else if (typesExpressions[expr->expression->nodeId]->isFloat()) {
+			codeBytes.push_back(uint8_t(Command::fconst_1));
+			codeBytes.push_back(uint8_t(expr->type == Increment? Command::fadd : Command::fsub));
+		}
+		
+		if (auto identifierAsExpression = dynamic_cast<IdentifierAsExpression*>(expr->expression)) {
+			buffer = generateStoreToVariableCommand(identifierAsExpression->identifier
+											, typesExpressions[identifierAsExpression->nodeId]->type);
+
+		} else if (auto accessExpression = dynamic_cast<AccessExpression*>(expr->expression)) {
+			
+			buffer = generateStoreToArrayCommand(typesExpressions[accessExpression->nodeId]->type);
+		}
+
+		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 		break;
 
-	case UnaryNot:
+	case UnaryNot: {
+		constexpr auto ifeqLength = 3;
+		constexpr auto gotoLength = 3;
+		constexpr auto iconstLength = 1;
+
 		codeBytes = generate(expr->expression);
-		codeBytes.push_back(uint8_t(Command::ifne));
-		// TODO ifne offset
+		codeBytes.push_back((char)Command::iconst_1);
+		codeBytes.push_back((char)Command::if_icmpeq);
+
+		buffer = intToBytes(ifeqLength + gotoLength + iconstLength);
+		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+
+		codeBytes.push_back((char)Command::iconst_1);
+
+		codeBytes.push_back((char)Command::goto_);
+		buffer = intToBytes(gotoLength + iconstLength);
+		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+
+		codeBytes.push_back((char)Command::iconst_0);
+
 		break;
+	}
 
 	case UnaryPlus:
 		codeBytes = generate(expr->expression);
@@ -947,6 +976,9 @@ std::vector<char> Generator::generate(ElementCompositeLiteral* expr) {
 		auto value = std::get<ExpressionAST *>(expr->value);
         codeBytes = generate(value);
 
+		buffer = generateCloneArrayCommand(value);;
+		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
+
 		buffer = generateStoreToArrayCommand(typesExpressions[value->nodeId]->type);
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
@@ -966,8 +998,11 @@ std::vector<char> Generator::generate(ReturnStatement* expr) {
 	std::vector<char> bytes;
 
 	for (auto expression : expr->returnValues) {
-		auto buf = generate(expression);
-		bytes.insert(bytes.end(), buf.begin(), buf.end());
+		auto buffer = generate(expression);
+		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+
+		buffer = generateCloneArrayCommand(expression);;
+		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 	}
 
 	if (currentMethod->getReturnType()->type == TypeEntity::Void) {
@@ -998,8 +1033,11 @@ std::vector<char> Generator::initializeLocalVariables(const IdentifiersList& ide
 			
 		buffer = generate((*valueIter));
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+
+		buffer = generateCloneArrayCommand(*valueIter);
+		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 		
-		buffer = generateStoreToLocalVariableCommand(*idIter, typesExpressions[(*valueIter)->nodeId]->type);
+		buffer = generateStoreToVariableCommand(*idIter, typesExpressions[(*valueIter)->nodeId]->type);
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
 		idIter++;
@@ -1032,7 +1070,7 @@ std::vector<char> Generator::generate(ShortVarDeclarationStatement* stmt) {
 		context.add(id, new RefConstant(indexCurrentLocalVariable++, true));
 	}
 
-	return initializeLocalVariables(stmt->identifiers, stmt->values);;
+	return initializeLocalVariables(stmt->identifiers, stmt->values);
 }
 
 
@@ -1066,27 +1104,20 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 			buffer = generate(*rightIterator);
 			bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
+			buffer = generateCloneArrayCommand(*rightIterator);
+			bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+
 			if (*indexIterator) {
 				buffer = generateStoreToArrayCommand(typesExpressions[(*rightIterator)->nodeId]->type);
 				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 			}
 			else if (identifierAsExpression) {
-				auto constRef = context.find(identifierAsExpression->identifier);
+				auto identifier = identifierAsExpression->identifier;
 
-				if (constRef->isLocal) {
-					auto identifier = identifierAsExpression->identifier;
+				buffer = generateStoreToVariableCommand(identifier
+								, typesExpressions[(*leftIterator)->nodeId]->type);
 
-					buffer = generateStoreToLocalVariableCommand(identifier
-									, typesExpressions[(*leftIterator)->nodeId]->type);
-
-					bytes.insert(bytes.end(), buffer.begin(), buffer.end());
-
-				} else {
-					bytes.push_back(char(Command::putstatic));
-
-					buffer = intToBytes(constRef->index);
-					bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
-				}
+				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 			}
 
 			indexIterator++;
@@ -1101,35 +1132,45 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 	return bytes;
 }
 
-std::vector<char> Generator::generateStoreToLocalVariableCommand(std::string variableIdentifier, TypeEntity::TypeEntityEnum type) {
+
+std::vector<char> Generator::generateStoreToVariableCommand(std::string variableIdentifier, TypeEntity::TypeEntityEnum type) {
 	std::vector<char> bytes;
 	std::vector<char> buffer;
 
-	switch (type)
-	{
+	auto constRef = context.find(variableIdentifier);
+
+	if (constRef->isLocal == false) {
+		bytes.push_back((char)Command::putstatic);
+		buffer = intToBytes(constRef->index);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+
+	} else {
+		switch (type)
+		{
 		case TypeEntity::Boolean:
 		case TypeEntity::UntypedInt:
 		case TypeEntity::Int:
 			bytes.push_back((char)Command::istore);
-			buffer = intToBytes(context.find(variableIdentifier)->index);
+			buffer = intToBytes(constRef->index);
 			bytes.push_back(buffer[3]);
 			break;
 		case TypeEntity::Array:
 		case TypeEntity::String:
 			bytes.push_back((char)Command::astore);
-			buffer = intToBytes(context.find(variableIdentifier)->index);
+			buffer = intToBytes(constRef->index);
 			bytes.push_back(buffer[3]);
 			break;
 
 		case TypeEntity::UntypedFloat:
 		case TypeEntity::Float:
 			bytes.push_back((char)Command::fstore);
-			buffer = intToBytes(context.find(variableIdentifier)->index);
+			buffer = intToBytes(constRef->index);
 			bytes.push_back(buffer[3]);
 			break;
 
 		default:
 			break;
+		}
 	}
 
 	return bytes;

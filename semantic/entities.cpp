@@ -1,8 +1,11 @@
 #include "entities.h"
 
-// Dims not checking
 bool ArraySignatureEntity::equals(const ArraySignatureEntity* other) const {
-    return this->elementType->equal(other->elementType);
+    return this->elementType->equal(other->elementType) && this->dims == other->dims;
+}
+
+bool ArraySignatureEntity::isSlice() const {
+    return dims == -1;
 }
 
 bool FunctionSignatureEntity::equals(const FunctionSignatureEntity* other) const {

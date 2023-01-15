@@ -19,6 +19,7 @@ public:
     ArraySignatureEntity(TypeEntity* TypeEntity): dims(-1), elementType(TypeEntity) {};
     
     bool equals(const ArraySignatureEntity* other) const;
+    bool isSlice() const;
     TypeEntity* typeAxis(int indexAxis);
 };
 

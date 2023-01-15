@@ -300,12 +300,17 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
             semantic->errors.push_back(node->name() + " must have boolean expressions");
         }
     } else {
-        if (leftExprType->equal(rightExprType) && leftExprType->type != TypeEntity::Array && leftExprType->type != TypeEntity::UserType) {
+        if (leftExprType->equal(rightExprType) 
+            && leftExprType->type != TypeEntity::Array
+            && leftExprType->type != TypeEntity::Function 
+            && leftExprType->type != TypeEntity::UserType
+            && leftExprType->type != TypeEntity::Boolean
+        ) {
             typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
 
         } else {
             typesExpressions[node->nodeId] = new TypeEntity();
-            semantic->errors.push_back(node->name() + " must have equals types expressions. Comparison of arrays and functions are'nt supported");
+            semantic->errors.push_back(node->name() + " must have equals types expressions. Comparison of booleans, arrays and functions are'nt supported");
         }
     }
 }
@@ -431,6 +436,7 @@ void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
 
         } else {
             semantic->errors.push_back("Expression at " + std::to_string(indexCurrentAxisArray) + " axis has invalid type");
+            typesExpressions[node->nodeId] = new TypeEntity();
         }
 
     } else if (std::holds_alternative<std::list<ElementCompositeLiteral *>>(node->value)) {
