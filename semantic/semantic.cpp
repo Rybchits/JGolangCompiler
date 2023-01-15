@@ -100,4 +100,19 @@ void Semantic::printErrors() {
 
 const std::string Semantic::GlobalClassName = "$GLOBAL";
 
+const std::vector<std::string> Semantic::BuiltInFunctions = {
+    "print", 
+    "println", 
+    "len", 
+    "append", 
+    "readInt", 
+    "readFloat", 
+    "readString", 
+    "readBool",
+};
+
+bool Semantic::IsBuiltInFunction(std::string identifier) {
+    return std::find(BuiltInFunctions.begin(), BuiltInFunctions.end(), identifier) != BuiltInFunctions.end();
+}
+
 bool Semantic::isGeneratedName(const std::string_view name) { return !name.empty() && name[0] == '$'; };

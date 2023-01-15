@@ -33,9 +33,12 @@ private:
 
 public:
     static Semantic *GetInstance(PackageAST* package);
-    static const std::unordered_map<std::string, TypeEntity*> BuiltInFunctions;
+
     ClassEntity* packageClass;
     std::unordered_map<size_t, TypeEntity*> typesExpressions;
+
+    static const std::vector<std::string> BuiltInFunctions;
+    static bool IsBuiltInFunction(std::string identifier);
 
     bool analyze();
     std::vector<std::string> errors;

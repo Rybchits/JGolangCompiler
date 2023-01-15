@@ -64,6 +64,11 @@ private:
     void onFinishVisit(CompositeLiteral* node);
     void onFinishVisit(ElementCompositeLiteral* node);
 
+    bool defineTypeBuiltInFunction(CallableExpression* function);
+    bool definePrintsFunctions(CallableExpression* function);
+    bool defineLenFunction(CallableExpression* function);
+    bool defineAppendFunction(CallableExpression* function);
+    bool defineReadFunction(CallableExpression* function, TypeEntity::TypeEntityEnum type);
 
 public:
     explicit TypesVisitor(Semantic* semantic): semantic(semantic) {};

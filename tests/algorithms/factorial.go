@@ -7,9 +7,10 @@ func factorial(n int) int {
 	}
 	return n * factorial(n-1)
 }
+
 func main() {
 
-	printInt(factorial(4)) // 24
-	printInt(factorial(5)) // 120
-	printInt(factorial(6)) // 720
+	println(factorial(4)) // 24
+	println(factorial(5)) // 120
+	println(factorial(6)) // 720
 }

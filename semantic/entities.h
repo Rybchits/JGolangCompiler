@@ -18,7 +18,7 @@ public:
     ArraySignatureEntity(int dims, TypeEntity* TypeEntity): dims(dims), elementType(TypeEntity) {};
     ArraySignatureEntity(TypeEntity* TypeEntity): dims(-1), elementType(TypeEntity) {};
     
-    bool equals(const ArraySignatureEntity* other) const;
+    bool equal(const ArraySignatureEntity* other) const;
     bool isSlice() const;
     TypeEntity* typeAxis(int indexAxis);
 };
@@ -37,7 +37,6 @@ public:
 class TypeEntity {
 public:
     enum TypeEntityEnum {
-        Any,    // for built in functions
         Void,
         Int,
         UntypedInt,
@@ -47,6 +46,7 @@ public:
         String,
         Array,
         Function,
+        BuiltInFunction,
         UserType,
         Invalid
     } type;

@@ -1,6 +1,6 @@
 #include "entities.h"
 
-bool ArraySignatureEntity::equals(const ArraySignatureEntity* other) const {
+bool ArraySignatureEntity::equal(const ArraySignatureEntity* other) const {
     return this->elementType->equal(other->elementType) && this->dims == other->dims;
 }
 
@@ -76,7 +76,7 @@ bool TypeEntity::equal(const TypeEntity* other) {
     if (this->type == Array && other->type == Array) {
         auto currentValue = std::get<ArraySignatureEntity*>(this->value);
         auto otherValue = std::get<ArraySignatureEntity*>(other->value);
-        return currentValue->equals(otherValue);
+        return currentValue->equal(otherValue);
         
     } else if (this->type == UserType && other->type == UserType) {
         auto currentValue = std::get<std::string>(this->value);
@@ -95,7 +95,6 @@ bool TypeEntity::equal(const TypeEntity* other) {
                || (this->type == Float && other->type == UntypedInt)
                || (this->type == UntypedInt && other->type == Float)
 
-               || (this->type == Any || other->type == Any)
                || (this->type == other->type)) {
                 
                 return true;
@@ -164,9 +163,6 @@ std::string TypeEntity::toByteCode() const {
     
     else if (type == UserType)
         return std::get<std::string>(value);
-
-    else if (type == Any)
-        return "Ljava/lang/Object;";
 
     else if (type == Function) {
         std::string code = "(";

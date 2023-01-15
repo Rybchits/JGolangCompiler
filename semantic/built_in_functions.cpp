@@ -1,87 +1,126 @@
-#include <unordered_map>
-#include "semantic.h"
+#include "visitors/types_visitor.h"
 
-const std::unordered_map<std::string, TypeEntity*> Semantic::BuiltInFunctions = {
-    {"printInt", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Int)})),
-        new TypeEntity(TypeEntity::Void)))
-    },
+bool TypesVisitor::definePrintsFunctions(CallableExpression* function) {
+    std::vector<TypeEntity::TypeEntityEnum> printableTypes = {
+            TypeEntity::Int,
+            TypeEntity::UntypedInt,
+            TypeEntity::Float,
+            TypeEntity::UntypedFloat,
+            TypeEntity::Boolean,
+            TypeEntity::String,
+            TypeEntity::Array,
+        };
 
-    {"printFloat", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Float)})),
-        new TypeEntity(TypeEntity::Void)))
-    },
+    if (function->arguments.size() == 1) {
+        auto typeArgument = typesExpressions[function->arguments.front()->nodeId];
 
-    {"printString", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::String)})),
-        new TypeEntity(TypeEntity::Void)))
-    },
+        auto equal = std::find_if(printableTypes.begin(), printableTypes.end(), 
+                        [typeArgument](TypeEntity::TypeEntityEnum type){ return type == typeArgument->type; });
 
-    {"printBoolean", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Boolean)})),
-        new TypeEntity(TypeEntity::Void)))
-    },
+        if (equal != printableTypes.end()) {
+            typesExpressions[function->nodeId] = new TypeEntity(TypeEntity::Void);
+            return true;
 
-    {"printRune", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::Int)})),
-        new TypeEntity(TypeEntity::Void)))
-    },
+        } else {
+            semantic->errors.push_back("The invalid print/println function argument");
+        }
 
-    {"lenArray", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Any)))})),
-        new TypeEntity(TypeEntity::Int)))
-    },
+    } else {
+        semantic->errors.push_back("The print/println functions accept only one argument");
+    }
 
-    {"lenString", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({new TypeEntity(TypeEntity::String)})),
-        new TypeEntity(TypeEntity::Int)))
-    },
+    return false;
+}
 
-    {"readInt", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>()), new TypeEntity(TypeEntity::Int)))
-    },
+bool TypesVisitor::defineLenFunction(CallableExpression* function) {
+    std::vector<TypeEntity::TypeEntityEnum> lenableTypes = {
+        TypeEntity::String,
+        TypeEntity::Array
+    };
 
-    {"readFloat", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>()), new TypeEntity(TypeEntity::Float)))
-    },
+    if (function->arguments.size() == 1) {
+        auto typeArgument = typesExpressions[function->arguments.front()->nodeId];
 
-    {"readString", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>()), new TypeEntity(TypeEntity::String)))
-    },
+        auto equal = std::find_if(lenableTypes.begin(), lenableTypes.end(), 
+                        [typeArgument](TypeEntity::TypeEntityEnum type){ return type == typeArgument->type; });
 
-    {"readBool", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>()), new TypeEntity(TypeEntity::Boolean)))
-    },
+        if (equal != lenableTypes.end()) {
+            typesExpressions[function->nodeId] = new TypeEntity(TypeEntity::Int);
 
-    {"appendIntArray", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({
-            new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Int))),
-            new TypeEntity(TypeEntity::Int)
-        })),
-        new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Int)))))
-    },
+            return true;
 
-    {"appendFloatArray", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({
-            new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Float))),
-            new TypeEntity(TypeEntity::Float)
-        })),
-        new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Float)))))
-    },
+        } else {
+            semantic->errors.push_back("The invalid len function argument");
+        }
 
-    {"appendStirngArray", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({
-            new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::String))),
-            new TypeEntity(TypeEntity::String)
-        })),
-        new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::String)))))
-    },
+    } else {
+        semantic->errors.push_back("The len function accept only one argument");
+    }
 
-    {"appendBooleanArray", new TypeEntity(new FunctionSignatureEntity(
-        *(new std::list<TypeEntity*>({
-            new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Boolean))),
-            new TypeEntity(TypeEntity::Boolean)
-        })),
-        new TypeEntity(new ArraySignatureEntity(new TypeEntity(TypeEntity::Boolean)))))
-    },
-};
+    return false;
+}
+
+bool TypesVisitor::defineAppendFunction(CallableExpression* function) {
+    if (function->arguments.size() == 2) {
+        auto arrayArgType = typesExpressions[function->arguments.front()->nodeId];
+        auto newElementArgType = typesExpressions[(*(++function->arguments.begin()))->nodeId];
+
+        if (arrayArgType->type == TypeEntity::Array && std::get<ArraySignatureEntity*>(arrayArgType->value)->elementType->equal(newElementArgType)) {
+
+            typesExpressions[function->nodeId] = arrayArgType;
+
+            return true;
+
+        } else {
+            semantic->errors.push_back("The invalid append function arguments");
+        }
+
+    } else {
+        semantic->errors.push_back("The len function accepts two arguments");
+    }
+
+    return false;
+}
+
+bool TypesVisitor::defineReadFunction(CallableExpression* function, TypeEntity::TypeEntityEnum type) {
+    if (function->arguments.size() == 0) {
+        typesExpressions[function->nodeId] = new TypeEntity(type);
+        return true;
+    }
+    
+    semantic->errors.push_back("The readable functions not accepts arguments");
+    return false;
+}
+
+bool TypesVisitor::defineTypeBuiltInFunction(CallableExpression* function) {
+    
+    if (auto idFunctionBase = dynamic_cast<IdentifierAsExpression*>(function->base)) {
+
+        if (idFunctionBase->identifier == "len") {
+            return defineLenFunction(function);
+
+        } else if (idFunctionBase->identifier == "print") {
+            return definePrintsFunctions(function);
+
+        } else if (idFunctionBase->identifier == "println") {
+            return definePrintsFunctions(function);
+
+        } else if (idFunctionBase->identifier == "readInt" && function->arguments.empty()) {
+            return defineReadFunction(function, TypeEntity::Int);
+
+        } else if (idFunctionBase->identifier == "readFloat" && function->arguments.empty()) {
+            return defineReadFunction(function, TypeEntity::Float);
+
+        } else if (idFunctionBase->identifier == "readString" && function->arguments.empty()) {
+            return defineReadFunction(function, TypeEntity::String);
+            
+        } else if (idFunctionBase->identifier == "readBool" && function->arguments.empty()) {
+            return defineReadFunction(function, TypeEntity::Boolean);
+            
+        } else if (idFunctionBase->identifier == "append") {
+            return defineAppendFunction(function);
+        }
+    }
+
+    return false;
+}

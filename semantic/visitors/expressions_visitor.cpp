@@ -175,9 +175,6 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
         else if (leftFloat && rightFloat)
             result = new BooleanExpression(leftFloat->floatLit > rightFloat->floatLit);
 
-        else if (leftBool && rightBool)
-            result = new BooleanExpression(leftBool->boolLit > rightBool->boolLit);
-
         else if (leftString && rightString)
             result = new BooleanExpression(leftString->stringLit > rightString->stringLit);
 
@@ -195,9 +192,6 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
 
         else if (leftFloat && rightFloat)
             result = new BooleanExpression(leftFloat->floatLit < rightFloat->floatLit);
-
-        else if (leftBool && rightBool)
-            result = new BooleanExpression(leftBool->boolLit < rightBool->boolLit);
 
         else if (leftString && rightString)
             result = new BooleanExpression(leftString->stringLit < rightString->stringLit);
@@ -238,9 +232,6 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
         else if (leftFloat && rightFloat)
             result = new BooleanExpression(leftFloat->floatLit <= rightFloat->floatLit);
 
-        else if (leftBool && rightBool)
-            result = new BooleanExpression(leftBool->boolLit <= rightBool->boolLit);
-
         else if (leftString && rightString)
             result = new BooleanExpression(leftString->stringLit <= rightString->stringLit);
 
@@ -258,9 +249,6 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
 
         else if (leftFloat && rightFloat)
             result = new BooleanExpression(leftFloat->floatLit >= rightFloat->floatLit);
-
-        else if (leftBool && rightBool)
-            result = new BooleanExpression(leftBool->boolLit >= rightBool->boolLit);
 
         else if (leftString && rightString)
             result = new BooleanExpression(leftString->stringLit >= rightString->stringLit);

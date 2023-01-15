@@ -4,13 +4,9 @@
 #include <iostream>
 
 ClassEntity* TypesVisitor::createGlobalClass(std::list<FunctionDeclaration*> functions, std::list<VariableDeclaration*>& variables) {
+    
     // Add started scope
     auto packageClass = new ClassEntity();
-
-    // Add builtIn functions
-    for (auto & [identifier, functionSignature] : Semantic::BuiltInFunctions) {
-        scopesDeclarations.add(identifier, new VariableEntity(functionSignature));
-    }
 
     // Add package functions
     for (auto function : functions) {
@@ -192,6 +188,10 @@ void TypesVisitor::onFinishVisit(IdentifierAsExpression* node) {
         typesExpressions[node->nodeId] = variable->type;
         variable->use();
         return ;
+
+    } else if (Semantic::IsBuiltInFunction(node->identifier)) {
+        typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::BuiltInFunction);
+        return;
     }
     
     semantic->errors.push_back("Undefined: " + node->identifier);
@@ -300,11 +300,10 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
             semantic->errors.push_back(node->name() + " must have boolean expressions");
         }
     } else {
-        if (leftExprType->equal(rightExprType) 
-            && leftExprType->type != TypeEntity::Array
-            && leftExprType->type != TypeEntity::Function 
-            && leftExprType->type != TypeEntity::UserType
-            && leftExprType->type != TypeEntity::Boolean
+        if (leftExprType->equal(rightExprType) && (leftExprType->isFloat()
+            || leftExprType->isInteger()
+            || leftExprType->type == TypeEntity::String
+            || (leftExprType->type == TypeEntity::Boolean && (node->type == BinaryExpressionEnum::Equal || node->type == BinaryExpressionEnum::NotEqual)))
         ) {
             typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
 
@@ -348,7 +347,14 @@ void TypesVisitor::onFinishVisit(CallableExpression* node) {
         
         typesExpressions[node->nodeId] = signature->returnType;
         return ;
+    
+    } else if (baseType->type == TypeEntity::BuiltInFunction) {
+        bool isCheckBuiltInFunctionSuccess = defineTypeBuiltInFunction(node);
 
+        if (!isCheckBuiltInFunctionSuccess) {
+            typesExpressions[node->nodeId] = new TypeEntity();
+        }
+        return ;
     }
 
     semantic->errors.push_back("Cannot call non-function");
@@ -615,6 +621,7 @@ void TypesVisitor::onFinishVisit(IfStatement* node) {
 std::unordered_map<size_t, TypeEntity*> TypesVisitor::getTypesExpressions() const {
     return this->typesExpressions;
 }
+
 
 bool ConstExpressionVisitor::isConstExpression(ExpressionAST* expr) {
     constValid = true;

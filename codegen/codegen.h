@@ -48,12 +48,12 @@ class Generator {
     std::vector<char> generateMethodBodyCode(MethodEntity* methodEntity);
 
     std::vector<char> generate(BlockStatement* block);
-
     std::vector<char> generate(ReturnStatement* stmt);
     std::vector<char> generate(ExpressionStatement* stmt);
     std::vector<char> generate(DeclarationStatement* stmt);
     std::vector<char> generate(ShortVarDeclarationStatement* stmt);
     std::vector<char> generate(AssignmentStatement* stmt);
+    std::vector<char> generate(IfStatement* stmt);
 
     std::vector<char> generate(CallableExpression* expr);
     std::vector<char> generate(IdentifierAsExpression* expr);
@@ -71,15 +71,14 @@ class Generator {
     std::vector<char> generate(ExpressionAST* expr);
     std::vector<char> generate(StatementAST* stmt);
 
-    std::vector<char> initializeLocalVariables(const IdentifiersList& identifiers, const ExpressionList& values);
-
-    void fillConstantPool(std::string_view className, ClassEntity* classEntity);
-    void addBuiltInFunctions(std::string_view nameBaseClass, const std::unordered_map<std::string, TypeEntity*>& functions);
-
     std::vector<char> generateStoreToVariableCommand(std::string variableIdentifier, TypeEntity::TypeEntityEnum type);
     std::vector<char> generateStoreToArrayCommand(TypeEntity::TypeEntityEnum type);
     std::vector<char> generateLoadFromArrayCommand(TypeEntity::TypeEntityEnum type);
     std::vector<char> generateCloneArrayCommand(ExpressionAST* array);
+
+    std::string createDescriptorBuiltInFunction(CallableExpression* expr);
+    std::vector<char> initializeLocalVariables(const IdentifiersList& identifiers, const ExpressionList& values);
+    void fillConstantPool(std::string_view className, ClassEntity* classEntity);
 
 public:
     Generator(std::unordered_map<std::string, ClassEntity*>& classPool

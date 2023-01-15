@@ -223,14 +223,6 @@ std::vector<char> Generator::generateNewArray(ArraySignatureEntity* arrayType, E
 }
 
 
-void Generator::addBuiltInFunctions(std::string_view nameBaseClass, const std::unordered_map<std::string, TypeEntity*>& functions) {
-	for (auto &[id, descriptor] : functions) {
-		int index = constantPool.FindMethodRef(nameBaseClass, id, descriptor->toByteCode());
-		context.add(id, new RefConstant(index, false));
-	}	
-}
-
-
 void Generator::fillConstantPool(std::string_view className, ClassEntity* classEntity) {
 		
     // Add name of "Code" attribute
@@ -267,7 +259,6 @@ void Generator::generate() {
 		context = Context<RefConstant*>();
 		
 		fillConstantPool(className, classEntity);
-		addBuiltInFunctions("$Base", Semantic::BuiltInFunctions);
 
         // Create class file
         const auto filename = std::string{ className } + ".class";
@@ -467,6 +458,7 @@ std::vector<char> Generator::generateStaticConstuctorCode(std::string_view class
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
 		buffer = generateStoreToVariableCommand(fieldIdentifier, typesExpressions[field->declaration->nodeId]->type);
+		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 	}
 
 	bytes.push_back(char(Command::return_));
@@ -508,10 +500,67 @@ std::vector<char> Generator::generate(BlockStatement* block) {
 	return codeBytes;
 }
 
+
+std::vector<char> Generator::generate(IfStatement* stmt) {
+	std::vector<char> codeBytes;
+	std::vector<char> buffer;
+
+	constexpr auto gotoLength = 3;
+	constexpr auto ifeqLength = 3;
+
+    auto conditionBytes = generate(stmt->condition);
+    auto thenStmtBytes = generate(stmt->thenStatement);
+    auto elseStmtBytes = generate(stmt->elseStatement);
+
+	codeBytes.insert(codeBytes.end(), conditionBytes.begin(), conditionBytes.end());
+
+	if (stmt->elseStatement != nullptr) {
+		thenStmtBytes.push_back(char(Command::goto_));
+
+		buffer = intToBytes(elseStmtBytes.size() + gotoLength);
+		thenStmtBytes.insert(thenStmtBytes.end(), buffer.begin() + 2, buffer.end());
+	}
+
+	codeBytes.push_back((char)Command::ifeq);
+
+	buffer = intToBytes(thenStmtBytes.size() + ifeqLength);
+	codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+
+	codeBytes.insert(codeBytes.end(), thenStmtBytes.begin(), thenStmtBytes.end());
+	codeBytes.insert(codeBytes.end(), elseStmtBytes.begin(), elseStmtBytes.end());
+
+	codeBytes.push_back((char)Command::nop);
+
+	return codeBytes;
+}
+
+
 std::vector<char> Generator::generate(ExpressionStatement* stmt) {
 	return generate(stmt->expression);
 }
 
+std::string Generator::createDescriptorBuiltInFunction(CallableExpression* expr) {
+	std::string nameFunction = dynamic_cast<IdentifierAsExpression*>(expr->base)->identifier;
+	
+	std::string descriptor = "(";
+	auto firstArgumentType = typesExpressions[expr->arguments.front()->nodeId];
+
+	if ((nameFunction == "print" || nameFunction == "println" || nameFunction == "len") 
+			&& firstArgumentType->type == TypeEntity::Array) {
+
+		descriptor += "[Ljava/lang/Object;";
+
+	} else {
+        for (auto arg : expr->arguments) {
+            descriptor += typesExpressions[arg->nodeId]->toByteCode();
+        }
+	}
+
+	descriptor += ")";
+    descriptor += typesExpressions[expr->nodeId]->toByteCode();
+
+	return descriptor;
+}
 
 std::vector<char> Generator::generate(CallableExpression* expr) {
 	std::vector<char> codeBytes;
@@ -527,12 +576,21 @@ std::vector<char> Generator::generate(CallableExpression* expr) {
 	
 
 	if (auto idExpression = dynamic_cast<IdentifierAsExpression*>(expr->base)) {
-
 		codeBytes.push_back((char)Command::invokestatic);
 
-		int indexFunction = context.find(idExpression->identifier)->index;
-		buffer = intToBytes(indexFunction);
-		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+		RefConstant* methodRef = context.find(idExpression->identifier);
+
+		if (methodRef != nullptr) {
+			buffer = intToBytes(methodRef->index);
+			codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+
+		} else if (Semantic::IsBuiltInFunction(idExpression->identifier)) {
+			std::string descriptor = createDescriptorBuiltInFunction(expr);
+
+			int indexBuiltInFunction = constantPool.FindMethodRef("$Base", idExpression->identifier, descriptor);
+			buffer = intToBytes(indexBuiltInFunction);
+			codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+		}
 	}
 
 	return codeBytes;
@@ -1269,9 +1327,8 @@ std::vector<char> Generator::generate(StatementAST* stmt) {
 		std::cout << "не сделали while statement";
 
 	} else if (auto ifStatement = dynamic_cast<IfStatement*>(stmt)) {
-		// return generate(assignmentStatement);
 		// TODO if
-		std::cout << "не сделали if statement";
+		return generate(ifStatement);
 
 	} else if (auto switchCaseClause = dynamic_cast<SwitchCaseClause*>(stmt)) {
 		// return generate(assignmentStatement);

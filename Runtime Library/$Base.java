@@ -18,19 +18,53 @@ public class $Base {
 
     public static boolean readBool() { return in.nextBoolean(); }
 
-    public static void printInt(int i) { System.out.print(i); }
+    public static void print(int i) { System.out.print(i); }
 
-    public static void printFloat(float f) { System.out.print(f); }
+    public static void print(float f) { System.out.print(f); }
 
-    public static void printString(String s) { System.out.print(s); }
+    public static void print(String s) { System.out.print(s); }
 
-    public static void printBoolean(boolean b) { System.out.print(b); }
+    public static void print(boolean b) { System.out.print(b); }
 
-    public static void printRune(int r) { System.out.print((char)r); }
+    public static void print(Object[] array) { System.out.print(Arrays.deepToString(array)); }
 
-    public static int lenArray(Object[] array) { return array.length; }
+    public static void println(int i) { System.out.println(i); }
 
-    public static int lenString(String string) { return string.length(); }
+    public static void println(float f) { System.out.println(f); }
+
+    public static void println(String s) { System.out.println(s); }
+
+    public static void println(boolean b) { System.out.println(b); }
+
+    public static void println(Object[] array) { System.out.println(Arrays.deepToString(array)); }
+
+    public static int len(Object[] array) { return array.length; }
+
+    public static int len(String string) { return string.length(); }
+
+    public static int[] append(int[] array, int element) {
+        int[] newArray = Arrays.copyOf(array, array.length+1);
+        newArray[array.length] = element;
+        return newArray;
+    }
+
+    public static float[] append(float[] array, float element) {
+        float[] newArray = Arrays.copyOf(array, array.length+1);
+        newArray[array.length] = element;
+        return newArray;
+    }
+
+    public static String[] append(String[] array, String element) {
+        String[] newArray = Arrays.copyOf(array, array.length+1);
+        newArray[array.length] = element;
+        return newArray;
+    }
+
+    public static boolean[] append(boolean[] array, boolean element) {
+        boolean[] newArray = Arrays.copyOf(array, array.length+1);
+        newArray[array.length] = element;
+        return newArray;
+    }
 
     public static int compare(String lhs, String rhs) {
         int lhsLen = lhs.length();
@@ -45,29 +79,5 @@ public class $Base {
         }
 
         return 0;
-    }
-
-    public static int[] appendIntArray(int[] array, int element) {
-        int[] newArray = Arrays.copyOf(array, array.length+1);
-        newArray[array.length] = element;
-        return newArray;
-    }
-
-    public static float[] appendFloatArray(float[] array, float element) {
-        float[] newArray = Arrays.copyOf(array, array.length+1);
-        newArray[array.length] = element;
-        return newArray;
-    }
-
-    public static String[] appendStringArray(String[] array, String element) {
-        String[] newArray = Arrays.copyOf(array, array.length+1);
-        newArray[array.length] = element;
-        return newArray;
-    }
-
-    public static boolean[] appendBooleanArray(boolean[] array, boolean element) {
-        boolean[] newArray = Arrays.copyOf(array, array.length+1);
-        newArray[array.length] = element;
-        return newArray;
     }
 }

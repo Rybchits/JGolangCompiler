@@ -1,12 +1,12 @@
 package main
 
-func printArray(array []int) {
+func printArray(array [100]int) {
 	for i := 0; i < lenArray(array); i++ {
 		printInt(array[i])
 	}
 }
 
-func sift(arr []int, i int, arrLen int) []int {
+func sift(arr [100]int, i int, arrLen int) [100]int {
 	done := false
 
 	tmp := 0
@@ -34,7 +34,7 @@ func sift(arr []int, i int, arrLen int) []int {
 	return arr
 }
 
-func HeapSort(arr []int) {
+func HeapSort(arr [100]int) {
 	i := 0
 	tmp := 0
 
@@ -52,7 +52,7 @@ func HeapSort(arr []int) {
 }
 
 func main() {
-	arr := []int{5, 3, 4, 7, 8, 9}
+	arr := [100]int{5, 3, 4, 7, 8, 9}
 	printString("Initial array is: ")
 	printArray(arr)
 	HeapSort(arr)
