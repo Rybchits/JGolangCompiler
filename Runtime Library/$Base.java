@@ -28,6 +28,12 @@ public class $Base {
 
     public static void print(Object[] array) { System.out.print(Arrays.deepToString(array)); }
 
+    public static void print(int[] array) { System.out.print(Arrays.toString(array)); }
+
+    public static void print(float[] array) { System.out.print(Arrays.toString(array)); }
+
+    public static void print(boolean[] array) { System.out.print(Arrays.toString(array)); }
+
     public static void println(int i) { System.out.println(i); }
 
     public static void println(float f) { System.out.println(f); }
@@ -37,6 +43,12 @@ public class $Base {
     public static void println(boolean b) { System.out.println(b); }
 
     public static void println(Object[] array) { System.out.println(Arrays.deepToString(array)); }
+
+    public static void println(int[] array) { System.out.println(Arrays.toString(array)); }
+
+    public static void println(float[] array) { System.out.println(Arrays.toString(array)); }
+
+    public static void println(boolean[] array) { System.out.println(Arrays.toString(array)); }
 
     public static int len(Object[] array) { return array.length; }
 

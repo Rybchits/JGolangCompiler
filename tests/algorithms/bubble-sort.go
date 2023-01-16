@@ -11,7 +11,7 @@ func BubbleSort(arr []int) {
 }
 
 func main() {
-	a := []int{7, 5, 3, 4, 8, 9}
-	BubbleSort(a)
+	a := []int{5, 10, -123, 2, 444, 1, 1, 15} //[-123 1 1 2 5 10 15 444]
+	BubbleSort(a)                             // [-123 -123 -123 1 1 1 1 15]
 	print(a)
 }

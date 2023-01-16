@@ -1,13 +1,5 @@
 package main
 
-func printIntArray(arr []int) {
-	for index, el := range arr {
-		print(el)
-		print(" ")
-		index++
-	}
-}
-
 func sift(arr []int, i int, arrLen int) []int {
 	done := false
 
@@ -56,9 +48,8 @@ func HeapSort(arr []int) {
 func main() {
 	arr := []int{5, 3, 4, 7, 8, 9}
 	print("Initial array is: ")
-	printIntArray(arr) // here error deep print array
-	println("")
+	println(arr) // here error deep print array
 	HeapSort(arr)
 	print("Sorted array is: ")
-	printIntArray(arr)
+	println(arr)
 }

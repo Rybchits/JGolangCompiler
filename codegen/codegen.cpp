@@ -544,9 +544,14 @@ std::string Generator::createDescriptorBuiltInFunction(CallableExpression* expr)
 	
 	std::string descriptor = "(";
 	auto firstArgumentType = typesExpressions[expr->arguments.front()->nodeId];
+	bool firstArgumentIsArray = std::holds_alternative<ArraySignatureEntity*>(firstArgumentType->value);
 
-	if ((nameFunction == "print" || nameFunction == "println" || nameFunction == "len") 
-			&& firstArgumentType->type == TypeEntity::Array) {
+	TypeEntity* arrayElementType = firstArgumentIsArray? arrayElementType = 
+			std::get<ArraySignatureEntity*>(firstArgumentType->value)->elementType : nullptr;
+
+	if ((nameFunction == "len" && firstArgumentIsArray)
+	|| ((nameFunction == "print" || nameFunction == "println") && firstArgumentIsArray
+	&& !arrayElementType->isFloat() && !arrayElementType->isInteger() && arrayElementType->type != TypeEntity::Boolean)) {
 
 		descriptor += "[Ljava/lang/Object;";
 
@@ -1138,6 +1143,35 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 
 	if (stmt->type == AssignmentEnum::SimpleAssign) {
 		
+		auto indexRIterator = stmt->indexes.rbegin();
+        auto rightRIterator = stmt->rhs.rbegin();
+        auto leftRIterator = stmt->lhs.rbegin();
+
+		while (indexRIterator != stmt->indexes.rend() && leftRIterator != stmt->lhs.rend() 
+													&& rightRIterator != stmt->rhs.rend()) {
+			// if lhs expression has index (i.e. array)
+			if (*indexRIterator) {
+				// generate access array expression
+				buffer = generate(*leftRIterator);
+				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+
+				// generate index expression
+				buffer = generate(*indexRIterator);
+				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+			}
+
+			// generate value expression
+			buffer = generate(*rightRIterator);
+			bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+
+			buffer = generateCloneArrayCommand(*rightRIterator);
+			bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+
+			indexRIterator++;
+			rightRIterator++;
+			leftRIterator++;
+		}
+
 		auto indexIterator = stmt->indexes.begin();
         auto rightIterator = stmt->rhs.begin();
         auto leftIterator = stmt->lhs.begin();
@@ -1146,24 +1180,6 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 													&& rightIterator != stmt->rhs.end()) {
 
 			auto identifierAsExpression = dynamic_cast<IdentifierAsExpression*>(*leftIterator);
-
-			// if lhs expression has index (i.e. array)
-			if (*indexIterator) {
-				// generate access array expression
-				buffer = generate(*leftIterator);
-				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
-
-				// generate index expression
-				buffer = generate(*indexIterator);
-				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
-			}
-
-			// generate value expression
-			buffer = generate(*rightIterator);
-			bytes.insert(bytes.end(), buffer.begin(), buffer.end());
-
-			buffer = generateCloneArrayCommand(*rightIterator);
-			bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
 			if (*indexIterator) {
 				buffer = generateStoreToArrayCommand(typesExpressions[(*rightIterator)->nodeId]->type);
