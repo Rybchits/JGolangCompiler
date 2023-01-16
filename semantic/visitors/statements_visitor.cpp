@@ -87,7 +87,7 @@ BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *f
     auto condition = new BinaryExpression(
             BinaryExpressionEnum::Less,
             new IdentifierAsExpression(indexPrivateVariableName),
-            new CallableExpression(new IdentifierAsExpression("lenArray"),
+            new CallableExpression(new IdentifierAsExpression("len"),
                                    *(new ExpressionList{forRangeStmt->expressionValue->clone()}))
     );
 

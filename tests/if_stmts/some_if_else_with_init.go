@@ -1,7 +1,6 @@
 package main //package name
 
 func main() {
-	a := 1             // Error
 	b := 2             /* Not error and multiline comment */
 	c := 3             // Comment
 	if a := 2; a > b { // Comment
@@ -12,7 +11,7 @@ func main() {
 		}
 	} else if a, b = 7, 8; b > c*2 || false { /* Not error
 		and multiline comment */
-		println("Biggest is b")
+		println("Biggest is b 2")
 	} else {
 		println("Biggest is c")
 	}

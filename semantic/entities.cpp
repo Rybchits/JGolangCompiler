@@ -164,6 +164,9 @@ std::string TypeEntity::toByteCode() const {
     else if (type == UserType)
         return std::get<std::string>(value);
 
+    else if (type == BuiltInFunction)
+        return "built-in: " + std::get<std::string>(value);
+
     else if (type == Function) {
         std::string code = "(";
 

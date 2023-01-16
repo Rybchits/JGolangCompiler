@@ -57,7 +57,7 @@ public:
     TypeEntity(TypeAST* node);
     TypeEntity(ArraySignatureEntity* array): type(Array), value(array) {};
     TypeEntity(FunctionSignatureEntity* function): type(Function), value(function) {};
-    TypeEntity(TypeEntityEnum type): type(type) {};
+    TypeEntity(TypeEntityEnum type, std::string id = ""): type(type), value(id) {};
  
     std::string toByteCode() const;
     bool isNumeric();

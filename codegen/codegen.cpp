@@ -1191,6 +1191,34 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 }
 
 
+std::vector<char> Generator::generate(WhileStatement* stmt) {
+	std::vector<char> bytes;
+	std::vector<char> buffer;
+
+	const auto conditionBytes = generate(stmt->conditionExpression);
+    const auto bodyBytes = generate(stmt->block);
+
+    constexpr auto ifeqCommandLength = 3;
+    constexpr auto gotoCommandLength = 3;
+
+	bytes.insert(bytes.end(), conditionBytes.begin(), conditionBytes.end());
+
+	bytes.push_back((char)Command::ifeq);
+	buffer = intToBytes(bodyBytes.size() + ifeqCommandLength + gotoCommandLength);
+    bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+
+	bytes.insert(bytes.end(), bodyBytes.begin(), bodyBytes.end());
+
+	bytes.push_back((char)Command::goto_);
+	buffer = intToBytes(-(conditionBytes.size() + bodyBytes.size() + ifeqCommandLength));
+    bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+
+	bytes.push_back((char)Command::nop);
+
+	return bytes; 
+}
+
+
 std::vector<char> Generator::generateStoreToVariableCommand(std::string variableIdentifier, TypeEntity::TypeEntityEnum type) {
 	std::vector<char> bytes;
 	std::vector<char> buffer;
@@ -1322,12 +1350,15 @@ std::vector<char> Generator::generate(StatementAST* stmt) {
 		return generate(assignmentStatement);
 
 	} else if (auto whileStatement = dynamic_cast<WhileStatement*>(stmt)) {
-		// return generate(assignmentStatement);
-		// TODO loops
-		std::cout << "не сделали while statement";
+		return generate(whileStatement);
+
+	} else if (auto forStatement = dynamic_cast<ForStatement*>(stmt)) {
+		std::cout << "For loop is not exists";
+
+	} else if (auto forRangeStatement = dynamic_cast<ForRangeStatement*>(stmt)) {
+		std::cout << "For range loop is not exists";
 
 	} else if (auto ifStatement = dynamic_cast<IfStatement*>(stmt)) {
-		// TODO if
 		return generate(ifStatement);
 
 	} else if (auto switchCaseClause = dynamic_cast<SwitchCaseClause*>(stmt)) {

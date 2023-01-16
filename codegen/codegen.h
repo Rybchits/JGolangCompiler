@@ -54,6 +54,7 @@ class Generator {
     std::vector<char> generate(ShortVarDeclarationStatement* stmt);
     std::vector<char> generate(AssignmentStatement* stmt);
     std::vector<char> generate(IfStatement* stmt);
+    std::vector<char> generate(WhileStatement* stmt);
 
     std::vector<char> generate(CallableExpression* expr);
     std::vector<char> generate(IdentifierAsExpression* expr);

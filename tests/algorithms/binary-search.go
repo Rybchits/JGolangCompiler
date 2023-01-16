@@ -1,9 +1,11 @@
 package main
 
 func printArray(array []int) {
-	for i := 0; i < lenArray(array); i++ {
-		printInt(array[i])
+	for i := 0; i < len(array); i++ {
+		print(array[i])
+		print(" ")
 	}
+	println(" ")
 }
 
 func main() {
@@ -15,8 +17,8 @@ func main() {
 
 	// Sort the numbers
 	var tmp = 0
-	for i := 0; i < lenArray(arr); i++ {
-		for j := 0; j < lenArray(arr)-1; j++ {
+	for i := 0; i < len(arr); i++ {
+		for j := 0; j < len(arr)-1; j++ {
 			if arr[j] > arr[j+1] {
 				tmp = arr[j]
 				arr[j] = arr[j+1]
@@ -28,10 +30,10 @@ func main() {
 	printArray(arr)
 
 	left := 0
-	right := lenArray(arr) - 1
+	right := len(arr) - 1
 
 	if right < left {
-		printString("Not found")
+		print("Not found")
 		return
 	}
 
@@ -39,8 +41,8 @@ func main() {
 		mid := (left + right) / 2
 
 		if arr[mid] == searchValue {
-			printString("Found at position: ")
-			printInt(mid)
+			print("Found at position: ")
+			println(mid)
 			return
 		} else if arr[mid] < searchValue {
 			left = mid + 1
@@ -49,5 +51,5 @@ func main() {
 		}
 	}
 
-	printString("Not found")
+	println("Not found")
 }

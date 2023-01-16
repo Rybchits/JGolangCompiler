@@ -190,7 +190,7 @@ void TypesVisitor::onFinishVisit(IdentifierAsExpression* node) {
         return ;
 
     } else if (Semantic::IsBuiltInFunction(node->identifier)) {
-        typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::BuiltInFunction);
+        typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::BuiltInFunction, node->identifier);
         return;
     }
     

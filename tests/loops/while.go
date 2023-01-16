@@ -4,7 +4,8 @@ func main() {
 
 	i := 0
 	for i < 5 {
-		println("i =", i)
+		print("i = ")
+		println(i)
 		i++
 	}
 }

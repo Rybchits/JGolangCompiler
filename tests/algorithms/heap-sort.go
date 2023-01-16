@@ -1,12 +1,14 @@
 package main
 
-func printArray(array [100]int) {
-	for i := 0; i < lenArray(array); i++ {
-		printInt(array[i])
+func printIntArray(arr []int) {
+	for index, el := range arr {
+		print(el)
+		print(" ")
+		index++
 	}
 }
 
-func sift(arr [100]int, i int, arrLen int) [100]int {
+func sift(arr []int, i int, arrLen int) []int {
 	done := false
 
 	tmp := 0
@@ -34,15 +36,15 @@ func sift(arr [100]int, i int, arrLen int) [100]int {
 	return arr
 }
 
-func HeapSort(arr [100]int) {
+func HeapSort(arr []int) {
 	i := 0
 	tmp := 0
 
-	for i = lenArray(arr)/2 - 1; i >= 0; i-- {
-		arr = sift(arr, i, lenArray(arr))
+	for i = len(arr)/2 - 1; i >= 0; i-- {
+		arr = sift(arr, i, len(arr))
 	}
 
-	for i = lenArray(arr) - 1; i >= 1; i-- {
+	for i = len(arr) - 1; i >= 1; i-- {
 		tmp = arr[0]
 		arr[0] = arr[i]
 		arr[i] = tmp
@@ -52,11 +54,11 @@ func HeapSort(arr [100]int) {
 }
 
 func main() {
-	arr := [100]int{5, 3, 4, 7, 8, 9}
-	printString("Initial array is: ")
-	printArray(arr)
+	arr := []int{5, 3, 4, 7, 8, 9}
+	print("Initial array is: ")
+	printIntArray(arr) // here error deep print array
+	println("")
 	HeapSort(arr)
-	printString("\n")
-	printString("Sorted array is: ")
-	printArray(arr)
+	print("Sorted array is: ")
+	printIntArray(arr)
 }

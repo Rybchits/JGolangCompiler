@@ -1,11 +1,9 @@
-package loops
+package main
 
 func main() {
-	sum := 0
+	sum := 10
 	for i := 1; i < 5; i++ {
-		if -i%2 != 0*-1 {
-			continue
-		}
-		sum += i
+		sum = sum + i
 	}
+	println(sum)
 }
