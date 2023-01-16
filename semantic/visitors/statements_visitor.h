@@ -9,6 +9,7 @@ private:
     std::stack<StatementAST*> nextIterationsLoops;
     static const std::string indexPrivateVariableName;
 
+    AssignmentStatement* transformAssignment(AssignmentStatement* assigmnent);
     StatementList transformStatements(StatementList& list);
 
     StatementAST* transformIfStatement(IfStatement* ifStmt);
@@ -37,14 +38,7 @@ public:
     void onStartVisit(BlockStatement* node) override;
     void onFinishVisit(BlockStatement* node) override;
 
-    void onStartVisit(SwitchCaseClause* node) override;
-    void onStartVisit(SwitchStatement* node) override;
-
-    void onFinishVisit(SwitchCaseClause* node) override;
-    void onFinishVisit(SwitchStatement* node) override;
-
     void onFinishVisit(IfStatement* node) override;
-
     void onFinishVisit(FunctionDeclaration* node) override;
 
 

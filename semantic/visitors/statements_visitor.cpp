@@ -2,6 +2,47 @@
 
 const std::string StatementsVisitor::indexPrivateVariableName = "$index";
 
+AssignmentStatement* StatementsVisitor::transformAssignment(AssignmentStatement* assigmnent) {
+    if (assigmnent->type != AssignmentEnum::SimpleAssign) {
+        auto leftValueExpression = assigmnent->lhs.front();
+        auto rightValueExpression = assigmnent->rhs.front();
+
+        switch (assigmnent->type)
+        {
+        case AssignmentEnum::MinusAssign:
+            assigmnent->rhs = ExpressionList({new BinaryExpression(
+                BinaryExpressionEnum::Subtraction, leftValueExpression->clone(), rightValueExpression)});
+            break;
+
+        case AssignmentEnum::PlusAssign:
+            assigmnent->rhs = ExpressionList({new BinaryExpression(
+                BinaryExpressionEnum::Addition, leftValueExpression->clone(), rightValueExpression)});
+            break;
+
+        case AssignmentEnum::MulAssign:
+            assigmnent->rhs = ExpressionList({new BinaryExpression(
+                BinaryExpressionEnum::Multiplication, leftValueExpression->clone(), rightValueExpression)});
+            break;
+
+        case AssignmentEnum::DivAssign:
+            assigmnent->rhs = ExpressionList({new BinaryExpression(
+                BinaryExpressionEnum::Division, leftValueExpression->clone(), rightValueExpression)});
+            break;
+
+        case AssignmentEnum::ModAssign:
+            assigmnent->rhs = ExpressionList({new BinaryExpression(
+                BinaryExpressionEnum::Mod, leftValueExpression->clone(), rightValueExpression)});
+            break;
+        
+        default:
+            break;
+        }
+    }
+    
+    assigmnent->type = AssignmentEnum::SimpleAssign;
+    return assigmnent;
+}
+
 BlockStatement* StatementsVisitor::transformForToWhile(ForStatement *forStmt) {
     StatementList list;
 
@@ -182,6 +223,9 @@ StatementList StatementsVisitor::transformStatements(StatementList& list) {
         } else if (auto switchStatement = dynamic_cast<SwitchStatement*>(stmt)) {
             newBody.push_back(transformSwitchStatement(switchStatement));
 
+        } else if (auto assignmentStmt = dynamic_cast<AssignmentStatement*>(stmt)) {
+            newBody.push_back(transformAssignment(assignmentStmt));
+
         } else {
             newBody.push_back(stmt);
         }
@@ -236,22 +280,6 @@ void StatementsVisitor::transform(PackageAST* packageAst) {
     packageAst->acceptVisitor(this);
 }
 
-void StatementsVisitor::onStartVisit(SwitchCaseClause *node) {
-    node->statementsList = transformStatementsWithContinues(node->statementsList);
-}
-
-void StatementsVisitor::onStartVisit(SwitchStatement *node) {
-    node->defaultStatement = transformStatementsWithContinues(node->defaultStatement);
-}
-
-void StatementsVisitor::onFinishVisit(SwitchCaseClause* node) {
-    node->statementsList = transformStatements(node->statementsList);
-}
-
-void StatementsVisitor::onFinishVisit(SwitchStatement* node) {
-    node->defaultStatement = transformStatements(node->defaultStatement);
-}
-
 bool StatementsVisitor::checkReturnStatements(StatementAST* stmt) {
 
     if (auto returnStmt = dynamic_cast<ReturnStatement*>(stmt)) {
@@ -289,17 +317,10 @@ bool StatementsVisitor::checkReturnStatements(IfStatement* ifStatement) {
 }
 
 bool StatementsVisitor::checkReturnStatements(SwitchStatement* switchStmt) {
-    bool casesHaveReturn = switchStmt->defaultStatement.size() != 0? 
-            checkReturnStatements(*(--switchStmt->defaultStatement.end())) : false;
+    bool casesHaveReturn = checkReturnStatements(switchStmt->defaultStatements);
 
     for (auto caseClause : switchStmt->clauseList) {
-
-        if (caseClause->statementsList.size() != 0) {
-            casesHaveReturn &= checkReturnStatements(*(--caseClause->statementsList.end()));
-
-        } else {
-            casesHaveReturn = false;
-        }
+        casesHaveReturn &= checkReturnStatements(caseClause->block);
     }
 
     return casesHaveReturn;

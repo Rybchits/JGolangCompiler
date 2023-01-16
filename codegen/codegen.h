@@ -31,6 +31,9 @@ class Generator {
     MethodEntity* currentMethod;
     int indexCurrentLocalVariable = 0;
 
+    const int8_t BREAK_FILLER = 0xFB;
+    const int8_t CONTINUE_FILLER = 0xFC;
+
     std::vector<char> generateConstant(Constant & constant);
     std::vector<char> generateInteger(int64_t number);
     std::vector<char> generateFloating(float number);
@@ -55,6 +58,9 @@ class Generator {
     std::vector<char> generate(AssignmentStatement* stmt);
     std::vector<char> generate(IfStatement* stmt);
     std::vector<char> generate(WhileStatement* stmt);
+    std::vector<char> generate(SwitchStatement* stmt);
+    std::vector<char> generate(SwitchCaseClause* stmt);
+    std::vector<char> generate(KeywordStatement* stmt);
 
     std::vector<char> generate(CallableExpression* expr);
     std::vector<char> generate(IdentifierAsExpression* expr);
@@ -76,6 +82,9 @@ class Generator {
     std::vector<char> generateStoreToArrayCommand(TypeEntity::TypeEntityEnum type);
     std::vector<char> generateLoadFromArrayCommand(TypeEntity::TypeEntityEnum type);
     std::vector<char> generateCloneArrayCommand(ExpressionAST* array);
+
+    void replaceBreakFillersWithGotoInBlockCodeBytes(std::vector<char>& bytes);
+    void replaceContinueFillersWithGotoInBlockCodeBytes(std::vector<char>& bytes);
 
     std::string createDescriptorBuiltInFunction(CallableExpression* expr);
     std::vector<char> initializeLocalVariables(const IdentifiersList& identifiers, const ExpressionList& values);

@@ -471,9 +471,7 @@ void SwitchCaseClause::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onStartVisit(this);
 
     expressionCase->acceptVisitor(visitor);
-    for (auto statement : statementsList) {
-        statement->acceptVisitor(visitor);
-    }
+    block->acceptVisitor(visitor);
 
     visitor->onFinishVisit(this);
 }
@@ -491,9 +489,7 @@ void SwitchStatement::acceptVisitor(Visitor* visitor) noexcept {
         caseClause->acceptVisitor(visitor);
     }
 
-    for (auto defaultStmt : defaultStatement) {
-        defaultStmt->acceptVisitor(visitor);
-    }
+    defaultStatements->acceptVisitor(visitor);
 
     visitor->onFinishVisit(this);
 }
@@ -795,23 +791,19 @@ IfStatement* IfStatement::clone() const noexcept {
 SwitchCaseClause* SwitchCaseClause::clone() const noexcept {
     StatementList cloneStatements;
 
-    for (auto stms : this->statementsList) {
+    for (auto stms : this->block->body) {
         cloneStatements.push_back(stms->clone());
     }
 
     ExpressionAST* cloneExpressionCase = this->expressionCase? this->expressionCase->clone() : nullptr;
 
-    return new SwitchCaseClause(cloneExpressionCase, cloneStatements);
+    return new SwitchCaseClause(cloneExpressionCase, new BlockStatement(cloneStatements));
 }
 
 
 SwitchStatement* SwitchStatement::clone() const noexcept {
     std::list<SwitchCaseClause *> cloneClauseList;
-    StatementList cloneDefaultStatements;
-
-    for (auto stms : this->defaultStatement) {
-        cloneDefaultStatements.push_back(stms->clone());
-    }
+    BlockStatement* cloneDefaultStatements = this->defaultStatements? this->defaultStatements->clone() : nullptr;
 
     for (auto clause : this->clauseList) {
         cloneClauseList.push_back(clause->clone());

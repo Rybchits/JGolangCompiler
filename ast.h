@@ -480,9 +480,10 @@ public:
 class SwitchCaseClause : public StatementAST {
 public:
     ExpressionAST *expressionCase;
-    StatementList statementsList;
+    BlockStatement *block;
+    bool fallthrowEnds = false;
 
-    SwitchCaseClause(ExpressionAST *key, StatementList &stmts) : expressionCase(key), statementsList(stmts) {};
+    SwitchCaseClause(ExpressionAST *key, BlockStatement* stmts) : expressionCase(key), block(stmts) {};
 
     void acceptVisitor(Visitor* visitor) noexcept override;
     SwitchCaseClause* clone() const noexcept override;
@@ -494,12 +495,12 @@ class SwitchStatement : public StatementAST {
 public:
     StatementAST *statement;
     ExpressionAST *expression;
-    std::list<SwitchCaseClause *> clauseList;
-    StatementList defaultStatement;
+    SwitchCaseList clauseList;
+    BlockStatement *defaultStatements;
 
-    SwitchStatement(StatementAST *init, ExpressionAST *expr, std::list<SwitchCaseClause *> &cases,
-                    StatementList &defaultCase)
-            : statement(init), expression(expr), clauseList(cases), defaultStatement(defaultCase) {};
+    SwitchStatement(StatementAST *init, ExpressionAST *expr, SwitchCaseList &cases,
+                    BlockStatement *defaultCase)
+            : statement(init), expression(expr), clauseList(cases), defaultStatements(defaultCase) {};
 
     void acceptVisitor(Visitor* visitor) noexcept override;
     SwitchStatement* clone() const noexcept override;

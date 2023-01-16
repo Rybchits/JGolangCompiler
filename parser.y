@@ -615,8 +615,8 @@
     ;
 
     // Switch statements
-    SwitchStmt: SWITCH SimpleStmtWithExprWrapCompositeObj ';' ExprWithWrapCompositeObjOptional '{' ExprCaseClauseListOrEmpty ExprDefaultClauseOptional '}'      { $$ = new SwitchStatement($2, $4, *$6, *$7); }
-                | SWITCH ExprWithWrapCompositeObjOptional '{' ExprCaseClauseListOrEmpty ExprDefaultClauseOptional '}'                                             { $$ = new SwitchStatement(nullptr, $2, *$4, *$5); }
+    SwitchStmt: SWITCH SimpleStmtWithExprWrapCompositeObj ';' ExprWithWrapCompositeObjOptional '{' ExprCaseClauseListOrEmpty ExprDefaultClauseOptional '}'      { $$ = new SwitchStatement($2, $4, *$6, new BlockStatement(*$7)); }
+                | SWITCH ExprWithWrapCompositeObjOptional '{' ExprCaseClauseListOrEmpty ExprDefaultClauseOptional '}'                                             { $$ = new SwitchStatement(nullptr, $2, *$4, new BlockStatement(*$5)); }
     ;
 
     ExprDefaultClauseOptional: /* empty */                                          { $$ = new StatementList(); }
@@ -624,9 +624,9 @@
                 | DEFAULT ':' Statement SCs                                         { $$ = new StatementList({$3}); }
     ;
 
-    ExprCaseClause: CASE Expression ':' StatementMoreTwo  SCs                       { $$ = new SwitchCaseClause($2, *$4); }
-                | CASE Expression ':' Statement SCs                                 { $$ = new SwitchCaseClause($2, *(new StatementList({$4}))); }
-                | CASE Expression ':'                                               { $$ = new SwitchCaseClause($2, *(new StatementList({}))); }
+    ExprCaseClause: CASE Expression ':' StatementMoreTwo  SCs                       { $$ = new SwitchCaseClause($2, new BlockStatement(*$4)); }
+                | CASE Expression ':' Statement SCs                                 { $$ = new SwitchCaseClause($2, new BlockStatement(*(new StatementList({$4})))); }
+                | CASE Expression ':'                                               { $$ = new SwitchCaseClause($2, new BlockStatement(*(new StatementList({})))); }
     ;
 
     ExprCaseClauseList: ExprCaseClause                                              { $$ = new SwitchCaseList({$1}); }

@@ -1,23 +1,31 @@
 package main
 
 func main() {
-	for i, s := range []int{1, 2, 3} {
-		println(i, s)
+	for i, valint := range []int{1, 2, 3} {
+		print("i: ")
+		print(i)
+		print("; valint: ")
+		println(valint)
 
-		if false {
-			continue
+		var j = -1
+		for j < valint {
+			print("j: ")
+			print(j)
+			print(" ")
+			j++
 		}
+		println("")
 
-		for i := 1; i < 5; i++ {
-			print(i)
-
-			for i < 10 {
-				print(s)
-				continue
+		for k := 1; k <= valint; k++ {
+			for ii, mm := range []int{k * 5, k * 10, k * 15} {
+				print(ii)
+				print(": ")
+				print(mm * mm)
+				print(" ")
 			}
-			continue
+			println("")
 		}
-		continue
-		print(s)
+
+		println("-------------------------")
 	}
 }

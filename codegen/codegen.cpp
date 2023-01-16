@@ -1199,13 +1199,27 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 			leftIterator++;
 		}
 
-	} else {
-		// TODO different assignments
 	}
 
 	return bytes;
 }
 
+std::vector<char> generate(SwitchStatement* stmt) {
+	std::vector<char> bytes;
+	std::vector<char> buffer;
+
+	// if (statem)
+
+	// StatementAST *statement;
+    // ExpressionAST *expression;
+    // SwitchCaseList clauseList;
+    // BlockStatement *defaultStatements;
+}
+
+std::vector<char> generate(SwitchCaseClause* stmt) {
+	std::vector<char> bytes;
+	std::vector<char> buffer;
+}
 
 std::vector<char> Generator::generate(WhileStatement* stmt) {
 	std::vector<char> bytes;
@@ -1230,10 +1244,66 @@ std::vector<char> Generator::generate(WhileStatement* stmt) {
     bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 
 	bytes.push_back((char)Command::nop);
+	
+	replaceBreakFillersWithGotoInBlockCodeBytes(bytes);
+	replaceContinueFillersWithGotoInBlockCodeBytes(bytes);
 
 	return bytes; 
 }
 
+std::vector<char> Generator::generate(KeywordStatement* stmt) {
+	std::vector<char> bytes;
+	std::vector<char> buffer;
+	
+	switch(stmt->type) {
+		case Break:
+			bytes = std::vector<char>(3, BREAK_FILLER); 
+			break;
+
+		case Continue:
+			bytes = std::vector<char>(3, CONTINUE_FILLER);
+			break;
+			
+		default:
+			break;
+	}
+
+	return bytes;
+}
+
+void Generator::replaceBreakFillersWithGotoInBlockCodeBytes(std::vector<char>& bytes) {
+	std::vector<char> buffer;
+
+	for (int i = 0; i < bytes.size() - 3; ++i) {
+		if (bytes[i]   == CONTINUE_FILLER 
+		 && bytes[i+1] == CONTINUE_FILLER 
+		 && bytes[i+2] == CONTINUE_FILLER) {
+			// this is CONTINUE filler
+			// Need to fill with goto_ and shift count for jumping to start of statement
+			bytes[i] = (char)Command::goto_;
+			buffer = intToBytes(-i);
+			bytes[i+1] = buffer[2];
+			bytes[i+2] = buffer[3];
+		}
+	}
+}
+
+void Generator::replaceContinueFillersWithGotoInBlockCodeBytes(std::vector<char>& bytes) {
+	std::vector<char> buffer;
+
+	for (int i = 0; i < bytes.size() - 3; ++i) {
+		if (bytes[i]   == BREAK_FILLER 
+		 && bytes[i+1] == BREAK_FILLER 
+		 && bytes[i+2] == BREAK_FILLER) {
+			// this is BREAK filler
+			// Need to fill with goto_ and shift count for jumping to end of statement
+			bytes[i] = (char)Command::goto_;
+			buffer = intToBytes(bytes.size() - i - 1);
+			bytes[i+1] = buffer[2];
+			bytes[i+2] = buffer[3];
+		}
+	}
+}
 
 std::vector<char> Generator::generateStoreToVariableCommand(std::string variableIdentifier, TypeEntity::TypeEntityEnum type) {
 	std::vector<char> bytes;
@@ -1358,9 +1428,7 @@ std::vector<char> Generator::generate(StatementAST* stmt) {
 		return generate(shortDeclStatement);
 
 	} else if (auto keywordStatement = dynamic_cast<KeywordStatement*>(stmt)) {
-		// return generate(keywordStatement);
-		// TODO break, continue, fallthrow
-		std::cout << "не сделали keyword statement";
+		return generate(keywordStatement);
 
 	} else if (auto assignmentStatement = dynamic_cast<AssignmentStatement*>(stmt)) {
 		return generate(assignmentStatement);
@@ -1378,14 +1446,10 @@ std::vector<char> Generator::generate(StatementAST* stmt) {
 		return generate(ifStatement);
 
 	} else if (auto switchCaseClause = dynamic_cast<SwitchCaseClause*>(stmt)) {
-		// return generate(assignmentStatement);
-		// TODO switch case
-		std::cout << "не сделали switch case clause statement";
+		return generate(assignmentStatement);
 
 	} else if (auto switchStatement = dynamic_cast<SwitchStatement*>(stmt)) {
-		// return generate(assignmentStatement);
-		// TODO switch
-		std::cout << "не сделали switch statement";
+		return generate(assignmentStatement);
 	}
 
 	return {};
