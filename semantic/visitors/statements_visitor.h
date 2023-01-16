@@ -6,6 +6,8 @@ class StatementsVisitor : public Visitor {
 private:
     Semantic* semantic;
 
+    bool insideSwitchCaseClause = false;
+
     std::stack<StatementAST*> nextIterationsLoops;
     static const std::string indexPrivateVariableName;
 
@@ -17,7 +19,7 @@ private:
     BlockStatement* transformForToWhile(ForStatement* forStmt);
     BlockStatement* transformForRangeToWhile(ForRangeStatement *forRangeStmt);
 
-    StatementList transformStatementsWithContinues(StatementList body);
+    StatementList transformKeywordStatements(StatementList body);
 
     bool checkReturnStatements(StatementAST* stmt);
     bool checkReturnStatements(BlockStatement* block);
@@ -39,8 +41,11 @@ public:
     void onFinishVisit(BlockStatement* node) override;
 
     void onFinishVisit(IfStatement* node) override;
+
     void onFinishVisit(FunctionDeclaration* node) override;
 
+    void onStartVisit(SwitchCaseClause* node) override;
+    void onFinishVisit(SwitchCaseClause* node) override;
 
     void transform(PackageAST* packageAst);
     explicit StatementsVisitor(Semantic* semantic): semantic(semantic) {};

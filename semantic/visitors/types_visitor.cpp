@@ -541,33 +541,6 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
                 idIterator++;
             }
         }
-
-    } else {
-
-        if (node->lhs.size() != 1) {
-            semantic->errors.push_back("Unexpected " + node->name() + " expecting ':=', '=', or ','");
-
-        } else if (node->lhs.size() != 1) {
-            semantic->errors.push_back(
-                "Assignment count mismatch " + std::to_string(node->lhs.size()) + " and " + std::to_string(node->rhs.size()));
-
-        } else {
-            auto index = node->indexes.begin();
-            auto id = node->lhs.begin();
-            auto value = node->rhs.begin();
-
-            if ((*index) == nullptr && (!typesExpressions[(*value)->nodeId]->isNumeric() || !typesExpressions[(*id)->nodeId]->isNumeric())) {
-                semantic->errors.push_back("Lhs and rhs in " + node->name() + " must be numeric");
-
-            } else if ((*index) != nullptr && typesExpressions[(*id)->nodeId]->type == TypeEntity::Array) {
-
-                TypeEntity* elementType = std::get<ArraySignatureEntity*>(typesExpressions[(*id)->nodeId]->value)->elementType;
-
-                if (!elementType->isNumeric() || !typesExpressions[(*value)->nodeId]->isNumeric()) {
-                    semantic->errors.push_back("Lhs and rhs in " + node->name() + " must be numeric");
-                }
-            }
-        }
     }
 }
 

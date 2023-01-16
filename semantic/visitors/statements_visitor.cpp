@@ -94,18 +94,33 @@ StatementAST* StatementsVisitor::transformSwitchStatement(SwitchStatement *switc
 
 
 // Перед каждым Continue добавить statement перехода
-StatementList StatementsVisitor::transformStatementsWithContinues(StatementList body) {
+StatementList StatementsVisitor::transformKeywordStatements(StatementList body) {
     StatementList newBody;
 
     for (auto stmt: body) {
         auto keyword = dynamic_cast<KeywordStatement *>(stmt);
 
-        if (keyword && keyword->type == KeywordEnum::Continue) {
+        if (keyword) {
+            switch (keyword->type)
+            {
+                case KeywordEnum::Continue:
+                    if (nextIterationsLoops.empty()) {
+                        semantic->errors.push_back("Continue keyword out of loop");
+                        
+                    } else if (nextIterationsLoops.top() != nullptr) {
+                        newBody.push_back(nextIterationsLoops.top()->clone());
+                    }
+                    break;
 
-            if (nextIterationsLoops.empty()) {
-                semantic->errors.push_back("Continue keyword out of loop");
-            } else if (nextIterationsLoops.top() != nullptr) {
-                newBody.push_back(nextIterationsLoops.top()->clone());
+                case KeywordEnum::Break:
+                    if (nextIterationsLoops.empty() && !insideSwitchCaseClause) {
+                        semantic->errors.push_back("Break keyword out of loop and switch case clause");
+                    }
+                    break;
+
+                case KeywordEnum::Fallthrough:
+                    semantic->errors.push_back("Fallthrough keyword out of maswitch case clause");
+                    break;
             }
         }
 
@@ -244,7 +259,7 @@ void StatementsVisitor::onFinishVisit(IfStatement* node) {
 }
 
 void StatementsVisitor::onStartVisit(BlockStatement *node) {
-    node->body = transformStatementsWithContinues(node->body);
+    node->body = transformKeywordStatements(node->body);
 }
 
 void StatementsVisitor::onStartVisit(ForStatement* node) {
@@ -331,4 +346,21 @@ void StatementsVisitor::onFinishVisit(FunctionDeclaration* node) {
 
         semantic->errors.push_back("Missing the 'return' statement at the end of the function");
     }
+}
+
+void StatementsVisitor::onStartVisit(SwitchCaseClause* node) {
+    insideSwitchCaseClause = true;
+
+    if (node->block->body.size() != 0) {
+        auto keyword = dynamic_cast<KeywordStatement*>(node->block->body.back());
+
+        if (keyword && keyword->type == KeywordEnum::Fallthrough) {
+            node->fallthrowEnds = true;
+            node->block->body.pop_back();
+        }
+    }
+}
+
+void StatementsVisitor::onFinishVisit(SwitchCaseClause* node) {
+    insideSwitchCaseClause = false;
 }

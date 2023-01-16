@@ -1204,21 +1204,42 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 	return bytes;
 }
 
-std::vector<char> generate(SwitchStatement* stmt) {
+std::vector<char> Generator::generate(SwitchStatement* stmt) {
 	std::vector<char> bytes;
 	std::vector<char> buffer;
 
-	// if (statem)
+	if (stmt->statement) {
+		bytes = generate(stmt->statement);
+	}
+
+	if (stmt->expression) {
+		buffer = generate(stmt->expression);
+		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+	}
+
+	for (const auto clause : stmt->clauseList) {
+		buffer = generate(clause);
+		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+	}
+
+	if (stmt->defaultStatements) {
+		buffer = generate(stmt->defaultStatements);
+		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+	}
 
 	// StatementAST *statement;
     // ExpressionAST *expression;
     // SwitchCaseList clauseList;
     // BlockStatement *defaultStatements;
+
+	return bytes;
 }
 
-std::vector<char> generate(SwitchCaseClause* stmt) {
+std::vector<char> Generator::generate(SwitchCaseClause* stmt) {
 	std::vector<char> bytes;
 	std::vector<char> buffer;
+
+	return bytes;
 }
 
 std::vector<char> Generator::generate(WhileStatement* stmt) {
@@ -1446,10 +1467,12 @@ std::vector<char> Generator::generate(StatementAST* stmt) {
 		return generate(ifStatement);
 
 	} else if (auto switchCaseClause = dynamic_cast<SwitchCaseClause*>(stmt)) {
-		return generate(assignmentStatement);
+		std::cout << "Switch пока не сделали";
+		//return generate(switchCaseClause);
 
 	} else if (auto switchStatement = dynamic_cast<SwitchStatement*>(stmt)) {
-		return generate(assignmentStatement);
+		std::cout << "Switch пока не сделали";
+		//return generate(switchStatement);
 	}
 
 	return {};
