@@ -1264,15 +1264,11 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 		bytes = generate(stmt->statement);
 	}
 
-	// Генерируем экспрешн
-	buffer = generate(stmt->expression);
-	bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
-
+	// Генерируем условия для прыжков (cases conditions)
 	std::vector<std::vector<char>> clausesConditionsToJump;
 	std::vector<size_t> conditionsOffsets = {0};
 
-	// Генерируем условия для прыжков (cases conditions)
 	for (const auto clause : stmt->clauseList) {
 		std::vector<char> clauseConditionToJump;
 
@@ -1294,7 +1290,7 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 
 		clausesConditionsToJump.push_back(clauseConditionToJump);
 
-		conditionsOffsets.push_back(clauseConditionToJump.back() + clauseConditionToJump.size());
+		conditionsOffsets.push_back(conditionsOffsets.back() + clauseConditionToJump.size());
 
 		// Иначе смотрим следующий case condition
 	}
@@ -1326,7 +1322,7 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 
 		// Если стоит фолтру, проваливаемся к телу следующего кейса
 		// Если не стоит - прыгаем в конец switch statement (пока не знаем, запишем филлеры)
-		if (!clause->fallthrowEnds) {
+		if (!clause->fallthrowEnds && clause != stmt->clauseList.back()) {
 			buffer.push_back((char)BREAK_FILLER);
 			buffer.push_back((char)BREAK_FILLER);
 			buffer.push_back((char)BREAK_FILLER);
@@ -1335,23 +1331,24 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 		clausesBlocks.push_back(buffer);
 		blocksOffsets.push_back(blocksOffsets.back() + buffer.size());
 	}
-	blocksOffsets.erase(blocksOffsets.begin());
 
 
 	// Cчитаем сдвиги для прыжков из условий кейсов в тела
 	for (size_t i = 0; i < stmt->clauseList.size(); ++i) {
-		buffer = intToBytes(conditionsOffsets[i] + blocksOffsets[i]);
+		buffer = intToBytes(conditionsOffsets[i] + 3 + blocksOffsets[i]);
 		clausesConditionsToJump[i][clausesConditionsToJump[i].size() - 2] = buffer[2];
 		clausesConditionsToJump[i][clausesConditionsToJump[i].size() - 1] = buffer[3];
 	}
 
 	for (auto & condition : clausesConditionsToJump) {
-		bytes.insert(bytes.begin(), condition.begin(), condition.end());
+		bytes.insert(bytes.end(), condition.begin(), condition.end());
 	}
 
 	for (auto & block : clausesBlocks) {
-		bytes.insert(bytes.begin(), block.begin(), block.end());
+		bytes.insert(bytes.end(), block.begin(), block.end());
 	}
+
+	bytes.push_back((char)Command::nop);
 
 	replaceBreakFillersWithGotoInBlockCodeBytes(bytes);
 
@@ -1408,7 +1405,7 @@ std::vector<char> Generator::generate(KeywordStatement* stmt) {
 	return bytes;
 }
 
-void Generator::replaceBreakFillersWithGotoInBlockCodeBytes(std::vector<char>& bytes) {
+void Generator::replaceContinueFillersWithGotoInBlockCodeBytes(std::vector<char>& bytes) {
 	std::vector<char> buffer;
 
 	for (int i = 0; i < bytes.size() - 3; ++i) {
@@ -1425,10 +1422,10 @@ void Generator::replaceBreakFillersWithGotoInBlockCodeBytes(std::vector<char>& b
 	}
 }
 
-void Generator::replaceContinueFillersWithGotoInBlockCodeBytes(std::vector<char>& bytes) {
+void Generator::replaceBreakFillersWithGotoInBlockCodeBytes(std::vector<char>& bytes) {
 	std::vector<char> buffer;
 
-	for (int i = 0; i < bytes.size() - 3; ++i) {
+	for (int i = 0; i < bytes.size() - 2; ++i) {
 		if (bytes[i]   == BREAK_FILLER 
 		 && bytes[i+1] == BREAK_FILLER 
 		 && bytes[i+2] == BREAK_FILLER) {
