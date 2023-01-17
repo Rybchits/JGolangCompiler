@@ -456,7 +456,7 @@ std::vector<char> Generator::generateStaticConstuctorCode(std::string_view class
 
 		buffer = generateCloneArrayCommand(field->declaration);
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
-
+		
 		buffer = generateStoreToVariableCommand(fieldIdentifier, typesExpressions[field->declaration->nodeId]->type);
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 	}
@@ -471,7 +471,9 @@ std::vector<char> Generator::generateMethodBodyCode(MethodEntity* methodEntity) 
 	currentMethod = methodEntity;
 
 	for (auto &[name, _] : methodEntity->getArguments()) {
-		context.add(name, new RefConstant(indexCurrentLocalVariable++, true));
+		if (context.add(name, new RefConstant(indexCurrentLocalVariable, true))) {
+			indexCurrentLocalVariable++;
+		}
 	}
 
 	auto bytes = generate(methodEntity->getCodeBlock());
@@ -688,7 +690,6 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 	switch (expr->type)
 	{
 	case UnaryMinus:
-
 		codeBytes = generate(expr->expression);
 
 		if (typesExpressions[expr->nodeId]->isInteger()) {
@@ -817,8 +818,31 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 		} else if (typesExpressions[expr->lhs->nodeId]->isFloat()) { 
 			codeBytes.push_back((char)Command::fcmpl); 
 		}
+		
+		if (typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Array) {
+			auto arrayEntity = typesExpressions[expr->lhs->nodeId];
+			auto arrayElementType = std::get<ArraySignatureEntity*>(arrayEntity->value)->elementType;
+
+			codeBytes.push_back((char)Command::invokestatic);
+			if (arrayElementType->isInteger()) {
+				buffer = intToBytes(constantPool.FindMethodRef("$Base", "equals", "([I[I)Z"));
+
+			} else if (arrayElementType->type == TypeEntity::Boolean) {
+				buffer = intToBytes(constantPool.FindMethodRef("$Base", "equals", "([Z[Z)Z"));
+
+			} else if (arrayElementType->isFloat()) {
+				buffer = intToBytes(constantPool.FindMethodRef("$Base", "equals", "([F[F)Z"));
+				
+			} else {
+				buffer = intToBytes(constantPool.FindMethodRef("$Base", "equals", "([Ljava/lang/Object;[Ljava/lang/Object;)Z"));
+			}
+
+			codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+
+		}
 
 		switch(expr->type) {
+
 			case Equal:
 				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
 				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
@@ -827,8 +851,14 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 				else if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
 					codeBytes.push_back((char)Command::ifne);
 
-				else
+				else if (typesExpressions[expr->lhs->nodeId]->type == TypeEntity::String)
 					codeBytes.push_back((char)Command::if_acmpne);
+
+				else if (typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Array) {
+					codeBytes.push_back((char)Command::iconst_1);
+					codeBytes.push_back((char)Command::if_icmpne);
+				}
+
 				break;
 
 			case NotEqual:
@@ -839,8 +869,14 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 				else if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
 					codeBytes.push_back((char)Command::ifeq);
 
-				else
+				else if (typesExpressions[expr->lhs->nodeId]->type == TypeEntity::String)
 					codeBytes.push_back((char)Command::if_acmpeq);
+
+				else if (typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Array) {
+					codeBytes.push_back((char)Command::iconst_1);
+					codeBytes.push_back((char)Command::if_icmpeq);
+				}
+
 				break;
 
 			case Greater:
@@ -1100,8 +1136,13 @@ std::vector<char> Generator::initializeLocalVariables(const IdentifiersList& ide
 		buffer = generateCloneArrayCommand(*valueIter);
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 		
-		buffer = generateStoreToVariableCommand(*idIter, typesExpressions[(*valueIter)->nodeId]->type);
-		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+		if ((*idIter) == "_") {
+			bytes.push_back(char(Command::pop));
+			
+		} else {
+			buffer = generateStoreToVariableCommand(*idIter, typesExpressions[(*valueIter)->nodeId]->type);
+			bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+		}
 
 		idIter++;
 		valueIter++;
@@ -1116,8 +1157,11 @@ std::vector<char> Generator::generate(DeclarationStatement* stmt) {
 
 	for (auto decl : stmt->declarations) {
 		if (auto varDecl = dynamic_cast<VariableDeclaration*>(decl)) {
+			
 			for (auto id : varDecl->identifiersWithType->identifiers) {
-				context.add(id, new RefConstant(indexCurrentLocalVariable++, true));
+
+				if (context.add(id, new RefConstant(indexCurrentLocalVariable, true)))
+					indexCurrentLocalVariable++;
 			}
 
 			buffer = initializeLocalVariables(varDecl->identifiersWithType->identifiers, varDecl->values);
@@ -1130,7 +1174,9 @@ std::vector<char> Generator::generate(DeclarationStatement* stmt) {
 
 std::vector<char> Generator::generate(ShortVarDeclarationStatement* stmt) {
 	for (auto id : stmt->identifiers) {
-		context.add(id, new RefConstant(indexCurrentLocalVariable++, true));
+		if (context.add(id, new RefConstant(indexCurrentLocalVariable, true))) {
+			indexCurrentLocalVariable++;
+		}
 	}
 
 	return initializeLocalVariables(stmt->identifiers, stmt->values);
@@ -1188,10 +1234,15 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 			else if (identifierAsExpression) {
 				auto identifier = identifierAsExpression->identifier;
 
-				buffer = generateStoreToVariableCommand(identifier
+				if (identifier == "_") {
+					bytes.push_back(char(Command::pop));
+
+				} else {
+					buffer = generateStoreToVariableCommand(identifier
 								, typesExpressions[(*leftIterator)->nodeId]->type);
 
-				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+					bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+				}
 			}
 
 			indexIterator++;
@@ -1208,36 +1259,101 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 	std::vector<char> bytes;
 	std::vector<char> buffer;
 
+	// Генерируем стейтмент, если есть
 	if (stmt->statement) {
 		bytes = generate(stmt->statement);
 	}
 
-	if (stmt->expression) {
-		buffer = generate(stmt->expression);
-		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
-	}
+	// Генерируем экспрешн
+	buffer = generate(stmt->expression);
+	bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
+
+	std::vector<std::vector<char>> clausesConditionsToJump;
+	std::vector<size_t> conditionsOffsets = {0};
+
+	// Генерируем условия для прыжков (cases conditions)
 	for (const auto clause : stmt->clauseList) {
-		buffer = generate(clause);
-		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+		std::vector<char> clauseConditionToJump;
+
+		// Сравниваем switch expression и case expression
+		auto conditionBytes = generate(
+			std::make_unique<BinaryExpression>(
+				BinaryExpression(BinaryExpressionEnum::Equal, stmt->expression, clause->expressionCase)
+			).get()
+		);
+
+		clauseConditionToJump.insert(clauseConditionToJump.end(), conditionBytes.begin(), conditionBytes.end());
+
+		// Если текущий кейс подходящий
+		clauseConditionToJump.push_back((char)Command::ifne);
+
+		// Прыгаем на тело кейса (пока не знаем сдвиг, запишем филлеры)
+		buffer = {(char)0xF6, (char)0xF6};
+		clauseConditionToJump.insert(clauseConditionToJump.end(), buffer.begin(), buffer.end());
+
+		clausesConditionsToJump.push_back(clauseConditionToJump);
+
+		conditionsOffsets.push_back(clauseConditionToJump.back() + clauseConditionToJump.size());
+
+		// Иначе смотрим следующий case condition
+	}
+	conditionsOffsets.erase(conditionsOffsets.begin());
+
+	// Считаем сдвиг от конца каждого условия с телом до конца всех условий 
+	size_t conditionsLastByte = conditionsOffsets.back();
+	std::for_each(conditionsOffsets.begin(), conditionsOffsets.end(), [&](auto & e){ e = conditionsLastByte - e; });
+
+
+	// Запишем тела кейсов
+	std::vector<std::vector<char>> clausesBlocks;
+
+	// Тело дефолта идет первым. Если тело дефолта не задано пользователем, то оно будет представлять
+	// из себя прыжок в конец switch statement.
+	buffer = stmt->defaultStatements? generate(stmt->defaultStatements) : std::vector<char>();
+	buffer.push_back((char)BREAK_FILLER);
+	buffer.push_back((char)BREAK_FILLER);
+	buffer.push_back((char)BREAK_FILLER);
+
+	clausesBlocks.push_back(buffer);
+
+	// Сдвиг для каждого тела кейса относительно начала части тел (кроме дефолта)
+	std::vector<size_t> blocksOffsets = {clausesBlocks.back().size()};
+
+	// Тела кейсов, заданных пользователем
+	for (const auto clause : stmt->clauseList) {
+		buffer = generate(clause->block);
+
+		// Если стоит фолтру, проваливаемся к телу следующего кейса
+		// Если не стоит - прыгаем в конец switch statement (пока не знаем, запишем филлеры)
+		if (!clause->fallthrowEnds) {
+			buffer.push_back((char)BREAK_FILLER);
+			buffer.push_back((char)BREAK_FILLER);
+			buffer.push_back((char)BREAK_FILLER);
+		}
+
+		clausesBlocks.push_back(buffer);
+		blocksOffsets.push_back(blocksOffsets.back() + buffer.size());
+	}
+	blocksOffsets.erase(blocksOffsets.begin());
+
+
+	// Cчитаем сдвиги для прыжков из условий кейсов в тела
+	for (size_t i = 0; i < stmt->clauseList.size(); ++i) {
+		buffer = intToBytes(conditionsOffsets[i] + blocksOffsets[i]);
+		clausesConditionsToJump[i][clausesConditionsToJump[i].size() - 2] = buffer[2];
+		clausesConditionsToJump[i][clausesConditionsToJump[i].size() - 1] = buffer[3];
 	}
 
-	if (stmt->defaultStatements) {
-		buffer = generate(stmt->defaultStatements);
-		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+	for (auto & condition : clausesConditionsToJump) {
+		bytes.insert(bytes.begin(), condition.begin(), condition.end());
 	}
 
-	// StatementAST *statement;
-    // ExpressionAST *expression;
-    // SwitchCaseList clauseList;
-    // BlockStatement *defaultStatements;
+	for (auto & block : clausesBlocks) {
+		bytes.insert(bytes.begin(), block.begin(), block.end());
+	}
 
-	return bytes;
-}
-
-std::vector<char> Generator::generate(SwitchCaseClause* stmt) {
-	std::vector<char> bytes;
-	std::vector<char> buffer;
+	replaceBreakFillersWithGotoInBlockCodeBytes(bytes);
 
 	return bytes;
 }
@@ -1467,12 +1583,10 @@ std::vector<char> Generator::generate(StatementAST* stmt) {
 		return generate(ifStatement);
 
 	} else if (auto switchCaseClause = dynamic_cast<SwitchCaseClause*>(stmt)) {
-		std::cout << "Switch пока не сделали";
-		//return generate(switchCaseClause);
+		std::cout << "Switch case clause is non-callable for generate";
 
 	} else if (auto switchStatement = dynamic_cast<SwitchStatement*>(stmt)) {
-		std::cout << "Switch пока не сделали";
-		//return generate(switchStatement);
+		return generate(switchStatement);
 	}
 
 	return {};

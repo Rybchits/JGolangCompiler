@@ -13,7 +13,13 @@ public:
     void pushScope() { scopes.push_back(std::unordered_map<std::string, T>()); };
     void popScope() { scopes.pop_back(); }
 
-    bool add(std::string id, T element) { return scopes.back()[id] = element; }
+    bool add(std::string id, T element) { 
+        if (id == "_") {
+            return false;
+        }
+
+        return scopes.back()[id] = element;
+    }
 
     std::unordered_map<std::string, T> getLastScope() { return scopes.back(); }
 

@@ -95,6 +95,7 @@ bool TypeEntity::equal(const TypeEntity* other) {
                || (this->type == Float && other->type == UntypedInt)
                || (this->type == UntypedInt && other->type == Float)
 
+               || (this->type == Any || other->type == Any)
                || (this->type == other->type)) {
                 
                 return true;
@@ -160,6 +161,9 @@ std::string TypeEntity::toByteCode() const {
     
     else if (type == String)
         return "Ljava/lang/String;";
+
+    else if (type == Any)
+        return "Ljava/lang/Object;";
     
     else if (type == UserType)
         return std::get<std::string>(value);

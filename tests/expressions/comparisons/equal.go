@@ -31,4 +31,5 @@ func main() {
 	f = 2.2
 	println(e == f)
 
+	println([2][3]int{{2, 2, 0}} == [2][3]int{{2, 2, 1}})
 }

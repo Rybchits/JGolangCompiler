@@ -37,6 +37,7 @@ public:
 class TypeEntity {
 public:
     enum TypeEntityEnum {
+        Any,
         Void,
         Int,
         UntypedInt,

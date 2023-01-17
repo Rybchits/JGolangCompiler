@@ -79,17 +79,22 @@ public class $Base {
     }
 
     public static int compare(String lhs, String rhs) {
-        int lhsLen = lhs.length();
-        int rhsLen = rhs.length();
+        return lhs.compareTo(rhs);
+    }
 
-        if (lhsLen < rhsLen) return -1;
-        else if (lhsLen > rhsLen) return 1;
+    public static boolean equals(Object[] lhs, Object[] rhs) {
+        return Arrays.deepEquals(lhs, rhs);
+    }
 
-        for (int i = 0; i < lhsLen; ++i) {
-            if (lhs.charAt(i) < rhs.charAt(i)) return -1;
-            else if (lhs.charAt(i) > rhs.charAt(i)) return 1;
-        }
+    public static boolean equals(int[] lhs, int[] rhs) {
+        return Arrays.equals(lhs, rhs);
+    }
 
-        return 0;
+    public static boolean equals(float[] lhs, float[] rhs) {
+        return Arrays.equals(lhs, rhs);
+    }
+
+    public static boolean equals(boolean[] lhs, boolean[] rhs) {
+        return Arrays.equals(lhs, rhs);
     }
 }

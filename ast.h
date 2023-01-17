@@ -150,6 +150,7 @@ public:
 class IdentifierAsExpression : public ExpressionAST {
 public:
     std::string identifier;
+    bool isDestination = false;
 
     explicit IdentifierAsExpression(const std::string_view id) : identifier(id) {};
     IdentifierAsExpression* clone() const noexcept override;

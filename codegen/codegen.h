@@ -14,6 +14,8 @@
 #include <iostream>
 #include <sstream>
 #include <variant>
+#include <algorithm>
+#include <numeric>
 
 struct RefConstant {
     bool isLocal;
@@ -59,7 +61,6 @@ class Generator {
     std::vector<char> generate(IfStatement* stmt);
     std::vector<char> generate(WhileStatement* stmt);
     std::vector<char> generate(SwitchStatement* stmt);
-    std::vector<char> generate(SwitchCaseClause* stmt);
     std::vector<char> generate(KeywordStatement* stmt);
 
     std::vector<char> generate(CallableExpression* expr);

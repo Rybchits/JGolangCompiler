@@ -5,7 +5,6 @@
 
 ClassEntity* TypesVisitor::createGlobalClass(std::list<FunctionDeclaration*> functions, std::list<VariableDeclaration*>& variables) {
     
-    // Add started scope
     auto packageClass = new ClassEntity();
 
     // Add package functions
@@ -19,6 +18,7 @@ ClassEntity* TypesVisitor::createGlobalClass(std::list<FunctionDeclaration*> fun
     }
 
     // Add package variables
+    int indexBlankVariable = 0;
     for (auto variableNode : variables) {
         variableNode->acceptVisitor(this);
         
@@ -30,15 +30,25 @@ ClassEntity* TypesVisitor::createGlobalClass(std::list<FunctionDeclaration*> fun
                 expressionNode = (*expressionsIter);
                 expressionsIter++;
             }
+            
+            FieldEntity* field;
 
-            auto field = new FieldEntity(scopesDeclarations.find(identifier)->type, expressionNode);
-
+            // Blank static variables can't be deleted. We need to make them unique and unused
+            if (identifier == "_") {
+                identifier = "$_" + std::to_string(indexBlankVariable);
+                indexBlankVariable++;
+                field = new FieldEntity(new TypeEntity(TypeEntity::Any), expressionNode);
+            } else {
+                field = new FieldEntity(scopesDeclarations.find(identifier)->type, expressionNode);
+            }
+            
             if (!packageClass->addField(identifier, field)) {
                 semantic->errors.push_back(identifier + " redclared in block");
             }
         }
     }
 
+    // Analize methods
     for (auto & [identifier, methodSignature] : packageClass->getMethods()) {
         currentMethodEntity = methodSignature;
 
@@ -97,7 +107,7 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
 
         auto currentValue = node->values.begin();
         for (auto id : node->identifiersWithType->identifiers) {
-            numberLocalVariables++;
+            if (id != "_") numberLocalVariables++;
 
             if (scopesDeclarations.findAtLastScope(id) != nullptr) {
                 semantic->errors.push_back(id + " redeclared in this block");
@@ -159,7 +169,7 @@ void TypesVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
         auto currentValue = node->values.begin();
 
         for (auto id : node->identifiers) {
-            numberLocalVariables++;
+            if (id != "_") numberLocalVariables++;
 
             if (TypeEntity::IsBuiltInType(id)) {
                 semantic->errors.push_back("Variable " + id + " collides with the 'builtin' type");
@@ -192,9 +202,19 @@ void TypesVisitor::onFinishVisit(IdentifierAsExpression* node) {
     } else if (Semantic::IsBuiltInFunction(node->identifier)) {
         typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::BuiltInFunction, node->identifier);
         return;
+
+    } else if (node->identifier == "_" && node->isDestination) {
+        typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Any);
+        return;
     }
     
-    semantic->errors.push_back("Undefined: " + node->identifier);
+    std::string errorMessage = "Undefined: " + node->identifier;
+
+    if (node->identifier == "_" && !node->isDestination) {
+        errorMessage = "Cannot use _ as value";
+    }
+
+    semantic->errors.push_back(errorMessage);
     typesExpressions[node->nodeId] = new TypeEntity();
 }
 
@@ -303,7 +323,8 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
         if (leftExprType->equal(rightExprType) && (leftExprType->isFloat()
             || leftExprType->isInteger()
             || leftExprType->type == TypeEntity::String
-            || (leftExprType->type == TypeEntity::Boolean && (node->type == BinaryExpressionEnum::Equal || node->type == BinaryExpressionEnum::NotEqual)))
+            || ((leftExprType->type == TypeEntity::Boolean || leftExprType->type == TypeEntity::Array) 
+            && (node->type == BinaryExpressionEnum::Equal || node->type == BinaryExpressionEnum::NotEqual)))
         ) {
             typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
 

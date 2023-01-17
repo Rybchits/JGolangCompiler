@@ -164,12 +164,18 @@ AssignmentStatement::AssignmentStatement(AssignmentEnum type, ExpressionList& lE
     this->type = type;
 
     for (auto left : lExpList) {
-        AccessExpression* leftIndexingElement = dynamic_cast<AccessExpression*>(left);
+        auto leftIndexingElement = dynamic_cast<AccessExpression*>(left);
 
-        if (leftIndexingElement != nullptr && leftIndexingElement->type == AccessExpressionEnum::Indexing) {
+        if (leftIndexingElement && leftIndexingElement->type == AccessExpressionEnum::Indexing) {
             indexes.push_back(leftIndexingElement->accessor);
             lhs.push_back(leftIndexingElement->base);
+
         } else {
+            
+            if (auto leftIdentifierExpression = dynamic_cast<IdentifierAsExpression*>(left)) {
+                leftIdentifierExpression->isDestination = true;
+            }
+
             indexes.push_back(nullptr);
             lhs.push_back(left);
         }
