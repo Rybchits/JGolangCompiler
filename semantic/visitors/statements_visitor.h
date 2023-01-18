@@ -47,6 +47,8 @@ public:
     void onStartVisit(SwitchCaseClause* node) override;
     void onFinishVisit(SwitchCaseClause* node) override;
 
+    void onFinishVisit(SwitchStatement* node) override;
+
     void transform(PackageAST* packageAst);
     explicit StatementsVisitor(Semantic* semantic): semantic(semantic) {};
     ~StatementsVisitor() override = default;

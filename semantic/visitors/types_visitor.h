@@ -49,6 +49,7 @@ private:
     void onFinishVisit(ReturnStatement* node);
     void onFinishVisit(WhileStatement* node);
     void onFinishVisit(IfStatement* node);
+    void onFinishVisit(SwitchStatement* node);
 
     void onFinishVisit(IdentifierAsExpression* node);
     void onFinishVisit(IntegerExpression* node);

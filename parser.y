@@ -50,8 +50,8 @@
 %type <functionList> InterfaceMembersMoreTwo
 %type <typeList> TypesWithIdentifiersList
 %type <expressionList> ExpressionList Arguments ExprWithWrapCompositeObjList
-%type <statementList> StatementMoreTwo ExprDefaultClauseOptional
-%type <switchCaseClauseList> ExprCaseClauseList ExprCaseClauseListOrEmpty
+%type <statementList> StatementMoreTwo
+%type <switchCaseClauseList> ExprCaseOrDefaultClauseList ExprCaseOrDefaultClauseListOrEmpty
 %type <declarationList> Declaration TopLevelDecl TopLevelDeclList TopLevelDeclListOrEmpty
 %type <identifiersWithTypeList> FieldDeclMoreTwo Result Parameters NamedArgsList
 %type <elementsCompositeLiteral> CompositeLiteralBody ElementList
@@ -59,7 +59,7 @@
 
 %type <blockStatementNode> Block
 %type <functionSignature> Signature
-%type <switchCaseClause> ExprCaseClause
+%type <switchCaseClause> ExprCaseOrDefaultClause
 %type <elementCompositLiteral> KeyedElement
 %type <varDecl> VariableSpec ConstSpec
 %type <typedIdentifiers> IdentifiersWithType VariadicNamedArgument
@@ -615,26 +615,23 @@
     ;
 
     // Switch statements
-    SwitchStmt: SWITCH SimpleStmtWithExprWrapCompositeObj ';' ExprWithWrapCompositeObjOptional '{' ExprCaseClauseListOrEmpty ExprDefaultClauseOptional '}'      { $$ = new SwitchStatement($2, $4, *$6, new BlockStatement(*$7)); }
-                | SWITCH ExprWithWrapCompositeObjOptional '{' ExprCaseClauseListOrEmpty ExprDefaultClauseOptional '}'                                             { $$ = new SwitchStatement(nullptr, $2, *$4, new BlockStatement(*$5)); }
+    SwitchStmt: SWITCH SimpleStmtWithExprWrapCompositeObj ';' ExprWithWrapCompositeObjOptional '{' ExprCaseOrDefaultClauseListOrEmpty '}'               { $$ = new SwitchStatement($2, $4, *$6); }
+                | SWITCH ExprWithWrapCompositeObjOptional '{' ExprCaseOrDefaultClauseListOrEmpty '}'                                                    { $$ = new SwitchStatement(nullptr, $2, *$4); }
     ;
 
-    ExprDefaultClauseOptional: /* empty */                                          { $$ = new StatementList(); }
-                | DEFAULT ':' StatementMoreTwo SCs                                  { $$ = $3; }
-                | DEFAULT ':' Statement SCs                                         { $$ = new StatementList({$3}); }
+    ExprCaseOrDefaultClause: CASE Expression ':' StatementMoreTwo  SCs              { $$ = new SwitchCaseClause($2, new BlockStatement(*$4)); }
+                | CASE Expression ':' Statement SCs                                 { $$ = new SwitchCaseClause($2, new BlockStatement(*(new StatementList({$4}))));    }
+                | CASE Expression ':'                                               { $$ = new SwitchCaseClause($2, new BlockStatement(*(new StatementList({}))));      }
+                | DEFAULT ':' StatementMoreTwo SCs                                  { $$ = new SwitchCaseClause(nullptr, new BlockStatement(*$3));  }
+                | DEFAULT ':' Statement SCs                                         { $$ = new SwitchCaseClause(nullptr, new BlockStatement(*(new StatementList({$3}))));    }           
     ;
 
-    ExprCaseClause: CASE Expression ':' StatementMoreTwo  SCs                       { $$ = new SwitchCaseClause($2, new BlockStatement(*$4)); }
-                | CASE Expression ':' Statement SCs                                 { $$ = new SwitchCaseClause($2, new BlockStatement(*(new StatementList({$4})))); }
-                | CASE Expression ':'                                               { $$ = new SwitchCaseClause($2, new BlockStatement(*(new StatementList({})))); }
+    ExprCaseOrDefaultClauseList: ExprCaseOrDefaultClause                            { $$ = new SwitchCaseList({$1}); }
+                | ExprCaseOrDefaultClauseList ExprCaseOrDefaultClause               { $$ = $1; $$ -> push_back($2); }
     ;
 
-    ExprCaseClauseList: ExprCaseClause                                              { $$ = new SwitchCaseList({$1}); }
-                | ExprCaseClauseList ExprCaseClause                                 { $$ = $1; $$ -> push_back($2); }
-    ;
-
-    ExprCaseClauseListOrEmpty: /* empty */                                          { $$ = new SwitchCaseList(); }
-                | ExprCaseClauseList                                                { $$ = $1; }
+    ExprCaseOrDefaultClauseListOrEmpty: /* empty */                                 { $$ = new SwitchCaseList(); }
+                | ExprCaseOrDefaultClauseList                                       { $$ = $1; }
     ;
 
     SCs: ';'                                                                        { }

@@ -497,12 +497,9 @@ public:
     StatementAST *statement;
     ExpressionAST *expression;
     SwitchCaseList clauseList;
-    BlockStatement *defaultStatements;
 
-    SwitchStatement(StatementAST *init, ExpressionAST *expr, SwitchCaseList &cases,
-                    BlockStatement *defaultCase)
-            : statement(init), expression(expr ? expr : new BooleanExpression(true))
-            , clauseList(cases), defaultStatements(defaultCase) {};
+    SwitchStatement(StatementAST *init, ExpressionAST *expr, SwitchCaseList &cases)
+            : statement(init), expression(expr ? expr : new BooleanExpression(true)), clauseList(cases) {};
 
     void acceptVisitor(Visitor* visitor) noexcept override;
     SwitchStatement* clone() const noexcept override;

@@ -332,13 +332,17 @@ bool StatementsVisitor::checkReturnStatements(IfStatement* ifStatement) {
 }
 
 bool StatementsVisitor::checkReturnStatements(SwitchStatement* switchStmt) {
-    bool casesHaveReturn = checkReturnStatements(switchStmt->defaultStatements);
+    bool casesHaveReturn = true;
+    bool hasDefault = false;
 
     for (auto caseClause : switchStmt->clauseList) {
+        if (caseClause->expressionCase == nullptr) {
+            hasDefault = true;
+        }
         casesHaveReturn &= checkReturnStatements(caseClause->block);
     }
 
-    return casesHaveReturn;
+    return casesHaveReturn && hasDefault;
 }
 
 void StatementsVisitor::onFinishVisit(FunctionDeclaration* node) {
@@ -358,6 +362,25 @@ void StatementsVisitor::onStartVisit(SwitchCaseClause* node) {
             node->fallthrowEnds = true;
             node->block->body.pop_back();
         }
+    }
+}
+
+void StatementsVisitor::onFinishVisit(SwitchStatement* node) {
+    bool hasDefault = false;
+
+    int index = 0;
+    for (auto caseClause : node->clauseList) {
+
+        if (hasDefault && caseClause->expressionCase == nullptr) {
+            semantic->errors.push_back("Switch has multiple defaults");
+        }
+
+        if (index == node->clauseList.size() - 1 && caseClause->fallthrowEnds) {
+            semantic->errors.push_back("Last case can't end with fallthrough");
+        }
+
+        hasDefault |= caseClause->expressionCase == nullptr;
+        index++;
     }
 }
 

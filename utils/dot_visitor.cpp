@@ -246,10 +246,10 @@ void DotConvertVisitor::onStartVisit(SwitchStatement *node) {
 
     int index = 0;
     for (auto caseClause: node->clauseList) {
-        out << MakeConnection(node->nodeId, caseClause->nodeId, "case " + std::to_string(index++));
-    }
 
-    out << MakeConnection(node->nodeId, node->defaultStatements->nodeId, "default");
+        out << MakeConnection(node->nodeId, caseClause->nodeId, 
+            caseClause->expressionCase? "case " : "default " + std::to_string(index++));
+    }
 }
 
 void DotConvertVisitor::onStartVisit(DeclarationStatement *node) {

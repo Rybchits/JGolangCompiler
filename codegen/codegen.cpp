@@ -1260,11 +1260,7 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 	std::vector<char> bytes;
 	std::vector<char> buffer;
 
-	// Генерируем стейтмент, если есть
-	if (stmt->statement) {
-		bytes = generate(stmt->statement);
-	}
-
+	SwitchCaseClause * defaultClause = nullptr;
 
 	// Генерируем условия для прыжков (cases conditions)
 	std::vector<std::vector<char>> clausesConditionsToJump;
@@ -1272,6 +1268,11 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 
 	for (const auto clause : stmt->clauseList) {
 		std::vector<char> clauseConditionToJump;
+
+		if (!clause->expressionCase) {
+			defaultClause = clause;
+			continue;
+		}
 
 		// Сравниваем switch expression и case expression
 		auto conditionBytes = generate(
@@ -1295,30 +1296,41 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 
 		// Иначе смотрим следующий case condition
 	}
-	conditionsOffsets.erase(conditionsOffsets.begin());
+	// conditionsOffsets.erase(conditionsOffsets.begin());
 
-	// Считаем сдвиг от конца каждого условия с телом до конца всех условий 
+
+// case a	// if (a) jump n
+// case b	// if (b) jump m
+// 			// jump to k
+
+//n			// {body of a}
+//m			// {body of b}
+//k			// nop
+
+
+	// default
+	//if (a) jump {body of a}
+	//if (b) jump {body of b}
+	//jump {}	1) body of default		2) end of bodies
+
+	// Добавляем прыжок на тело дефолта
+	buffer = std::vector<char>{(char)Command::ifne, (char)0xF6, (char)0xF6};
+	clausesConditionsToJump.push_back(buffer);
+
+	// Считаем сдвиг от прыжка из каждого условия (case condition) до конца всех условий 
 	size_t conditionsLastByte = conditionsOffsets.back();
-	std::for_each(conditionsOffsets.begin(), conditionsOffsets.end(), [&](auto & e){ e = conditionsLastByte - e; });
+	std::for_each(conditionsOffsets.begin(), conditionsOffsets.end(), [&](auto & e){ e = conditionsLastByte - e + 3; });
 
 
 	// Запишем тела кейсов
 	std::vector<std::vector<char>> clausesBlocks;
 
-	// Тело дефолта идет первым. Если тело дефолта не задано пользователем, то оно будет представлять
-	// из себя прыжок в конец switch statement.
-	buffer = stmt->defaultStatements? generate(stmt->defaultStatements) : std::vector<char>();
-	buffer.push_back((char)BREAK_FILLER);
-	buffer.push_back((char)BREAK_FILLER);
-	buffer.push_back((char)BREAK_FILLER);
-
-	clausesBlocks.push_back(buffer);
-
 	// Сдвиг для каждого тела кейса относительно начала части тел (кроме дефолта)
-	std::vector<size_t> blocksOffsets = {clausesBlocks.back().size()};
+	std::vector<size_t> blocksOffsets = {0};
 
 	// Тела кейсов, заданных пользователем
 	for (const auto clause : stmt->clauseList) {
+
 		buffer = generate(clause->block);
 
 		// Если стоит фолтру, проваливаемся к телу следующего кейса
@@ -1333,6 +1345,18 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 		blocksOffsets.push_back(blocksOffsets.back() + buffer.size());
 	}
 
+	// Вычеслим позицию дефолт кейса в списке кейсов. Если дефолт кейс не задан пользователем,
+	// Тогда считаем, что его позиция последняя
+	size_t defaultClauseI = defaultClause? 
+			std::distance(stmt->clauseList.begin(), std::find(stmt->clauseList.begin(), stmt->clauseList.end(), defaultClause))
+		:	stmt->clauseList.size();
+
+	// Если дефолт кейс стоит не в конце
+	if (defaultClauseI != stmt->clauseList.size()) {
+		auto defaultClauseBlockOffset = blocksOffsets[defaultClauseI];
+		blocksOffsets.erase(blocksOffsets.begin() + defaultClauseI);
+		blocksOffsets.push_back(defaultClauseBlockOffset);
+	}
 
 	// Cчитаем сдвиги для прыжков из условий кейсов в тела
 	for (size_t i = 0; i < stmt->clauseList.size(); ++i) {

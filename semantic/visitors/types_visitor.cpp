@@ -612,6 +612,26 @@ void TypesVisitor::onFinishVisit(IfStatement* node) {
     }
 }
 
+void TypesVisitor::onFinishVisit(SwitchStatement* node) {
+    TypeEntity* typeSwitchExpression = typesExpressions[node->nodeId];
+
+    int index = 0;
+    for (auto caseClause : node->clauseList) {
+
+        if (caseClause->expressionCase) {
+            TypeEntity* caseExpressionType = typesExpressions[caseClause->expressionCase->nodeId];
+
+            if (caseExpressionType->equal(typeSwitchExpression)) {
+
+            } else {
+                
+            }
+        }
+
+        index++;
+    }
+}
+
 std::unordered_map<size_t, TypeEntity*> TypesVisitor::getTypesExpressions() const {
     return this->typesExpressions;
 }
