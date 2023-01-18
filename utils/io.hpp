@@ -12,6 +12,10 @@ std::istringstream StreamLinesFromFile(const std::string& filepath) {
     std::ifstream file;
     file.open(filepath);
 
+    if (!file.is_open()) {
+        return {};
+    } 
+
     std::string fileContent;
 
     while (!file.eof()){

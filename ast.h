@@ -501,7 +501,8 @@ public:
 
     SwitchStatement(StatementAST *init, ExpressionAST *expr, SwitchCaseList &cases,
                     BlockStatement *defaultCase)
-            : statement(init), expression(expr), clauseList(cases), defaultStatements(defaultCase) {};
+            : statement(init), expression(expr ? expr : new BooleanExpression(true))
+            , clauseList(cases), defaultStatements(defaultCase) {};
 
     void acceptVisitor(Visitor* visitor) noexcept override;
     SwitchStatement* clone() const noexcept override;

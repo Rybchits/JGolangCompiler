@@ -545,23 +545,24 @@ std::string Generator::createDescriptorBuiltInFunction(CallableExpression* expr)
 	std::string nameFunction = dynamic_cast<IdentifierAsExpression*>(expr->base)->identifier;
 	
 	std::string descriptor = "(";
-	auto firstArgumentType = typesExpressions[expr->arguments.front()->nodeId];
-	bool firstArgumentIsArray = std::holds_alternative<ArraySignatureEntity*>(firstArgumentType->value);
 
-	TypeEntity* arrayElementType = firstArgumentIsArray? arrayElementType = 
-			std::get<ArraySignatureEntity*>(firstArgumentType->value)->elementType : nullptr;
+	int index = 0;
+	for (auto arg : expr->arguments) {
+		
+		ArraySignatureEntity** arrayArgument = std::get_if<ArraySignatureEntity*>(&(typesExpressions[arg->nodeId]->value));
 
-	if ((nameFunction == "len" && firstArgumentIsArray)
-	|| ((nameFunction == "print" || nameFunction == "println") && firstArgumentIsArray
-	&& !arrayElementType->isFloat() && !arrayElementType->isInteger() && arrayElementType->type != TypeEntity::Boolean)) {
+		if (arrayArgument && ((*arrayArgument)->elementType->type == TypeEntity::String 
+			|| (*arrayArgument)->elementType->type == TypeEntity::Array 
+			|| (*arrayArgument)->elementType->type == TypeEntity::UserType)) {
 
-		descriptor += "[Ljava/lang/Object;";
+			descriptor += "[Ljava/lang/Object;";
 
-	} else {
-        for (auto arg : expr->arguments) {
-            descriptor += typesExpressions[arg->nodeId]->toByteCode();
-        }
-	}
+		} else {
+			descriptor += typesExpressions[arg->nodeId]->toByteCode();
+		}
+
+		index++;
+    }
 
 	descriptor += ")";
     descriptor += typesExpressions[expr->nodeId]->toByteCode();

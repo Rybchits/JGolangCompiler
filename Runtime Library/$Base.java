@@ -52,6 +52,12 @@ public class $Base {
 
     public static int len(Object[] array) { return array.length; }
 
+    public static int len(int[] array) { return array.length; }
+
+    public static int len(float[] array) { return array.length; }
+
+    public static int len(boolean[] array) { return array.length; }
+
     public static int len(String string) { return string.length(); }
 
     public static int[] append(int[] array, int element) {
