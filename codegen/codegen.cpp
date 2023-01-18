@@ -1269,7 +1269,7 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 	for (const auto clause : stmt->clauseList) {
 		std::vector<char> clauseConditionToJump;
 
-		if (!clause->expressionCase) {
+		if (clause->expressionCase == nullptr) {
 			defaultClause = clause;
 			continue;
 		}
@@ -1296,26 +1296,13 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 
 		// Иначе смотрим следующий case condition
 	}
-	// conditionsOffsets.erase(conditionsOffsets.begin());
-
-
-// case a	// if (a) jump n
-// case b	// if (b) jump m
-// 			// jump to k
-
-//n			// {body of a}
-//m			// {body of b}
-//k			// nop
-
-
-	// default
-	//if (a) jump {body of a}
-	//if (b) jump {body of b}
-	//jump {}	1) body of default		2) end of bodies
 
 	// Добавляем прыжок на тело дефолта
 	buffer = std::vector<char>{(char)Command::ifne, (char)0xF6, (char)0xF6};
 	clausesConditionsToJump.push_back(buffer);
+	conditionsOffsets.push_back(conditionsOffsets.back() + buffer.size());
+
+	conditionsOffsets.erase(conditionsOffsets.begin());
 
 	// Считаем сдвиг от прыжка из каждого условия (case condition) до конца всех условий 
 	size_t conditionsLastByte = conditionsOffsets.back();
@@ -1345,22 +1332,27 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 		blocksOffsets.push_back(blocksOffsets.back() + buffer.size());
 	}
 
-	// Вычеслим позицию дефолт кейса в списке кейсов. Если дефолт кейс не задан пользователем,
-	// Тогда считаем, что его позиция последняя
-	size_t defaultClauseI = defaultClause? 
-			std::distance(stmt->clauseList.begin(), std::find(stmt->clauseList.begin(), stmt->clauseList.end(), defaultClause))
-		:	stmt->clauseList.size();
-
 	// Если дефолт кейс стоит не в конце
-	if (defaultClauseI != stmt->clauseList.size()) {
+	if (defaultClause != nullptr) {
+		// Вычисляем позицию дефолт кейса в списке
+		size_t defaultClauseI = 
+			std::distance(stmt->clauseList.begin()
+						, std::find(stmt->clauseList.begin(), stmt->clauseList.end(), defaultClause));
+
+		// Перемещаем сдвиг для него в конец списка сдвигов, т.к. default condition стоит в конце
+		// Ставим его вместо сдвига, который указывает на nop
 		auto defaultClauseBlockOffset = blocksOffsets[defaultClauseI];
 		blocksOffsets.erase(blocksOffsets.begin() + defaultClauseI);
-		blocksOffsets.push_back(defaultClauseBlockOffset);
+		blocksOffsets.back() = defaultClauseBlockOffset;
 	}
+	// Иначе считаем, что из default condition должны прыгнуть на nop
 
 	// Cчитаем сдвиги для прыжков из условий кейсов в тела
-	for (size_t i = 0; i < stmt->clauseList.size(); ++i) {
-		buffer = intToBytes(conditionsOffsets[i] + 3 + blocksOffsets[i]);
+	for (size_t i = 0; i < clausesConditionsToJump.size(); ++i) {
+		buffer = intToBytes(conditionsOffsets[i] + blocksOffsets[i]);
+		if (i == clausesConditionsToJump.size() - 1) {
+			clausesConditionsToJump[i][clausesConditionsToJump[i].size() - 3] = (char)Command::goto_;
+		}
 		clausesConditionsToJump[i][clausesConditionsToJump[i].size() - 2] = buffer[2];
 		clausesConditionsToJump[i][clausesConditionsToJump[i].size() - 1] = buffer[3];
 	}
