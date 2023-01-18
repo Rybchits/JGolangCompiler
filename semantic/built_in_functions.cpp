@@ -76,7 +76,7 @@ bool TypesVisitor::defineAppendFunction(CallableExpression* function) {
         }
 
     } else {
-        semantic->errors.push_back("The len function accepts two arguments");
+        semantic->errors.push_back("The append function accepts two arguments");
     }
 
     return false;

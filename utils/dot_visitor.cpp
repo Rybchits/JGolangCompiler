@@ -228,7 +228,9 @@ void DotConvertVisitor::onStartVisit(IfStatement *node) {
 
 void DotConvertVisitor::onStartVisit(SwitchCaseClause *node) {
     out << MakeNode(node->nodeId, node->name());
-    out << MakeConnection(node->nodeId, node->expressionCase->nodeId, "key");
+
+    if (node->expressionCase != nullptr)
+        out << MakeConnection(node->nodeId, node->expressionCase->nodeId, "key");
 
     out << MakeConnection(node->nodeId, node->block->nodeId, "block");
 }

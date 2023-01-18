@@ -549,23 +549,39 @@ std::string Generator::createDescriptorBuiltInFunction(CallableExpression* expr)
 	int index = 0;
 	for (auto arg : expr->arguments) {
 		
-		ArraySignatureEntity** arrayArgument = std::get_if<ArraySignatureEntity*>(&(typesExpressions[arg->nodeId]->value));
+		TypeEntity* typeArgument = typesExpressions[arg->nodeId];
+		ArraySignatureEntity** arrayArgument = std::get_if<ArraySignatureEntity*>(&(typeArgument->value));
 
 		if (arrayArgument && ((*arrayArgument)->elementType->type == TypeEntity::String 
-			|| (*arrayArgument)->elementType->type == TypeEntity::Array 
-			|| (*arrayArgument)->elementType->type == TypeEntity::UserType)) {
+			|| (*arrayArgument)->elementType->type == TypeEntity::Array)) {
 
 			descriptor += "[Ljava/lang/Object;";
 
+		} else if (nameFunction != "len" && typeArgument->type == TypeEntity::String) {
+			descriptor += "Ljava/lang/Object;";
+
 		} else {
-			descriptor += typesExpressions[arg->nodeId]->toByteCode();
+			descriptor += typeArgument->toByteCode();
 		}
 
 		index++;
     }
 
 	descriptor += ")";
-    descriptor += typesExpressions[expr->nodeId]->toByteCode();
+
+	auto returnType = typesExpressions[expr->nodeId];
+
+	if (returnType->type == TypeEntity::String) {
+		descriptor += "Ljava/lang/Object;";
+
+	} else if (returnType->type == TypeEntity::Array 
+				&& std::get<ArraySignatureEntity*>(returnType->value)->elementType->type == TypeEntity::String) {
+
+		descriptor += "[Ljava/lang/Object;";
+		
+	} else {
+		descriptor += returnType->toByteCode();
+	}
 
 	return descriptor;
 }

@@ -196,7 +196,7 @@ void TypesVisitor::onFinishVisit(IdentifierAsExpression* node) {
 
     if (variable != nullptr) {
         typesExpressions[node->nodeId] = variable->type;
-        variable->use();
+        if (!node->isDestination) variable->use();
         return ;
 
     } else if (Semantic::IsBuiltInFunction(node->identifier)) {
@@ -496,10 +496,6 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
                     
             VariableEntity* variable = scopesDeclarations.find(idVariable->identifier);
 
-            if (variable != nullptr && node->type == AssignmentEnum::SimpleAssign) {
-                variable->numberUsage--;
-            }
-
             if (variable != nullptr && variable->isConst) {
                 semantic->errors.push_back("Cannot assign to " + idVariable->identifier);
             }
@@ -622,6 +618,7 @@ void TypesVisitor::onFinishVisit(SwitchStatement* node) {
             TypeEntity* caseExpressionType = typesExpressions[caseClause->expressionCase->nodeId];
 
             if (caseExpressionType->equal(typeSwitchExpression)) {
+                // TODO 
 
             } else {
                 

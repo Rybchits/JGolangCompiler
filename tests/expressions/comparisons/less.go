@@ -10,7 +10,7 @@ func main() {
 	printBoolean(1.26 < 1.255)
 
 	printBoolean(false < true)
-	printBoolean(true < true) //TODO семантическая проверка. Нельзя сравнивать булини
+	printBoolean(true < true)
 	printBoolean(true < false)
 
 	printBoolean("ab" < "abc")

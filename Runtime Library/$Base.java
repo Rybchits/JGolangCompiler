@@ -22,7 +22,7 @@ public class $Base {
 
     public static void print(float f) { System.out.print(f); }
 
-    public static void print(String s) { System.out.print(s); }
+    public static void print(Object o) { System.out.print(o); }
 
     public static void print(boolean b) { System.out.print(b); }
 
@@ -38,7 +38,7 @@ public class $Base {
 
     public static void println(float f) { System.out.println(f); }
 
-    public static void println(String s) { System.out.println(s); }
+    public static void println(Object o) { System.out.println(o); }
 
     public static void println(boolean b) { System.out.println(b); }
 
@@ -72,8 +72,8 @@ public class $Base {
         return newArray;
     }
 
-    public static String[] append(String[] array, String element) {
-        String[] newArray = Arrays.copyOf(array, array.length+1);
+    public static Object[] append(Object[] array, Object element) {
+        Object[] newArray = Arrays.copyOf(array, array.length+1);
         newArray[array.length] = element;
         return newArray;
     }
