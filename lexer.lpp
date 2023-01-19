@@ -79,7 +79,7 @@ return          { yy_push_state(ENABLE_SEMICOLON); return yytokentype::RETURN;  
 
 
 "/*"                            { currentComment.clear(); yy_push_state(MULTILINE_COMMENT);     }
-<MULTILINE_COMMENT>\*+\/        { PrintComment(currentComment); yy_pop_state();}
+<MULTILINE_COMMENT>\*+\/        { yy_pop_state(); }
 <MULTILINE_COMMENT>[^\*\/]+     { currentComment += yytext;                             }
 <MULTILINE_COMMENT><<EOF>>      { PrintErrorAndExit("expected */ "); yy_pop_state();    }
 

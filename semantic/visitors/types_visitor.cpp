@@ -68,13 +68,6 @@ ClassEntity* TypesVisitor::createGlobalClass(std::list<FunctionDeclaration*> fun
         numberLocalVariables = 0;
     }
 
-    // Debug expressions type
-    std::map<size_t, TypeEntity*> ordered(typesExpressions.begin(), typesExpressions.end());
-
-    for(auto it = ordered.begin(); it != ordered.end(); ++it) {
-        std::cout << (*it).first << ": " << (*it).second->toByteCode() << std::endl;
-    }
-
     return packageClass;
 }
 
@@ -330,7 +323,7 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
 
         } else {
             typesExpressions[node->nodeId] = new TypeEntity();
-            semantic->errors.push_back(node->name() + " must have equals types expressions. Comparison of booleans, arrays and functions are'nt supported");
+            semantic->errors.push_back(node->name() + " must have equal types of expressions. Comparison of booleans, arrays and functions are'nt supported");
         }
     }
 }
@@ -497,7 +490,7 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
             VariableEntity* variable = scopesDeclarations.find(idVariable->identifier);
 
             if (variable != nullptr && variable->isConst) {
-                semantic->errors.push_back("Cannot assign to " + idVariable->identifier);
+                semantic->errors.push_back("Cannot assign to const " + idVariable->identifier);
             }
             
         } else if (dynamic_cast<AccessExpression*>(var) == nullptr) {
@@ -524,7 +517,7 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
                 if ((*indexIterator) == nullptr) {
 
                     if (!typesExpressions[(*idIterator)->nodeId]->equal(typesExpressions[(*valueIterator)->nodeId])) {
-                        semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented"));
+                        semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented for assignment"));
 
                     } else {
                         typesExpressions[(*valueIterator)->nodeId] = 
@@ -539,7 +532,7 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
                         TypeEntity* typeElement = std::get<ArraySignatureEntity*>(typesExpressions[(*idIterator)->nodeId]->value)->elementType;
 
                         if (!typeElement->equal(typesExpressions[(*valueIterator)->nodeId])) {
-                            semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented"));
+                            semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented for assignment"));
 
                         } else if (!typesExpressions[(*indexIterator)->nodeId]->isInteger()) {
                             semantic->errors.push_back("Index must be integer value");
@@ -564,7 +557,7 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
 void TypesVisitor::onFinishVisit(ReturnStatement* node) {
 
     if (node->returnValues.size() > 1) {
-        semantic->errors.push_back("'return' cannot take more than one value");
+        semantic->errors.push_back("Return cannot take more than one value");
 
     } else if (currentMethodEntity->getReturnType()->type != TypeEntity::Void && node->returnValues.empty()) {
         semantic->errors.push_back("Missing return value");
@@ -598,18 +591,18 @@ void TypesVisitor::onStartVisit(ExpressionStatement* node) {
 
 void TypesVisitor::onFinishVisit(WhileStatement* node) {
     if (typesExpressions[node->conditionExpression->nodeId]->type != TypeEntity::Boolean) {
-        semantic->errors.push_back("The non-bool value used as a condition");
+        semantic->errors.push_back("The non-bool value used as a condition in loop");
     }
 }
 
 void TypesVisitor::onFinishVisit(IfStatement* node) {
     if (typesExpressions[node->condition->nodeId]->type != TypeEntity::Boolean) {
-        semantic->errors.push_back("The non-bool value used as a condition");
+        semantic->errors.push_back("The non-bool value used as a condition in if statement");
     }
 }
 
 void TypesVisitor::onFinishVisit(SwitchStatement* node) {
-    TypeEntity* typeSwitchExpression = typesExpressions[node->nodeId];
+    TypeEntity* typeSwitchExpression = typesExpressions[node->expression->nodeId];
 
     int index = 0;
     for (auto caseClause : node->clauseList) {
@@ -618,10 +611,10 @@ void TypesVisitor::onFinishVisit(SwitchStatement* node) {
             TypeEntity* caseExpressionType = typesExpressions[caseClause->expressionCase->nodeId];
 
             if (caseExpressionType->equal(typeSwitchExpression)) {
-                // TODO 
-
-            } else {
+                typesExpressions[caseClause->expressionCase->nodeId] = typeSwitchExpression;
                 
+            } else {
+                semantic->errors.push_back("The type of expression in case " + std::to_string(index) + " statement should be the same as in switch");
             }
         }
 

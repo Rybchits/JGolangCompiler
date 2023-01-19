@@ -560,6 +560,9 @@ std::string Generator::createDescriptorBuiltInFunction(CallableExpression* expr)
 		} else if (nameFunction != "len" && typeArgument->type == TypeEntity::String) {
 			descriptor += "Ljava/lang/Object;";
 
+		} else if (nameFunction == "append" && index == 1 && typeArgument->type == TypeEntity::Array) {
+			descriptor += "Ljava/lang/Object;";
+
 		} else {
 			descriptor += typeArgument->toByteCode();
 		}
@@ -575,7 +578,8 @@ std::string Generator::createDescriptorBuiltInFunction(CallableExpression* expr)
 		descriptor += "Ljava/lang/Object;";
 
 	} else if (returnType->type == TypeEntity::Array 
-				&& std::get<ArraySignatureEntity*>(returnType->value)->elementType->type == TypeEntity::String) {
+				&& (std::get<ArraySignatureEntity*>(returnType->value)->elementType->type == TypeEntity::String
+				|| std::get<ArraySignatureEntity*>(returnType->value)->elementType->type == TypeEntity::Array)) {
 
 		descriptor += "[Ljava/lang/Object;";
 		
