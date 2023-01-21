@@ -56,7 +56,6 @@ private:
     void onFinishVisit(BooleanExpression* node);
     void onFinishVisit(FloatExpression* node);
     void onFinishVisit(StringExpression* node);
-    void onFinishVisit(RuneExpression* node);
     void onFinishVisit(NilExpression* node);
     void onFinishVisit(UnaryExpression* node);
     void onFinishVisit(BinaryExpression* node);

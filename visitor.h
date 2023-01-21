@@ -14,7 +14,6 @@ class BooleanExpression;
 class IntegerExpression;
 class FloatExpression;
 class StringExpression;
-class RuneExpression;
 class NilExpression;
 class FunctionLitExpression;
 class UnaryExpression;
@@ -55,7 +54,6 @@ public:
     virtual void onStartVisit(BooleanExpression* node) {};
     virtual void onStartVisit(FloatExpression* node) {};
     virtual void onStartVisit(StringExpression* node) {};
-    virtual void onStartVisit(RuneExpression* node) {};
     virtual void onStartVisit(NilExpression* node) {};
     virtual void onStartVisit(FunctionLitExpression* node) {};
     virtual void onStartVisit(UnaryExpression* node) {};
@@ -95,7 +93,6 @@ public:
     virtual void onFinishVisit(BooleanExpression* node) {};
     virtual void onFinishVisit(FloatExpression* node) {};
     virtual void onFinishVisit(StringExpression* node) {};
-    virtual void onFinishVisit(RuneExpression* node) {};
     virtual void onFinishVisit(NilExpression* node) {};
     virtual void onFinishVisit(FunctionLitExpression* node) {};
     virtual void onFinishVisit(UnaryExpression* node) {};

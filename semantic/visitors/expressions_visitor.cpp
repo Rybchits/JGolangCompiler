@@ -4,10 +4,6 @@ void ExpressionsVisitor::transform(PackageAST* packageAst) {
     packageAst->acceptVisitor(this);
 }
 
-IntegerExpression* ExpressionsVisitor::transformRuneExpression(RuneExpression* expr) {
-    return new IntegerExpression((long long)expr->runeLit);
-}
-
 ExpressionAST* ExpressionsVisitor::transformUnaryExpression(UnaryExpression* expr) {
     ExpressionAST* result = expr;
 
@@ -267,9 +263,6 @@ ExpressionAST* ExpressionsVisitor::transformExpression(ExpressionAST* expr) {
 
     } else if (auto binary = dynamic_cast<BinaryExpression*>(expr)) {
         transofrmedExpression = transformBinaryExpression(binary);
-
-    } else if (auto rune = dynamic_cast<RuneExpression*>(expr)) {
-        transofrmedExpression = transformRuneExpression(rune);
     }
 
     return transofrmedExpression;

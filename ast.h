@@ -206,17 +206,6 @@ public:
 };
 
 
-class RuneExpression : public ExpressionAST {
-public:
-    int32_t runeLit;
-
-    explicit RuneExpression(int32_t rune) : runeLit(rune) {};
-    RuneExpression* clone() const noexcept override;
-    void acceptVisitor(Visitor* visitor) noexcept override;
-    [[nodiscard]] std::string name() const noexcept override { return "RuneLit"; };
-};
-
-
 class NilExpression : public ExpressionAST {
 public:
     NilExpression() = default;

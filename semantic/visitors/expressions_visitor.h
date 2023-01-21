@@ -11,7 +11,6 @@ private:
 
     ExpressionAST* transformUnaryExpression(UnaryExpression* expr);
     ExpressionAST* transformBinaryExpression(BinaryExpression* expr);
-    IntegerExpression* transformRuneExpression(RuneExpression* expr);
 
     void onFinishVisit(VariableDeclaration* node) override;
     void onFinishVisit(UnaryExpression* node) override;

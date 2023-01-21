@@ -1645,9 +1645,6 @@ std::vector<char> Generator::generate(ExpressionAST* expr) {
 	}  else if (auto booleanExpression = dynamic_cast<BooleanExpression*>(expr)) {
 		return generate(booleanExpression);
 
-	} else if (auto runeExpression = dynamic_cast<RuneExpression*>(expr)) {
-		std::cout << "Rune expression is not exists";
-		
 	} else if (auto unaryExpression = dynamic_cast<UnaryExpression*>(expr)) {
 		return generate(unaryExpression);
 

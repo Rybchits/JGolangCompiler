@@ -24,7 +24,6 @@ class DotConvertVisitor : public Visitor {
     void onStartVisit(BooleanExpression* node) override;
     void onStartVisit(FloatExpression* node) override;
     void onStartVisit(StringExpression* node) override;
-    void onStartVisit(RuneExpression* node) override;
     void onStartVisit(NilExpression* node) override;
     void onStartVisit(FunctionLitExpression* node) override;
     void onStartVisit(UnaryExpression* node) override;

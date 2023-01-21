@@ -269,11 +269,6 @@ void StringExpression::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void RuneExpression::acceptVisitor(Visitor* visitor) noexcept {
-    visitor->onStartVisit(this);
-    visitor->onFinishVisit(this);
-}
-
 void NilExpression::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onStartVisit(this);
     visitor->onFinishVisit(this);
@@ -630,10 +625,6 @@ FloatExpression* FloatExpression::clone() const noexcept {
 
 StringExpression* StringExpression::clone() const noexcept {
     return new StringExpression(this->stringLit);
-}
-
-RuneExpression* RuneExpression::clone() const noexcept {
-    return new RuneExpression(this->runeLit);
 }
 
 NilExpression* NilExpression::clone() const noexcept {

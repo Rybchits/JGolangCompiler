@@ -379,13 +379,13 @@
     ;
 
 
-    BasicLiteral: INT_LIT                                                           { $$ = new IntegerExpression($1);     }
-		        | FLOAT_LIT                                                         { $$ = new FloatExpression($1);       }
-		        | RUNE_LIT                                                          { $$ = new RuneExpression($1);        }
-                | STRING_LIT                                                        { $$ = new StringExpression($1);      }
-                | FALSE                                                             { $$ = new BooleanExpression(false);  }
-                | TRUE                                                              { $$ = new BooleanExpression(true);   }
-                | NIL                                                               { $$ = new NilExpression();           }
+    BasicLiteral: INT_LIT                                                           { $$ = new IntegerExpression($1);       }
+    		    | RUNE_LIT                                                          { $$ = new IntegerExpression($1);       }
+		        | FLOAT_LIT                                                         { $$ = new FloatExpression($1);         }
+                | STRING_LIT                                                        { $$ = new StringExpression($1);        }
+                | FALSE                                                             { $$ = new BooleanExpression(false);    }
+                | TRUE                                                              { $$ = new BooleanExpression(true);     }
+                | NIL                                                               { $$ = new NilExpression();             }
     ;
 
 // Composite literals

@@ -86,10 +86,6 @@ void DotConvertVisitor::onStartVisit(StringExpression *node) {
     out << MakeNode(node->nodeId, "String: " + node->stringLit);
 }
 
-void DotConvertVisitor::onStartVisit(RuneExpression *node) {
-    out << MakeNode(node->nodeId, "Rune: " + std::to_string(node->runeLit));
-}
-
 void DotConvertVisitor::onStartVisit(NilExpression *node) {
     out << MakeNode(node->nodeId, "Nil");
 }

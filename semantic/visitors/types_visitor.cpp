@@ -232,11 +232,6 @@ void TypesVisitor::onFinishVisit(StringExpression* node) {
 }
 
 
-void TypesVisitor::onFinishVisit(RuneExpression* node) {
-    typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::UntypedInt);
-}
-
-
 void TypesVisitor::onFinishVisit(NilExpression* node) {
     typesExpressions[node->nodeId] = new TypeEntity();
 }
