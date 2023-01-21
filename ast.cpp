@@ -148,9 +148,10 @@ AssignmentStatement::AssignmentStatement(AssignmentEnum type, ExpressionAST* lEx
     
     AccessExpression* leftIndexingElement = dynamic_cast<AccessExpression*>(lExp);
 
-    if (leftIndexingElement != nullptr && leftIndexingElement->type == AccessExpressionEnum::Indexing) {
+    if (leftIndexingElement != nullptr && leftIndexingElement->type == AccessExpression::Indexing) {
         indexes.push_back(leftIndexingElement->accessor);
         lhs.push_back(leftIndexingElement->base);
+
     } else {
         indexes.push_back(nullptr);
         lhs.push_back(lExp);
@@ -166,7 +167,7 @@ AssignmentStatement::AssignmentStatement(AssignmentEnum type, ExpressionList& lE
     for (auto left : lExpList) {
         auto leftIndexingElement = dynamic_cast<AccessExpression*>(left);
 
-        if (leftIndexingElement && leftIndexingElement->type == AccessExpressionEnum::Indexing) {
+        if (leftIndexingElement && leftIndexingElement->type == AccessExpression::Indexing) {
             indexes.push_back(leftIndexingElement->accessor);
             lhs.push_back(leftIndexingElement->base);
 

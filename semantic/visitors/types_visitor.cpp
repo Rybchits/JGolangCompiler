@@ -243,7 +243,7 @@ void TypesVisitor::onFinishVisit(UnaryExpression* node) {
         return ;
     }
 
-    if (node->type == UnaryExpressionEnum::UnaryNot) {
+    if (node->type == UnaryExpression::UnaryNot) {
         if (typesExpressions[node->expression->nodeId]->type == TypeEntity::Boolean) {
             typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
         } else {
@@ -251,7 +251,7 @@ void TypesVisitor::onFinishVisit(UnaryExpression* node) {
             semantic->errors.push_back(node->name() + " must have boolean expression");
         }
 
-    } else if (node->type == UnaryExpressionEnum::Variadic) {
+    } else if (node->type == UnaryExpression::Variadic) {
         if (typesExpressions[node->expression->nodeId]->type == TypeEntity::Array) {
             typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
         } else {
@@ -283,10 +283,11 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
         return ;
     }
 
-    if (leftExprType->type == TypeEntity::String && rightExprType->type == TypeEntity::String && node->type == Addition) {
+    if (leftExprType->type == TypeEntity::String && rightExprType->type == TypeEntity::String && node->type == BinaryExpression::Addition) {
         typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::String);
 
-    } else if (node->type == Addition || node->type == Subtraction || node->type == Multiplication || node->type == Division || node->type == Mod) {
+    } else if (node->type == BinaryExpression::Addition || node->type == BinaryExpression::Subtraction 
+    || node->type == BinaryExpression::Multiplication || node->type == BinaryExpression::Division || node->type == BinaryExpression::Mod) {
 
         if (leftExprType->isNumeric() && rightExprType->isNumeric() && leftExprType->equal(rightExprType)) {
             auto resultTypeExression = leftExprType->determinePriorityType(rightExprType);
@@ -300,7 +301,7 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
             semantic->errors.push_back(node->name() + " must have same numeric types expressions");
         }
 
-    } else if (node->type == Or || node->type == And) {
+    } else if (node->type == BinaryExpression::Or || node->type == BinaryExpression::And) {
         if (leftExprType->type == TypeEntity::Boolean && rightExprType->type == TypeEntity::Boolean) {
             typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
         } else {
@@ -312,7 +313,7 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
             || leftExprType->isInteger()
             || leftExprType->type == TypeEntity::String
             || ((leftExprType->type == TypeEntity::Boolean || leftExprType->type == TypeEntity::Array) 
-            && (node->type == BinaryExpressionEnum::Equal || node->type == BinaryExpressionEnum::NotEqual)))
+            && (node->type == BinaryExpression::Equal || node->type == BinaryExpression::NotEqual)))
         ) {
             typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
 
@@ -372,7 +373,9 @@ void TypesVisitor::onFinishVisit(CallableExpression* node) {
 
 
 void TypesVisitor::onFinishVisit(AccessExpression* node) {
-    if (node->type == AccessExpressionEnum::Indexing) {
+    switch (node->type)
+    {
+    case AccessExpression::Indexing:
         if (typesExpressions[node->base->nodeId]->type != TypeEntity::Array) {
             semantic->errors.push_back("Base for indexing must be array");
 
@@ -384,9 +387,13 @@ void TypesVisitor::onFinishVisit(AccessExpression* node) {
             return ;
         }
         typesExpressions[node->nodeId] = new TypeEntity();
+        break;
 
-    } else if (node->type == AccessExpressionEnum::FieldSelect || typesExpressions[node->accessor->nodeId]->type == TypeEntity::UserType) {
-        // struct aren't supported yet
+    case AccessExpression::FieldSelect:
+        break;
+    
+    default:
+        break;
     }
 
     typesExpressions[node->nodeId] = new TypeEntity();
@@ -493,7 +500,7 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
         }
     }
 
-    if (node->type == AssignmentEnum::SimpleAssign) {
+    if (node->type == AssignmentStatement::SimpleAssign) {
 
         if (node->lhs.size() != node->rhs.size()) {
             semantic->errors.push_back(
@@ -569,7 +576,7 @@ void TypesVisitor::onFinishVisit(ReturnStatement* node) {
 void TypesVisitor::onStartVisit(ExpressionStatement* node) {
     // Increment and decrement can be statements
     if (auto unaryExpression = dynamic_cast<UnaryExpression*>(node->expression)) {
-        if (unaryExpression->type == UnaryExpressionEnum::Decrement || unaryExpression->type == UnaryExpressionEnum::Increment) {
+        if (unaryExpression->type == UnaryExpression::Decrement || unaryExpression->type == UnaryExpression::Increment) {
             return;
         }
         

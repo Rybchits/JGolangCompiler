@@ -8,7 +8,7 @@ ExpressionAST* ExpressionsVisitor::transformUnaryExpression(UnaryExpression* exp
     ExpressionAST* result = expr;
 
     switch (expr->type) {
-    case UnaryMinus:
+    case UnaryExpression::UnaryMinus:
         if (auto integerExpr = dynamic_cast<IntegerExpression*>(expr->expression)) {
             integerExpr->intLit = -(integerExpr->intLit);
             result = integerExpr;
@@ -19,7 +19,7 @@ ExpressionAST* ExpressionsVisitor::transformUnaryExpression(UnaryExpression* exp
         }
         break;
 
-    case UnaryPlus:
+    case UnaryExpression::UnaryPlus:
         if (auto integerExpr = dynamic_cast<IntegerExpression*>(expr->expression))
             result = integerExpr;
 
@@ -28,7 +28,7 @@ ExpressionAST* ExpressionsVisitor::transformUnaryExpression(UnaryExpression* exp
 
         break;
 
-    case UnaryNot:
+    case UnaryExpression::UnaryNot:
         if (auto booleanExpr = dynamic_cast<BooleanExpression*>(expr->expression)) {
             booleanExpr->boolLit = !(booleanExpr->boolLit);
             result = booleanExpr;
@@ -57,7 +57,7 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
 
     switch (expr->type)
     {
-    case Addition:
+    case BinaryExpression::Addition:
         if (leftInt && rightInt)
             result = new IntegerExpression(leftInt->intLit + rightInt->intLit);
 
@@ -75,7 +75,7 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
 
         break;
     
-    case Subtraction:
+    case BinaryExpression::Subtraction:
         if (leftInt && rightInt)
             result = new IntegerExpression(leftInt->intLit - rightInt->intLit);
 
@@ -90,7 +90,7 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
 
         break;
     
-    case Division:
+    case BinaryExpression::Division:
         if (leftInt && rightInt)
             result = new IntegerExpression(leftInt->intLit / rightInt->intLit);
 
@@ -105,7 +105,7 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
 
         break;
     
-    case Multiplication:
+    case BinaryExpression::Multiplication:
         if (leftInt && rightInt)
             result = new IntegerExpression(leftInt->intLit * rightInt->intLit);
 
@@ -120,24 +120,24 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
 
         break;
     
-    case And:
+    case BinaryExpression::And:
         if (leftBool && rightBool)
             result = new BooleanExpression(leftBool->boolLit && rightBool->boolLit);
 
         break;
     
-    case Or:
+    case BinaryExpression::Or:
         if (leftBool && rightBool)
             result = new BooleanExpression(leftBool->boolLit || rightBool->boolLit);
         break;
 
-    case Mod:
+    case BinaryExpression::Mod:
         if (leftInt && rightInt)
             result = new IntegerExpression(leftInt->intLit % rightInt->intLit);
 
         break;
 
-    case Equal:
+    case BinaryExpression::Equal:
         if (leftInt && rightInt)
             result = new BooleanExpression(leftInt->intLit == rightInt->intLit);
 
@@ -158,7 +158,7 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
 
         break;
 
-    case Greater:
+    case BinaryExpression::Greater:
         if (leftInt && rightInt)
             result = new BooleanExpression(leftInt->intLit > rightInt->intLit);
 
@@ -176,7 +176,7 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
 
         break;
 
-    case Less:
+    case BinaryExpression::Less:
         if (leftInt && rightInt)
             result = new BooleanExpression(leftInt->intLit < rightInt->intLit);
 
@@ -194,7 +194,7 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
 
         break;
 
-    case NotEqual:
+    case BinaryExpression::NotEqual:
         if (leftInt && rightInt)
             result = new BooleanExpression(leftInt->intLit != rightInt->intLit);
 
@@ -215,7 +215,7 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
 
         break;
 
-    case LessOrEqual:
+    case BinaryExpression::LessOrEqual:
         if (leftInt && rightInt)
             result = new BooleanExpression(leftInt->intLit <= rightInt->intLit);
 
@@ -233,7 +233,7 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
 
         break;
 
-    case GreatOrEqual:
+    case BinaryExpression::GreatOrEqual:
         if (leftInt && rightInt)
             result = new BooleanExpression(leftInt->intLit >= rightInt->intLit);
 

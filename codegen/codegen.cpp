@@ -710,7 +710,7 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 
 	switch (expr->type)
 	{
-	case UnaryMinus:
+	case UnaryExpression::UnaryMinus:
 		codeBytes = generate(expr->expression);
 
 		if (typesExpressions[expr->nodeId]->isInteger()) {
@@ -722,8 +722,8 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 
 		break;
 
-	case Decrement:
-	case Increment:
+	case UnaryExpression::Decrement:
+	case UnaryExpression::Increment:
 		buffer = generate(expr->expression);
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
@@ -734,11 +734,11 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 
 		if (typesExpressions[expr->expression->nodeId]->isInteger()) {
 			codeBytes.push_back(uint8_t(Command::iconst_1));
-			codeBytes.push_back(uint8_t(expr->type == Increment? Command::iadd : Command::isub));
+			codeBytes.push_back(uint8_t(expr->type == UnaryExpression::Increment? Command::iadd : Command::isub));
 			
 		} else if (typesExpressions[expr->expression->nodeId]->isFloat()) {
 			codeBytes.push_back(uint8_t(Command::fconst_1));
-			codeBytes.push_back(uint8_t(expr->type == Increment? Command::fadd : Command::fsub));
+			codeBytes.push_back(uint8_t(expr->type == UnaryExpression::Increment? Command::fadd : Command::fsub));
 		}
 		
 		if (auto identifierAsExpression = dynamic_cast<IdentifierAsExpression*>(expr->expression)) {
@@ -753,7 +753,7 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 		break;
 
-	case UnaryNot: {
+	case UnaryExpression::UnaryNot: {
 		constexpr auto ifeqLength = 3;
 		constexpr auto gotoLength = 3;
 		constexpr auto iconstLength = 1;
@@ -776,7 +776,7 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 		break;
 	}
 
-	case UnaryPlus:
+	case UnaryExpression::UnaryPlus:
 		codeBytes = generate(expr->expression);
 		break;
 	
@@ -804,11 +804,11 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 		const auto trueValueOffset = rightExprBytes.size() + ifeqLength * 2;
         const auto falseValueOffset = rightExprBytes.size() + ifeqLength * 2 + iconstLength + gotoLength;
 
-		if (expr->type == And) {
+		if (expr->type == BinaryExpression::And) {
 			codeBytes.push_back(char(Command::ifeq));
 			buffer = intToBytes(falseValueOffset);
 
-		} else if (expr->type == Or) {
+		} else if (expr->type == BinaryExpression::Or) {
 			codeBytes.push_back(char(Command::ifne));
 			buffer = intToBytes(trueValueOffset);
 		}
@@ -833,7 +833,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 		codeBytes.insert(codeBytes.end(), rightExprBytes.begin(), rightExprBytes.end());
 
 		if (typesExpressions[expr->lhs->nodeId]->isFloat()
-		 && (expr->type == Less || expr->type == LessOrEqual)) {
+		 && (expr->type == BinaryExpression::Less || expr->type == BinaryExpression::LessOrEqual)) {
 			codeBytes.push_back((char)Command::fcmpg);
 
 		} else if (typesExpressions[expr->lhs->nodeId]->isFloat()) { 
@@ -864,7 +864,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 
 		switch(expr->type) {
 
-			case Equal:
+			case BinaryExpression::Equal:
 				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
 				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
 				 	codeBytes.push_back((char)Command::if_icmpne);
@@ -882,7 +882,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 
 				break;
 
-			case NotEqual:
+			case BinaryExpression::NotEqual:
 				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
 				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
 				 	codeBytes.push_back((char)Command::if_icmpeq);
@@ -900,7 +900,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 
 				break;
 
-			case Greater:
+			case BinaryExpression::Greater:
 				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
 				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
 				 	codeBytes.push_back((char)Command::if_icmple);
@@ -918,7 +918,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 				}
 				break;
 
-			case GreatOrEqual:
+			case BinaryExpression::GreatOrEqual:
 				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
 				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
 					codeBytes.push_back((char)Command::if_icmplt);
@@ -936,7 +936,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 				}
 				break;
 
-			case Less:
+			case BinaryExpression::Less:
 				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
 				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
 					codeBytes.push_back((char)Command::if_icmpge);
@@ -954,7 +954,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 				}
 				break;
 				
-			case LessOrEqual:
+			case BinaryExpression::LessOrEqual:
 				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
 				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
 				 	codeBytes.push_back((char)Command::if_icmpgt);
@@ -991,7 +991,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 		codeBytes.insert(codeBytes.end(), rightExprBytes.begin(), rightExprBytes.end());
 
 		switch (expr->type) {
-		case Addition:
+		case BinaryExpression::Addition:
 			if (typesExpressions[expr->nodeId]->isInteger()) {
 				codeBytes.push_back(char(Command::iadd));
 
@@ -1008,7 +1008,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 			}
 			break;
 
-		case Subtraction:
+		case BinaryExpression::Subtraction:
 			if (typesExpressions[expr->nodeId]->isInteger()) {
 				codeBytes.push_back(char(Command::isub));
 
@@ -1017,7 +1017,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 			}
 			break;
 
-		case Multiplication:
+		case BinaryExpression::Multiplication:
 			if (typesExpressions[expr->nodeId]->isInteger()) {
 				codeBytes.push_back(char(Command::imul));
 
@@ -1026,7 +1026,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 			}
 			break;
 
-		case Division:
+		case BinaryExpression::Division:
 			if (typesExpressions[expr->nodeId]->isInteger()) {
 				codeBytes.push_back(char(Command::idiv));
 
@@ -1035,7 +1035,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 			}
 			break;
 
-		case Mod:
+		case BinaryExpression::Mod:
 			if (typesExpressions[expr->nodeId]->isInteger()) {
 				codeBytes.push_back(char(Command::irem));
 
@@ -1057,7 +1057,7 @@ std::vector<char> Generator::generate(AccessExpression* expr) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	if (expr->type == AccessExpressionEnum::Indexing) {
+	if (expr->type == AccessExpression::Indexing) {
 
 		buffer = generate(expr->base);
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
@@ -1208,7 +1208,7 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 	std::vector<char> bytes;
 	std::vector<char> buffer;
 
-	if (stmt->type == AssignmentEnum::SimpleAssign) {
+	if (stmt->type == AssignmentStatement::SimpleAssign) {
 		
 		auto indexRIterator = stmt->indexes.rbegin();
         auto rightRIterator = stmt->rhs.rbegin();
@@ -1297,7 +1297,7 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 		// Сравниваем switch expression и case expression
 		auto conditionBytes = generate(
 			std::make_unique<BinaryExpression>(
-				BinaryExpression(BinaryExpressionEnum::Equal, stmt->expression, clause->expressionCase)
+				BinaryExpression(BinaryExpression::Equal, stmt->expression, clause->expressionCase)
 			).get()
 		);
 
@@ -1427,11 +1427,11 @@ std::vector<char> Generator::generate(KeywordStatement* stmt) {
 	std::vector<char> buffer;
 	
 	switch(stmt->type) {
-		case Break:
+		case KeywordStatement::Break:
 			bytes = std::vector<char>(3, BREAK_FILLER); 
 			break;
 
-		case Continue:
+		case KeywordStatement::Continue:
 			bytes = std::vector<char>(3, CONTINUE_FILLER);
 			break;
 			

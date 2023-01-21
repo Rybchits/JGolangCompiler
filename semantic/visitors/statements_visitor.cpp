@@ -3,35 +3,35 @@
 const std::string StatementsVisitor::indexPrivateVariableName = "$index";
 
 AssignmentStatement* StatementsVisitor::transformAssignment(AssignmentStatement* assigmnent) {
-    if (assigmnent->type != AssignmentEnum::SimpleAssign) {
+    if (assigmnent->type != AssignmentStatement::SimpleAssign) {
         auto leftValueExpression = assigmnent->lhs.front();
         auto rightValueExpression = assigmnent->rhs.front();
 
         switch (assigmnent->type)
         {
-        case AssignmentEnum::MinusAssign:
+        case AssignmentStatement::MinusAssign:
             assigmnent->rhs = ExpressionList({new BinaryExpression(
-                BinaryExpressionEnum::Subtraction, leftValueExpression->clone(), rightValueExpression)});
+                BinaryExpression::Subtraction, leftValueExpression->clone(), rightValueExpression)});
             break;
 
-        case AssignmentEnum::PlusAssign:
+        case AssignmentStatement::PlusAssign:
             assigmnent->rhs = ExpressionList({new BinaryExpression(
-                BinaryExpressionEnum::Addition, leftValueExpression->clone(), rightValueExpression)});
+                BinaryExpression::Addition, leftValueExpression->clone(), rightValueExpression)});
             break;
 
-        case AssignmentEnum::MulAssign:
+        case AssignmentStatement::MulAssign:
             assigmnent->rhs = ExpressionList({new BinaryExpression(
-                BinaryExpressionEnum::Multiplication, leftValueExpression->clone(), rightValueExpression)});
+                BinaryExpression::Multiplication, leftValueExpression->clone(), rightValueExpression)});
             break;
 
-        case AssignmentEnum::DivAssign:
+        case AssignmentStatement::DivAssign:
             assigmnent->rhs = ExpressionList({new BinaryExpression(
-                BinaryExpressionEnum::Division, leftValueExpression->clone(), rightValueExpression)});
+                BinaryExpression::Division, leftValueExpression->clone(), rightValueExpression)});
             break;
 
-        case AssignmentEnum::ModAssign:
+        case AssignmentStatement::ModAssign:
             assigmnent->rhs = ExpressionList({new BinaryExpression(
-                BinaryExpressionEnum::Mod, leftValueExpression->clone(), rightValueExpression)});
+                BinaryExpression::Mod, leftValueExpression->clone(), rightValueExpression)});
             break;
         
         default:
@@ -39,7 +39,7 @@ AssignmentStatement* StatementsVisitor::transformAssignment(AssignmentStatement*
         }
     }
     
-    assigmnent->type = AssignmentEnum::SimpleAssign;
+    assigmnent->type = AssignmentStatement::SimpleAssign;
     return assigmnent;
 }
 
@@ -103,7 +103,7 @@ StatementList StatementsVisitor::transformKeywordStatements(StatementList body) 
         if (keyword) {
             switch (keyword->type)
             {
-                case KeywordEnum::Continue:
+                case KeywordStatement::Continue:
                     if (nextIterationsLoops.empty()) {
                         semantic->errors.push_back("Continue keyword out of loop");
                         
@@ -112,13 +112,13 @@ StatementList StatementsVisitor::transformKeywordStatements(StatementList body) 
                     }
                     break;
 
-                case KeywordEnum::Break:
+                case KeywordStatement::Break:
                     if (nextIterationsLoops.empty() && !insideSwitchCaseClause) {
                         semantic->errors.push_back("Break keyword out of loop and switch case clause");
                     }
                     break;
 
-                case KeywordEnum::Fallthrough:
+                case KeywordStatement::Fallthrough:
                     semantic->errors.push_back("Fallthrough keyword out of maswitch case clause");
                     break;
             }
@@ -141,7 +141,7 @@ BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *f
     list.push_back(new DeclarationStatement(*(new DeclarationList{indexDeclaration})));
 
     auto condition = new BinaryExpression(
-            BinaryExpressionEnum::Less,
+            BinaryExpression::Less,
             new IdentifierAsExpression(indexPrivateVariableName),
             new CallableExpression(new IdentifierAsExpression("len"),
                                    *(new ExpressionList{forRangeStmt->expressionValue->clone()}))
@@ -170,7 +170,7 @@ BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *f
             }
         } else {
             indexVariableStatement = new AssignmentStatement(
-                    AssignmentEnum::SimpleAssign,
+                    AssignmentStatement::SimpleAssign,
                     *variableForRange,
                     new IdentifierAsExpression(indexPrivateVariableName));
         }
@@ -184,7 +184,7 @@ BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *f
         variableForRange++;
 
         ExpressionAST *accessToElement = new AccessExpression(
-                AccessExpressionEnum::Indexing,
+                AccessExpression::Indexing,
                 forRangeStmt->expressionValue,
                 new IdentifierAsExpression(indexPrivateVariableName)
         );
@@ -202,7 +202,7 @@ BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *f
             }
         } else {
             elementVariableStatement = new AssignmentStatement(
-                    AssignmentEnum::SimpleAssign,
+                    AssignmentStatement::SimpleAssign,
                     *variableForRange,
                     accessToElement);
         }
@@ -212,7 +212,7 @@ BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *f
 
     forRangeStmt->block->body.insert(forRangeStmt->block->body.end(), new ExpressionStatement(
             new UnaryExpression(
-                    UnaryExpressionEnum::Increment,
+                    UnaryExpression::Increment,
                     new IdentifierAsExpression(indexPrivateVariableName))));
 
     list.push_back(new WhileStatement(condition, forRangeStmt->block));
@@ -281,7 +281,7 @@ void StatementsVisitor::onFinishVisit(WhileStatement* node) {
 void StatementsVisitor::onStartVisit(ForRangeStatement* node) {
     StatementAST* nextIteration = new ExpressionStatement(
         new UnaryExpression(
-            UnaryExpressionEnum::Increment,
+            UnaryExpression::Increment,
             new IdentifierAsExpression(indexPrivateVariableName))
         );
     nextIterationsLoops.push(nextIteration);
@@ -358,7 +358,7 @@ void StatementsVisitor::onStartVisit(SwitchCaseClause* node) {
     if (node->block->body.size() != 0) {
         auto keyword = dynamic_cast<KeywordStatement*>(node->block->body.back());
 
-        if (keyword && keyword->type == KeywordEnum::Fallthrough) {
+        if (keyword && keyword->type == KeywordStatement::Fallthrough) {
             node->fallthrowEnds = true;
             node->block->body.pop_back();
         }

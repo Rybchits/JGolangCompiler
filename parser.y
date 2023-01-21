@@ -375,13 +375,12 @@
                 | IDENTIFIER                                                        { $$ = new IdentifierAsExpression($1); }
                 | '(' Expression ')'                                                { $$ = $2; }
                 // | IDENTIFIER CompositeLiteralBody                                { $$ = new CompositeLiteral(new IdentifierAsType($1), *$2); }   // TODO solve conflict to reduce
-
     ;
 
 
     BasicLiteral: INT_LIT                                                           { $$ = new IntegerExpression($1);       }
-    		    | RUNE_LIT                                                          { $$ = new IntegerExpression($1);       }
-		        | FLOAT_LIT                                                         { $$ = new FloatExpression($1);         }
+		| RUNE_LIT                                                          { $$ = new IntegerExpression($1);       }
+		| FLOAT_LIT                                                         { $$ = new FloatExpression($1);         }
                 | STRING_LIT                                                        { $$ = new StringExpression($1);        }
                 | FALSE                                                             { $$ = new BooleanExpression(false);    }
                 | TRUE                                                              { $$ = new BooleanExpression(true);     }
@@ -414,23 +413,23 @@
 
     Expression: AccessExpression                                                    { $$ = $1; }
                 | BasicLiteral                                                      { $$ = $1; }
-                | Expression '+' Expression                                         { $$ = new BinaryExpression(BinaryExpressionEnum::Addition, $1, $3);        }
-                | Expression '-' Expression                                         { $$ = new BinaryExpression(BinaryExpressionEnum::Subtraction, $1, $3);     }
-                | Expression '*' Expression                                         { $$ = new BinaryExpression(BinaryExpressionEnum::Multiplication, $1, $3);  }
-                | Expression '/' Expression                                         { $$ = new BinaryExpression(BinaryExpressionEnum::Division, $1, $3);        }
-                | Expression '%' Expression                                         { $$ = new BinaryExpression(BinaryExpressionEnum::Mod, $1, $3);             }
-                | Expression '<' Expression                                         { $$ = new BinaryExpression(BinaryExpressionEnum::Less, $1, $3);            }
-                | Expression '>' Expression                                         { $$ = new BinaryExpression(BinaryExpressionEnum::Greater, $1, $3);         }
-                | Expression EQUAL Expression                                       { $$ = new BinaryExpression(BinaryExpressionEnum::Equal, $1, $3);           }
-                | Expression NOT_EQUAL Expression                                   { $$ = new BinaryExpression(BinaryExpressionEnum::NotEqual, $1, $3);        }
-                | Expression LESS_OR_EQUAL Expression                               { $$ = new BinaryExpression(BinaryExpressionEnum::LessOrEqual, $1, $3);     }
-                | Expression GREATER_OR_EQUAL Expression                            { $$ = new BinaryExpression(BinaryExpressionEnum::GreatOrEqual, $1, $3);    }
-                | Expression AND Expression                                         { $$ = new BinaryExpression(BinaryExpressionEnum::And, $1, $3);             }
-                | Expression OR Expression                                          { $$ = new BinaryExpression(BinaryExpressionEnum::Or, $1, $3);              }
-                | '+' Expression %prec UNARY_PLUS                                   { $$ = new UnaryExpression(UnaryExpressionEnum::UnaryPlus, $2);             }
-                | '-' Expression %prec UNARY_MINUS                                  { $$ = new UnaryExpression(UnaryExpressionEnum::UnaryMinus, $2);            }
-                | '!' Expression                                                    { $$ = new UnaryExpression(UnaryExpressionEnum::UnaryNot, $2);              }
-                | Expression VARIADIC                                               { $$ = new UnaryExpression(UnaryExpressionEnum::Variadic, $1);              }
+                | Expression '+' Expression                                         { $$ = new BinaryExpression(BinaryExpression::Addition, $1, $3);        }
+                | Expression '-' Expression                                         { $$ = new BinaryExpression(BinaryExpression::Subtraction, $1, $3);     }
+                | Expression '*' Expression                                         { $$ = new BinaryExpression(BinaryExpression::Multiplication, $1, $3);  }
+                | Expression '/' Expression                                         { $$ = new BinaryExpression(BinaryExpression::Division, $1, $3);        }
+                | Expression '%' Expression                                         { $$ = new BinaryExpression(BinaryExpression::Mod, $1, $3);             }
+                | Expression '<' Expression                                         { $$ = new BinaryExpression(BinaryExpression::Less, $1, $3);            }
+                | Expression '>' Expression                                         { $$ = new BinaryExpression(BinaryExpression::Greater, $1, $3);         }
+                | Expression EQUAL Expression                                       { $$ = new BinaryExpression(BinaryExpression::Equal, $1, $3);           }
+                | Expression NOT_EQUAL Expression                                   { $$ = new BinaryExpression(BinaryExpression::NotEqual, $1, $3);        }
+                | Expression LESS_OR_EQUAL Expression                               { $$ = new BinaryExpression(BinaryExpression::LessOrEqual, $1, $3);     }
+                | Expression GREATER_OR_EQUAL Expression                            { $$ = new BinaryExpression(BinaryExpression::GreatOrEqual, $1, $3);    }
+                | Expression AND Expression                                         { $$ = new BinaryExpression(BinaryExpression::And, $1, $3);             }
+                | Expression OR Expression                                          { $$ = new BinaryExpression(BinaryExpression::Or, $1, $3);              }
+                | '+' Expression %prec UNARY_PLUS                                   { $$ = new UnaryExpression(UnaryExpression::UnaryPlus, $2);             }
+                | '-' Expression %prec UNARY_MINUS                                  { $$ = new UnaryExpression(UnaryExpression::UnaryMinus, $2);            }
+                | '!' Expression                                                    { $$ = new UnaryExpression(UnaryExpression::UnaryNot, $2);              }
+                | Expression VARIADIC                                               { $$ = new UnaryExpression(UnaryExpression::Variadic, $1);              }
     ;
 
     ExpressionOptional: /* empty */                                                 { $$ = nullptr; }
@@ -438,8 +437,8 @@
     ;
 
     AccessExpression: Operand                                                       { $$ = $1; }
-                | AccessExpression '[' Expression ']'                               { $$ = new AccessExpression(AccessExpressionEnum::Indexing, $1, $3); }
-                | AccessExpression '.' AccessExpression                             { $$ = new AccessExpression(AccessExpressionEnum::FieldSelect, $1, $3); }
+                | AccessExpression '[' Expression ']'                               { $$ = new AccessExpression(AccessExpression::Indexing, $1, $3); }
+                | AccessExpression '.' AccessExpression                             { $$ = new AccessExpression(AccessExpression::FieldSelect, $1, $3); }
                 | AccessExpression '[' ':' ']'                                      { yyerror("array slices are not supported yet"); }
                 | AccessExpression '[' Expression ':' ']'                           { yyerror("array slices are not supported yet"); }
                 | AccessExpression '[' ':' Expression ']'                           { yyerror("array slices are not supported yet"); }
@@ -458,12 +457,12 @@
 
 /* -------------------------------- Statements -------------------------------- */
 
-    Assignment: Expression PLUS_ASSIGNMENT Expression                               { $$ = new AssignmentStatement(AssignmentEnum::PlusAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));     }
-                | Expression MINUS_ASSIGNMENT Expression                            { $$ = new AssignmentStatement(AssignmentEnum::MinusAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));    }
-                | Expression MUL_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentEnum::MulAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));      }
-                | Expression DIV_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentEnum::DivAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));      }
-                | Expression MOD_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentEnum::ModAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));      }
-                | ExpressionList '=' ExpressionList                                 { $$ = new AssignmentStatement(AssignmentEnum::SimpleAssign, *$1, *$3); }
+    Assignment: Expression PLUS_ASSIGNMENT Expression                               { $$ = new AssignmentStatement(AssignmentStatement::PlusAssign, $1, $3);     }
+                | Expression MINUS_ASSIGNMENT Expression                            { $$ = new AssignmentStatement(AssignmentStatement::MinusAssign, $1, $3);    }
+                | Expression MUL_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentStatement::MulAssign, $1, $3);      }
+                | Expression DIV_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentStatement::DivAssign, $1, $3);      }
+                | Expression MOD_ASSIGNMENT Expression                              { $$ = new AssignmentStatement(AssignmentStatement::ModAssign, $1, $3);      }
+                | ExpressionList '=' ExpressionList                                 { $$ = new AssignmentStatement(AssignmentStatement::SimpleAssign, *$1, *$3); }
     ;
 
     ShortVarDecl: ExpressionList SHORT_DECL_OP ExpressionList                       {
@@ -482,9 +481,9 @@
                 | Block                                                             { $$ = $1; }
                 | SimpleStmt                                                        { $$ = $1; }
                 | ReturnStmt                                                        { $$ = $1; }
-                | BREAK                                                             { $$ = new KeywordStatement(KeywordEnum::Break);        }
-                | CONTINUE                                                          { $$ = new KeywordStatement(KeywordEnum::Continue);     }
-                | FALLTHROUGH                                                       { $$ = new KeywordStatement(KeywordEnum::Fallthrough);  }
+                | BREAK                                                             { $$ = new KeywordStatement(KeywordStatement::Break);        }
+                | CONTINUE                                                          { $$ = new KeywordStatement(KeywordStatement::Continue);     }
+                | FALLTHROUGH                                                       { $$ = new KeywordStatement(KeywordStatement::Fallthrough);  }
                 | IfStmt                                                            { $$ = $1; }
                 | ForStmt                                                           { $$ = $1; }
                 | SwitchStmt                                                        { $$ = $1; }
@@ -494,8 +493,8 @@
     SimpleStmt: Expression                                                          { $$ = new ExpressionStatement($1); }
                 | Assignment                                                        { $$ = $1; }
                 | ShortVarDecl                                                      { $$ = $1; }
-                | Expression INCREMENT                                              { $$ = new ExpressionStatement(new UnaryExpression(UnaryExpressionEnum::Increment, $1)); }
-                | Expression DECREMENT                                              { $$ = new ExpressionStatement(new UnaryExpression(UnaryExpressionEnum::Decrement, $1)); }
+                | Expression INCREMENT                                              { $$ = new ExpressionStatement(new UnaryExpression(UnaryExpression::Increment, $1)); }
+                | Expression DECREMENT                                              { $$ = new ExpressionStatement(new UnaryExpression(UnaryExpression::Decrement, $1)); }
     ;
 
     // Return statements
@@ -505,11 +504,11 @@
 
 /* -------------------------------- Blocks -------------------------------- */
 
-    Block: '{' StatementMoreTwo '}'                                                 { $$ = new BlockStatement(*$2); }
-                | '{' StatementMoreTwo SCs '}'                                      { $$ = new BlockStatement(*$2); }
-                | '{' Statement '}'                                                 { $$ = new BlockStatement(*(new StatementList({$2}))); }
-                | '{' Statement SCs '}'                                             { $$ = new BlockStatement(*(new StatementList({$2}))); }
-                | '{' '}'                                                           { $$ = new BlockStatement(*(new StatementList())); }
+    Block: '{' StatementMoreTwo '}'                                                 { $$ = new BlockStatement(*$2);     }
+                | '{' StatementMoreTwo SCs '}'                                      { $$ = new BlockStatement(*$2);     }
+                | '{' Statement '}'                                                 { $$ = new BlockStatement($2);      }
+                | '{' Statement SCs '}'                                             { $$ = new BlockStatement($2);      }
+                | '{' '}'                                                           { $$ = new BlockStatement();        }
     ;
 
     StatementMoreTwo: Statement SCs Statement                                       { $$ = new StatementList({$1, $3}); }
@@ -539,11 +538,11 @@
                 | SWITCH ExpressionOptional '{' ExprCaseOrDefaultClauseListOrEmpty '}'                  { $$ = new SwitchStatement(nullptr, $2, *$4); }
     ;
 
-    ExprCaseOrDefaultClause: CASE Expression ':' StatementMoreTwo  SCs              { $$ = new SwitchCaseClause($2, new BlockStatement(*$4)); }
-                | CASE Expression ':' Statement SCs                                 { $$ = new SwitchCaseClause($2, new BlockStatement(*(new StatementList({$4}))));    }
-                | CASE Expression ':'                                               { $$ = new SwitchCaseClause($2, new BlockStatement(*(new StatementList({}))));      }
+    ExprCaseOrDefaultClause: CASE Expression ':' StatementMoreTwo  SCs              { $$ = new SwitchCaseClause($2, new BlockStatement(*$4));       }
+                | CASE Expression ':' Statement SCs                                 { $$ = new SwitchCaseClause($2, new BlockStatement($4));        }
+                | CASE Expression ':'                                               { $$ = new SwitchCaseClause($2, new BlockStatement());          }
                 | DEFAULT ':' StatementMoreTwo SCs                                  { $$ = new SwitchCaseClause(nullptr, new BlockStatement(*$3));  }
-                | DEFAULT ':' Statement SCs                                         { $$ = new SwitchCaseClause(nullptr, new BlockStatement(*(new StatementList({$3}))));    }           
+                | DEFAULT ':' Statement SCs                                         { $$ = new SwitchCaseClause(nullptr, new BlockStatement($3));   }           
     ;
 
     ExprCaseOrDefaultClauseList: ExprCaseOrDefaultClause                            { $$ = new SwitchCaseList({$1}); }

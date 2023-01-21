@@ -1,6 +1,5 @@
 #pragma once
 
-#include "enums.h"
 #include "visitor.h"
 
 #include <list>
@@ -230,7 +229,15 @@ public:
 
 class UnaryExpression : public ExpressionAST {
 public:
-    UnaryExpressionEnum type;
+    enum UnaryExpressionEnum {
+        UnaryNot,
+        UnaryPlus,
+        UnaryMinus,
+        Increment,
+        Decrement,
+        Variadic,
+    } type;
+
     ExpressionAST *expression;
 
     explicit UnaryExpression(UnaryExpressionEnum type, ExpressionAST *expr) : type(type), expression(expr) {};
@@ -242,7 +249,22 @@ public:
 
 class BinaryExpression : public ExpressionAST {
 public:
-    BinaryExpressionEnum type;
+    enum BinaryExpressionEnum {
+        Addition,            // +
+        Subtraction,         // -
+        Multiplication,      // *
+        Division,            // /
+        Mod,                 // %
+        And,                 // &&
+        Or,                  // ||
+        Equal,               // ==
+        Greater,             // >
+        Less,                // <
+        NotEqual,            // !=
+        LessOrEqual,         // <=
+        GreatOrEqual,        // >=
+    } type;
+
     ExpressionAST *lhs;
     ExpressionAST *rhs;
 
@@ -274,9 +296,13 @@ public:
 
 class AccessExpression : public ExpressionAST {
 public:
-    AccessExpressionEnum type;
     ExpressionAST *base;
     ExpressionAST *accessor;
+
+    enum AccessExpressionEnum {
+        Indexing,
+        FieldSelect,
+    } type;
 
     AccessExpression(AccessExpressionEnum type, ExpressionAST *base, ExpressionAST *accessor)
             : type(type), base(base), accessor(accessor) {};
@@ -331,6 +357,8 @@ class BlockStatement : public StatementAST {
 public:
     StatementList body;
 
+    explicit BlockStatement() : body(StatementList({})) {};
+    explicit BlockStatement(StatementAST* stmt) : body(StatementList({stmt})) {};
     explicit BlockStatement(StatementList& list) : body(list) {};
 
     void acceptVisitor(Visitor* visitor) noexcept override;
@@ -341,7 +369,11 @@ public:
 
 class KeywordStatement : public StatementAST {
 public:
-    KeywordEnum type;
+    enum KeywordEnum {
+        Break,
+        Continue,
+        Fallthrough
+    } type;
 
     explicit KeywordStatement(KeywordEnum type) : type(type) {};
 
@@ -378,9 +410,17 @@ public:
 
 class AssignmentStatement : public StatementAST {
 public:
-    AssignmentEnum type;
     ExpressionList lhs;
     ExpressionList rhs;
+
+    enum AssignmentEnum {
+        SimpleAssign,       // =
+        MinusAssign,        // -=
+        PlusAssign,         // +=
+        ModAssign,          // %=
+        MulAssign,          // *=
+        DivAssign,          // /=
+    } type;
 
     ExpressionList indexes;
 

@@ -10,8 +10,21 @@ private:
     std::vector<std::unordered_map<std::string, T>> scopes;
 
 public:
-    void pushScope() { scopes.push_back(std::unordered_map<std::string, T>()); };
-    void popScope() { scopes.pop_back(); }
+    Context() { 
+        pushScope(); 
+    };
+    
+    void pushScope() { 
+        scopes.push_back(std::unordered_map<std::string, T>()); 
+    };
+
+    void popScope() { 
+        scopes.pop_back(); 
+    }
+
+    std::unordered_map<std::string, T> getLastScope() {
+        return scopes.back();
+    }
 
     bool add(std::string id, T element) { 
         if (id == "_") {
@@ -20,8 +33,6 @@ public:
 
         return scopes.back()[id] = element;
     }
-
-    std::unordered_map<std::string, T> getLastScope() { return scopes.back(); }
 
     T find(std::string name) {
         
@@ -34,6 +45,4 @@ public:
     T findAtLastScope(std::string name) {
         return scopes.back().count(name)? scopes.back()[name] : nullptr;
     }
-
-    Context() { pushScope(); };
 };
