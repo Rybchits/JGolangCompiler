@@ -49,7 +49,7 @@
 %type <identifierList> IdentifiersList
 %type <functionList> InterfaceMembersMoreTwo
 %type <typeList> TypesWithIdentifiersList
-%type <expressionList> ExpressionList Arguments ExprWithWrapCompositeObjList
+%type <expressionList> ExpressionList Arguments
 %type <statementList> StatementMoreTwo
 %type <switchCaseClauseList> ExprCaseOrDefaultClauseList ExprCaseOrDefaultClauseListOrEmpty
 %type <declarationList> Declaration TopLevelDecl TopLevelDeclList TopLevelDeclListOrEmpty
@@ -64,12 +64,10 @@
 %type <varDecl> VariableSpec ConstSpec
 %type <typedIdentifiers> IdentifiersWithType VariadicNamedArgument
 %type <declarationNode> FunctionDecl MethodDecl TypeDef
-%type <shortDeclaration> ShortVarDecl ShortVarDeclWithWrapCompositeObj
-%type <statementNode> Statement SimpleStmt Assignment IncDecStmt ReturnStmt IfStmt ForStmt SwitchStmt
-%type <statementNode> SimpleStmtWithExprWrapCompositeObj SimpleStmtWithWrapCompositeObjOptional AssignmentWithWrapCompositeObj IncDecStmtWithWrapCompositeObj
-%type <expressionNode> Expression ExprWithWrapCompositeObjOptional Operand BasicLiteral CompositeLiteral FunctionLiteral AccessExpression
-%type <expressionNode> OperandWithCompositeObj ObjectCompositeLit OperandWithWrapCompositeObj AccessExprWithWrapCompositeObj ExprWithWrapCompositeObj
+%type <shortDeclaration> ShortVarDecl
+%type <statementNode> Statement SimpleStmt Assignment ReturnStmt IfStmt ForStmt SwitchStmt
 %type <typeNode> Type TypeOnly LiteralType StructType SliceDeclType ArrayDeclType FunctionType VariadicType InterfaceType
+%type <expressionNode> Expression ExpressionOptional Operand BasicLiteral CompositeLiteral FunctionLiteral AccessExpression
 
 
 %token <integerVal>INT_LIT
@@ -157,7 +155,7 @@
     LiteralType: SliceDeclType                                                      { $$ = $1; }
                 | FunctionType                                                      { $$ = $1; }
                 | ArrayDeclType                                                     { $$ = $1; }
-                | StructType                                                        { yyerror("structs are not supported yet"); }
+                | StructType                                                        { $$ = $1; }
                 | InterfaceType                                                     { $$ = $1; }
                 | '*' Type %prec POINTER                                            { $$ = $2; $$ -> isPointer = true; }
     ;
@@ -182,8 +180,8 @@
     ;
 
     FieldDeclMoreTwo: IdentifiersWithType SCs IdentifiersWithType                   { $$ = new std::list<IdentifiersWithType *>({$1, $3}); }
-                | FieldDeclMoreTwo SCs IdentifiersWithType                             { $$ = $1; $$ -> push_back($3); }
-                | FieldDeclMoreTwo SCs IDENTIFIER                                      { $$ = $1; $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3))); }
+                | FieldDeclMoreTwo SCs IdentifiersWithType                          { $$ = $1; $$ -> push_back($3); }
+                | FieldDeclMoreTwo SCs IDENTIFIER                                   { $$ = $1; $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3))); }
 
                 | IDENTIFIER SCs IdentifiersWithType                                { 
                                                                                         $$ = new std::list<IdentifiersWithType *>();
@@ -375,15 +373,11 @@
     Operand: FunctionLiteral                                                        { $$ = $1; }
                 | CompositeLiteral                                                  { $$ = $1; }
                 | IDENTIFIER                                                        { $$ = new IdentifierAsExpression($1); }
-    ;
-
-    OperandWithCompositeObj: Operand                                                { $$ = $1; }
-                | ObjectCompositeLit                                                { $$ = $1; }
                 | '(' Expression ')'                                                { $$ = $2; }
+                // | IDENTIFIER CompositeLiteralBody                                { $$ = new CompositeLiteral(new IdentifierAsType($1), *$2); }   // TODO solve conflict to reduce
+
     ;
 
-    ObjectCompositeLit: IDENTIFIER CompositeLiteralBody                             { yyerror("structs are not supported yet"); }
-    ;
 
     BasicLiteral: INT_LIT                                                           { $$ = new IntegerExpression($1);     }
 		        | FLOAT_LIT                                                         { $$ = new FloatExpression($1);       }
@@ -439,7 +433,11 @@
                 | Expression VARIADIC                                               { $$ = new UnaryExpression(UnaryExpressionEnum::Variadic, $1);              }
     ;
 
-    AccessExpression: OperandWithCompositeObj                                       { $$ = $1; }
+    ExpressionOptional: /* empty */                                                 { $$ = nullptr; }
+                | Expression                                                        { $$ = $1; }
+    ;
+
+    AccessExpression: Operand                                                       { $$ = $1; }
                 | AccessExpression '[' Expression ']'                               { $$ = new AccessExpression(AccessExpressionEnum::Indexing, $1, $3); }
                 | AccessExpression '.' AccessExpression                             { $$ = new AccessExpression(AccessExpressionEnum::FieldSelect, $1, $3); }
                 | AccessExpression '[' ':' ']'                                      { yyerror("array slices are not supported yet"); }
@@ -458,83 +456,6 @@
 		| ExpressionList ',' Expression                                             { $$ = $1; $$ -> push_back($3); }
     ;
 
-/* ---------------- Special Expressions For Using Composite Literal In Constructions --------------------- */
-
-    OperandWithWrapCompositeObj: Operand                                            { $$ = $1; }
-                | '(' ObjectCompositeLit ')'                                        { $$ = $2; }
-                | '(' ExprWithWrapCompositeObj ')'                                  { $$ = $2; }
-    ;
-
-    AccessExprWithWrapCompositeObj: OperandWithWrapCompositeObj                     { $$ = $1; }
-                | AccessExprWithWrapCompositeObj '[' ExprWithWrapCompositeObj ']'                               { $$ = new AccessExpression(AccessExpressionEnum::Indexing, $1, $3); }
-                | AccessExprWithWrapCompositeObj '.' AccessExprWithWrapCompositeObj                             { $$ = new AccessExpression(AccessExpressionEnum::FieldSelect, $1, $3); }
-                | AccessExprWithWrapCompositeObj '[' ':' ']'                                                    { yyerror("array slices are not supported yet"); }
-                | AccessExprWithWrapCompositeObj '[' ExprWithWrapCompositeObj ':' ']'                           { yyerror("array slices are not supported yet"); }
-                | AccessExprWithWrapCompositeObj '[' ':' ExprWithWrapCompositeObj ']'                           { yyerror("array slices are not supported yet"); }
-                | AccessExprWithWrapCompositeObj '[' ExprWithWrapCompositeObj ':' ExprWithWrapCompositeObj ']'  { yyerror("array slices are not supported yet"); }
-                | AccessExprWithWrapCompositeObj Arguments                                                      { $$ = new CallableExpression($1, *$2); }
-    ;
-
-    ExprWithWrapCompositeObj: AccessExprWithWrapCompositeObj                            { $$ = $1; }
-                | BasicLiteral                                                          { $$ = $1; }
-                | ExprWithWrapCompositeObj '+' ExprWithWrapCompositeObj                 { $$ = new BinaryExpression(BinaryExpressionEnum::Addition, $1, $3);        }
-                | ExprWithWrapCompositeObj '-' ExprWithWrapCompositeObj                 { $$ = new BinaryExpression(BinaryExpressionEnum::Subtraction, $1, $3);     }
-                | ExprWithWrapCompositeObj '*' ExprWithWrapCompositeObj                 { $$ = new BinaryExpression(BinaryExpressionEnum::Multiplication, $1, $3);  }
-                | ExprWithWrapCompositeObj '/' ExprWithWrapCompositeObj                 { $$ = new BinaryExpression(BinaryExpressionEnum::Division, $1, $3);        }
-                | ExprWithWrapCompositeObj '%' ExprWithWrapCompositeObj                 { $$ = new BinaryExpression(BinaryExpressionEnum::Mod, $1, $3);             }
-                | ExprWithWrapCompositeObj '<' ExprWithWrapCompositeObj                 { $$ = new BinaryExpression(BinaryExpressionEnum::Less, $1, $3);            }
-                | ExprWithWrapCompositeObj '>' ExprWithWrapCompositeObj                 { $$ = new BinaryExpression(BinaryExpressionEnum::Greater, $1, $3);         }
-                | ExprWithWrapCompositeObj EQUAL ExprWithWrapCompositeObj               { $$ = new BinaryExpression(BinaryExpressionEnum::Equal, $1, $3);           }
-                | ExprWithWrapCompositeObj NOT_EQUAL ExprWithWrapCompositeObj           { $$ = new BinaryExpression(BinaryExpressionEnum::NotEqual, $1, $3);        }
-                | ExprWithWrapCompositeObj LESS_OR_EQUAL ExprWithWrapCompositeObj       { $$ = new BinaryExpression(BinaryExpressionEnum::LessOrEqual, $1, $3);     }
-                | ExprWithWrapCompositeObj GREATER_OR_EQUAL ExprWithWrapCompositeObj    { $$ = new BinaryExpression(BinaryExpressionEnum::GreatOrEqual, $1, $3);    }
-                | ExprWithWrapCompositeObj AND ExprWithWrapCompositeObj                 { $$ = new BinaryExpression(BinaryExpressionEnum::And, $1, $3);             }
-                | ExprWithWrapCompositeObj OR ExprWithWrapCompositeObj                  { $$ = new BinaryExpression(BinaryExpressionEnum::Or, $1, $3);              }
-                | '+' ExprWithWrapCompositeObj %prec UNARY_PLUS                         { $$ = new UnaryExpression(UnaryExpressionEnum::UnaryPlus, $2);             }
-                | '-' ExprWithWrapCompositeObj %prec UNARY_MINUS                        { $$ = new UnaryExpression(UnaryExpressionEnum::UnaryMinus, $2);            }
-                | '!' ExprWithWrapCompositeObj                                          { $$ = new UnaryExpression(UnaryExpressionEnum::UnaryNot, $2);              }
-    ;
-
-    ExprWithWrapCompositeObjOptional: /* empty */                                   { $$ = nullptr; }
-                | ExprWithWrapCompositeObj                                          { $$ = $1; }
-    ;
-
-    SimpleStmtWithExprWrapCompositeObj: ExprWithWrapCompositeObj                    { $$ = new ExpressionStatement($1); }
-                | AssignmentWithWrapCompositeObj                                    { $$ = $1; }
-                | IncDecStmtWithWrapCompositeObj                                    { $$ = $1; }
-                | ShortVarDeclWithWrapCompositeObj                                  { $$ = $1; }
-    ;
-
-    SimpleStmtWithWrapCompositeObjOptional: /* empty */                             { $$ = nullptr; }
-                | SimpleStmtWithExprWrapCompositeObj                                { $$ = $1; }
-    ;
-
-    AssignmentWithWrapCompositeObj: ExprWithWrapCompositeObj PLUS_ASSIGNMENT ExprWithWrapCompositeObj       { $$ = new AssignmentStatement(AssignmentEnum::PlusAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));     }
-                | ExprWithWrapCompositeObj MINUS_ASSIGNMENT ExprWithWrapCompositeObj                        { $$ = new AssignmentStatement(AssignmentEnum::MinusAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));    }
-                | ExprWithWrapCompositeObj MUL_ASSIGNMENT ExprWithWrapCompositeObj                          { $$ = new AssignmentStatement(AssignmentEnum::MulAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));      }
-                | ExprWithWrapCompositeObj DIV_ASSIGNMENT ExprWithWrapCompositeObj                          { $$ = new AssignmentStatement(AssignmentEnum::DivAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));      }
-                | ExprWithWrapCompositeObj MOD_ASSIGNMENT ExprWithWrapCompositeObj                          { $$ = new AssignmentStatement(AssignmentEnum::ModAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));      }
-                | ExprWithWrapCompositeObjList '=' ExprWithWrapCompositeObjList                             { $$ = new AssignmentStatement(AssignmentEnum::SimpleAssign, *$1, *$3); }
-    ;
-
-    ShortVarDeclWithWrapCompositeObj: ExprWithWrapCompositeObjList SHORT_DECL_OP ExprWithWrapCompositeObjList       {
-                                                                                                                        IdentifiersList* temp = IdentifiersListFromExpressions(*$1);
-                                                                                                                        if (temp == nullptr) {
-                                                                                                                            yyerror("Lhs of short declaration must contains only identifiers");
-                                                                                                                        } else { 
-                                                                                                                            $$ = new ShortVarDeclarationStatement(*temp, *$3);
-                                                                                                                        } 
-                                                                                                                    }
-    ;
-
-    IncDecStmtWithWrapCompositeObj: ExprWithWrapCompositeObj INCREMENT              { $$ = new ExpressionStatement(new UnaryExpression(UnaryExpressionEnum::Increment, $1)); }
-                | ExprWithWrapCompositeObj DECREMENT                                { $$ = new ExpressionStatement(new UnaryExpression(UnaryExpressionEnum::Decrement, $1)); }
-    ;
-
-    ExprWithWrapCompositeObjList: ExprWithWrapCompositeObj                          { $$ = new ExpressionList({$1}); }
-        | ExprWithWrapCompositeObjList ',' ExprWithWrapCompositeObj                 { $$ = $1; $$ -> push_back($3); }
-    ;
-
 /* -------------------------------- Statements -------------------------------- */
 
     Assignment: Expression PLUS_ASSIGNMENT Expression                               { $$ = new AssignmentStatement(AssignmentEnum::PlusAssign, *(new ExpressionList({$1})), *(new ExpressionList({$3})));     }
@@ -547,8 +468,10 @@
 
     ShortVarDecl: ExpressionList SHORT_DECL_OP ExpressionList                       {
                                                                                         IdentifiersList* temp = IdentifiersListFromExpressions(*$1);
+
                                                                                         if (temp == nullptr) {
                                                                                             yyerror("Lhs of short declaration must contains only identifiers");
+
                                                                                         } else {
                                                                                             $$ = new ShortVarDeclarationStatement(*temp, *$3);
                                                                                         } 
@@ -567,15 +490,12 @@
                 | SwitchStmt                                                        { $$ = $1; }
     ;
 
-    // Increment / decrement statement
-    IncDecStmt: Expression INCREMENT                                                { $$ = new ExpressionStatement(new UnaryExpression(UnaryExpressionEnum::Increment, $1)); }
-                | Expression DECREMENT                                              { $$ = new ExpressionStatement(new UnaryExpression(UnaryExpressionEnum::Decrement, $1)); }
-    ;
 
     SimpleStmt: Expression                                                          { $$ = new ExpressionStatement($1); }
                 | Assignment                                                        { $$ = $1; }
-                | IncDecStmt                                                        { $$ = $1; }
                 | ShortVarDecl                                                      { $$ = $1; }
+                | Expression INCREMENT                                              { $$ = new ExpressionStatement(new UnaryExpression(UnaryExpressionEnum::Increment, $1)); }
+                | Expression DECREMENT                                              { $$ = new ExpressionStatement(new UnaryExpression(UnaryExpressionEnum::Decrement, $1)); }
     ;
 
     // Return statements
@@ -597,26 +517,26 @@
     ;
 
     // If statements
-    IfStmt: IF SimpleStmtWithExprWrapCompositeObj ';' ExprWithWrapCompositeObj Block ELSE IfStmt        { $$ = new IfStatement($2, $4, $5, $7); }
-                | IF ExprWithWrapCompositeObj Block ELSE IfStmt                                         { $$ = new IfStatement(nullptr, $2, $3, $5); }
-                | IF SimpleStmtWithExprWrapCompositeObj ';' ExprWithWrapCompositeObj Block ELSE Block   { $$ = new IfStatement($2, $4, $5, $7); }
-                | IF ExprWithWrapCompositeObj Block ELSE Block                                          { $$ = new IfStatement(nullptr, $2, $3, $5); }
-                | IF SimpleStmtWithExprWrapCompositeObj ';' ExprWithWrapCompositeObj Block              { $$ = new IfStatement($2, $4, $5, nullptr); }
-                | IF ExprWithWrapCompositeObj Block                                                     { $$ = new IfStatement(nullptr, $2, $3, nullptr); }
+    IfStmt: IF SimpleStmt ';' Expression Block ELSE IfStmt                          { $$ = new IfStatement($2, $4, $5, $7); }
+                | IF Expression Block ELSE IfStmt                                   { $$ = new IfStatement(nullptr, $2, $3, $5); }
+                | IF SimpleStmt ';' Expression Block ELSE Block                     { $$ = new IfStatement($2, $4, $5, $7); }
+                | IF Expression Block ELSE Block                                    { $$ = new IfStatement(nullptr, $2, $3, $5); }
+                | IF SimpleStmt ';' Expression Block                                { $$ = new IfStatement($2, $4, $5, nullptr); }
+                | IF Expression Block                                               { $$ = new IfStatement(nullptr, $2, $3, nullptr); }
     ;
 
     // For statement
-    ForStmt: FOR ExprWithWrapCompositeObj Block                                                                                                         { $$ = new WhileStatement($2, $3); }
-                | FOR SimpleStmtWithWrapCompositeObjOptional ';' ExprWithWrapCompositeObjOptional ';' SimpleStmtWithWrapCompositeObjOptional Block      { $$ = new ForStatement($2, $4, $6, $7); }
-                | FOR ExprWithWrapCompositeObjList '=' RANGE ExprWithWrapCompositeObj Block                                                             { $$ = new ForRangeStatement(*$2, $5, $6, false); }
-                | FOR ExprWithWrapCompositeObjList SHORT_DECL_OP RANGE ExprWithWrapCompositeObj Block                                                   { $$ = new ForRangeStatement(*$2, $5, $6, true); }
-                | FOR RANGE ExprWithWrapCompositeObj Block                                                                                              { $$ = new ForRangeStatement(*(new ExpressionList()), $3, $4, false); }
-                | FOR Block									                                                                                            { $$ = new WhileStatement(new BooleanExpression(true), $2); }
+    ForStmt: FOR Expression Block                                                   { $$ = new WhileStatement($2, $3); }
+                | FOR SimpleStmt ';' ExpressionOptional ';' SimpleStmt Block        { $$ = new ForStatement($2, $4, $6, $7); }
+                | FOR ExpressionList '=' RANGE Expression Block                     { $$ = new ForRangeStatement(*$2, $5, $6, false); }
+                | FOR ExpressionList SHORT_DECL_OP RANGE Expression Block           { $$ = new ForRangeStatement(*$2, $5, $6, true); }
+                | FOR RANGE Expression Block                                        { $$ = new ForRangeStatement(*(new ExpressionList()), $3, $4, false); }
+                | FOR Block                                                         { $$ = new WhileStatement(new BooleanExpression(true), $2); }
     ;
 
     // Switch statements
-    SwitchStmt: SWITCH SimpleStmtWithExprWrapCompositeObj ';' ExprWithWrapCompositeObjOptional '{' ExprCaseOrDefaultClauseListOrEmpty '}'               { $$ = new SwitchStatement($2, $4, *$6); }
-                | SWITCH ExprWithWrapCompositeObjOptional '{' ExprCaseOrDefaultClauseListOrEmpty '}'                                                    { $$ = new SwitchStatement(nullptr, $2, *$4); }
+    SwitchStmt: SWITCH SimpleStmt ';' ExpressionOptional '{' ExprCaseOrDefaultClauseListOrEmpty '}'     { $$ = new SwitchStatement($2, $4, *$6); }
+                | SWITCH ExpressionOptional '{' ExprCaseOrDefaultClauseListOrEmpty '}'                  { $$ = new SwitchStatement(nullptr, $2, *$4); }
     ;
 
     ExprCaseOrDefaultClause: CASE Expression ':' StatementMoreTwo  SCs              { $$ = new SwitchCaseClause($2, new BlockStatement(*$4)); }

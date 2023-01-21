@@ -9,20 +9,26 @@
 #include <filesystem>
 
 int main(int argc, char** argv) {
-    yydebug = 0;
+    yydebug = 0;    // set 1 to debug bison
 
     std::istringstream iStringStream;
+
     if (argc > 1) {
         iStringStream = StreamLinesFromFile(argv[1]);
-    }
 
-    if (argc <= 1 || !iStringStream.rdbuf()->in_avail()) {
-        std::cout << "file is empty or not found" << std::endl;
+        if (!iStringStream.rdbuf()->in_avail()) {
+            std::cout << "file is empty or not found" << std::endl;
+            return 1;
+        }
+
+    } else {
+        std::cout << "no go files listed" << std::endl;
         return 1;
     }
 
     lexer = new yyFlexLexer(iStringStream, std::cout);
     yyparse();
+
     auto semantic = Semantic::GetInstance(Root);
     bool isSematicOk = semantic->analyze();
     CreateDotFile(Root);

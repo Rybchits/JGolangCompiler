@@ -83,10 +83,7 @@ return          { yy_push_state(ENABLE_SEMICOLON); return yytokentype::RETURN;  
 <MULTILINE_COMMENT>[^\*\/]+     { currentComment += yytext;                             }
 <MULTILINE_COMMENT><<EOF>>      { PrintErrorAndExit("expected */ "); yy_pop_state();    }
 
-\/\/.* {
-    std::string tempStr = yytext;
-    PrintComment(tempStr.substr(2));
-}
+\/\/.*                          { std::string tempStr = yytext; }
 
 
 \"                                      { stringLiteral.clear(); yy_push_state(STRING_LITERAL); }
@@ -112,7 +109,7 @@ return          { yy_push_state(ENABLE_SEMICOLON); return yytokentype::RETURN;  
                                         }
 
 <ENABLE_SEMICOLON>[" "\t]+      { }
-<ENABLE_SEMICOLON>\/\/.*        { std::string tempStr = yytext; PrintComment(tempStr.substr(2)); }
+<ENABLE_SEMICOLON>\/\/.*        { std::string tempStr = yytext; }
 <ENABLE_SEMICOLON>"/*"          { currentComment.clear(); yy_push_state(MULTILINE_COMMENT); }
 <ENABLE_SEMICOLON><<EOF>>       { BEGIN(INITIAL); return ';'; }
 <ENABLE_SEMICOLON>\n+           { BEGIN(INITIAL); return ';'; }

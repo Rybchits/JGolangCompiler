@@ -1,15 +1,9 @@
-package functions
+package main
 
-func sum(a int, b int, c int) int {
-	return a + b + c
-}
-
-func divby10(num int) int {
-	res := num / 10
-	return res
+func len(slice []int) int {
+    return 1
 }
 
 func main() {
-
-	print(sum(1, 2, 3))
+	print(len([]int{1, 2, 3}))  // 1
 }
