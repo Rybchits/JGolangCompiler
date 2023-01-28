@@ -1,3 +1,5 @@
+#pragma once
+
 #include "../semantic.h"
 
 #include <stack>

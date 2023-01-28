@@ -55,18 +55,6 @@ public:
     static Constant CreateMethodRef(IdT natId, IdT classId);
 };
 
-struct JvmField
-{
-    IdT nameId;
-    IdT typeId;
-};
-
-struct JvmMethod
-{
-    IdT nameId;
-    IdT typeId;
-    MethodEntity method;
-};
 
 struct ConstantPool
 {

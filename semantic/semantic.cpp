@@ -1,9 +1,11 @@
 #include "semantic.h"
 #include "visitors/statements_visitor.h"
-#include "visitors/types_visitor.h"
 #include "visitors/expressions_visitor.h"
+#include "visitors/types_visitor.h"
 
 #include <iostream>
+
+Semantic::Semantic(PackageAST* package): root(package), typeVisitor(new TypesVisitor(this)) {}
 
 bool Semantic::analyze() {
     if (root == nullptr) {
@@ -11,14 +13,14 @@ bool Semantic::analyze() {
         return false;
     }
 
-    transformRoot();
+    transformStatements();
 
     if (!errors.empty()) {
         printErrors();
         return false;
     }
 
-    transformExpressions();
+    precalculateExpressions();
     analyzePackageScope();
 
     if (!errors.empty()) {
@@ -26,7 +28,7 @@ bool Semantic::analyze() {
         return false;
     }
     
-    createGlobalClass();
+    createPackageClass();
 
     if (!errors.empty()) {
         printErrors();
@@ -36,60 +38,106 @@ bool Semantic::analyze() {
     return true;
 }
 
-void Semantic::transformRoot() {
+void Semantic::transformStatements() {
     auto loopVisitor = new StatementsVisitor(this);
     loopVisitor->transform(root);
 }
 
-void Semantic::transformExpressions() {
+void Semantic::precalculateExpressions() {
     auto expressionsVisitor = new ExpressionsVisitor(this);
     expressionsVisitor->transform(root);
 }
 
-void Semantic::createGlobalClass() {
-    auto typeVisitor = new TypesVisitor(this);
-    packageClass = typeVisitor->createGlobalClass(packageFunctions, packageVariables);
-    typesExpressions = typeVisitor->getTypesExpressions();
+void Semantic::createPackageClass() {
+    packageClass = new ClassEntity();
+    auto idsConstants = std::vector<std::string>();
+
+    // Add package functions
+    for (auto function : packageFunctions) {
+        auto method =  new MethodEntity(function);
+
+        if (!packageClass->addMethod(function->identifier, method)) {
+            addError(function->identifier + "redclared in block");
+        }
+    }
+
+    // Add package variables
+    int indexBlankVariable = 0;
+    for (auto it = packageVariables.rbegin(); it != packageVariables.rend(); ++it) {
+        auto variable = *it;
+
+        auto expressionsIter = variable->values.begin();
+        for (auto identifier : variable->identifiersWithType->identifiers) {
+
+            ExpressionAST* expressionNode = nullptr;
+            if (expressionsIter != variable->values.end()) {
+                expressionNode = (*expressionsIter);
+                expressionsIter++;
+            }
+            
+            FieldEntity* field;
+
+            // Blank static variables can't be deleted. We need to make them unique and unused
+            if (identifier == "_") {
+                identifier = "$_" + std::to_string(indexBlankVariable);
+                indexBlankVariable++;
+                field = new FieldEntity(new TypeEntity(TypeEntity::Any), expressionNode);
+
+            } else {
+                field = new FieldEntity(new TypeEntity(variable->identifiersWithType->type), expressionNode);
+            }
+
+            if (variable->isConst)
+                idsConstants.push_back(identifier);
+
+            if (!packageClass->addField(identifier, field)) {
+                addError(identifier + "already redclared in package");
+            }
+        }
+    }
+
+    typeVisitor->analyzePackageClass(packageClass, idsConstants);
 }
 
 void Semantic::analyzePackageScope() {
     bool findMain = false;
 
-    // Collect all functions
     for (auto decl : root->topDeclarations) {
+
+        // add method package class
         if (auto functionDeclaration = dynamic_cast<FunctionDeclaration*>(decl)) {
             if (functionDeclaration->identifier == "main") {
-                if (!functionDeclaration->signature->idsAndTypesArgs.empty() 
-                        || !functionDeclaration->signature->idsAndTypesResults.empty()) {
 
-                            errors.push_back("Function main must have no arguments and no return values");
+                if (!functionDeclaration->signature->idsAndTypesArgs.empty() || !functionDeclaration->signature->idsAndTypesResults.empty()) {
+                    addError("Function main must have no arguments and no return values");
                 }
 
                 functionDeclaration->signature->idsAndTypesArgs.push_back(
                     new IdentifiersWithType(*(new IdentifiersList({"$args"})), new ArraySignature(new IdentifierAsType("string")))  
                 );
+                
                 findMain = true;
             }
 
             packageFunctions.push_back(functionDeclaration);
-            
+        
+        // add field package class
         } else if (auto variableDeclaration = dynamic_cast<VariableDeclaration*>(decl)) {
             packageVariables.push_back(variableDeclaration);
         }
     }
 
     if (!findMain) {
-        errors.push_back("Does not contain the 'main' function");
+        addError("Does not contain the 'main' function");
     }
 }
 
-Semantic* Semantic::instance = nullptr;
+TypesVisitor* Semantic::getTypesVisitor() {
+    return typeVisitor; 
+}
 
-Semantic *Semantic::GetInstance(PackageAST *package) {
-    if (instance == nullptr) {
-        instance = new Semantic(package);
-    }
-    return instance;
+void Semantic::addError(std::string message) {
+    errors.push_back(message);
 }
 
 void Semantic::printErrors() {
@@ -97,8 +145,6 @@ void Semantic::printErrors() {
         std::cout << "Error: " << err << std::endl;
     }
 }
-
-const std::string Semantic::GlobalClassName = "$GLOBAL";
 
 const std::vector<std::string> Semantic::BuiltInFunctions = {
     "print", 

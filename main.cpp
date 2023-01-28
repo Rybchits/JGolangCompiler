@@ -29,13 +29,15 @@ int main(int argc, char** argv) {
     lexer = new yyFlexLexer(iStringStream, std::cout);
     yyparse();
 
-    auto semantic = Semantic::GetInstance(Root);
+    auto semantic = new Semantic(Root);
     bool isSematicOk = semantic->analyze();
+
     CreateDotFile(Root);
     
     if (isSematicOk) {
+        // Only package class
         std::unordered_map<std::string, ClassEntity*> classes = {{ "$" + Root->packageName, semantic->packageClass}};
-        Generator(classes, semantic->typesExpressions).generate();
+        Generator(classes, semantic->getTypesVisitor()->getTypesExpressions()).generate();
     }
 
     return 0;

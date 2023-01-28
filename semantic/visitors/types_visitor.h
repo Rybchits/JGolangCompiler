@@ -1,9 +1,12 @@
-#include "../semantic.h"
+#pragma once
+
 #include "../../context.h"
+#include "../semantic.h"
 
 #include <vector>
 
 class TypesVisitor;
+class Semantic;
 
 class ConstExpressionVisitor : private Visitor {
 private:
@@ -27,6 +30,8 @@ private:
     Semantic* semantic;
     Context<VariableEntity*> scopesDeclarations;
     std::unordered_map<size_t, TypeEntity*> typesExpressions;
+
+    ConstExpressionVisitor constCheckVisitor = ConstExpressionVisitor(this);
 
     MethodEntity* currentMethodEntity;
     int numberLocalVariables = 0;
@@ -72,6 +77,6 @@ private:
 
 public:
     explicit TypesVisitor(Semantic* semantic): semantic(semantic) {};
-    std::unordered_map<size_t, TypeEntity*> getTypesExpressions() const;
-    ClassEntity* createGlobalClass(std::list<FunctionDeclaration*>, std::list<VariableDeclaration*>& globalVariables);
+    std::unordered_map<size_t, TypeEntity*>& getTypesExpressions();
+    void analyzePackageClass(ClassEntity* classEntity, std::vector<std::string>& idsConstPackageVariables);
 };

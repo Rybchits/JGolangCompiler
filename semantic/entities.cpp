@@ -136,6 +136,9 @@ TypeEntity::TypeEntity(TypeAST* node) {
     } else if (auto typeAsId = dynamic_cast<IdentifierAsType*>(node)) {
         this->type = builtInTypeFromString(typeAsId->identifier);
         this->value = typeAsId->identifier;
+        
+    } else {
+        this->type = TypeEntityEnum::Invalid;
     }
 };
 

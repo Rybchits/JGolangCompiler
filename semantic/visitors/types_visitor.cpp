@@ -1,55 +1,44 @@
 #include "./types_visitor.h"
+
 #include <unordered_map>
 #include <map>
 #include <iostream>
 
-ClassEntity* TypesVisitor::createGlobalClass(std::list<FunctionDeclaration*> functions, std::list<VariableDeclaration*>& variables) {
+void TypesVisitor::analyzePackageClass(ClassEntity* packageClass, std::vector<std::string>& idsConstants) {
     
-    auto packageClass = new ClassEntity();
-
-    // Add package functions
-    for (auto function : functions) {
-        auto method =  new MethodEntity(function);
-        if (!packageClass->addMethod(function->identifier, method)) {
-            semantic->errors.push_back(function->identifier + "redclared in block");
-        } else {
-            scopesDeclarations.add(function->identifier, new VariableEntity(method->toTypeEntity()));
-        }
+    // Added signatures functions in scope
+    for (auto & [methodName, methodSignature] : packageClass->getMethods()) {
+        scopesDeclarations.add(methodName, new VariableEntity(methodSignature->toTypeEntity()));
     }
 
-    // Add package variables
-    int indexBlankVariable = 0;
-    for (auto variableNode : variables) {
-        variableNode->acceptVisitor(this);
+    // Analize package variables
+    // TODO Variables are initialized in order of declarations. Differs from source language
+    for (auto & [variableName, variableEntity] : packageClass->getFields()) {
         
-        auto expressionsIter = variableNode->values.begin();
-        for (auto identifier : variableNode->identifiersWithType->identifiers) {
-            
-            ExpressionAST* expressionNode = nullptr;
-            if (expressionsIter != variableNode->values.end()) {
-                expressionNode = (*expressionsIter);
-                expressionsIter++;
-            }
-            
-            FieldEntity* field;
+        if (variableEntity->declaration != nullptr) {
+            variableEntity->declaration->acceptVisitor(this);
+            auto typeExpression = typesExpressions[variableEntity->declaration->nodeId];
 
-            // Blank static variables can't be deleted. We need to make them unique and unused
-            if (identifier == "_") {
-                identifier = "$_" + std::to_string(indexBlankVariable);
-                indexBlankVariable++;
-                field = new FieldEntity(new TypeEntity(TypeEntity::Any), expressionNode);
+            bool isConstVariable = std::find(idsConstants.begin(), idsConstants.end(), variableName) != idsConstants.end();
+
+            if (variableEntity->type->type != TypeEntity::Any 
+                && variableEntity->type->type != TypeEntity::Invalid
+                && !typeExpression->equal(variableEntity->type)
+            ) {
+                semantic->addError("Cannot initialize " + variableName);
+                
+            } else if (isConstVariable && !constCheckVisitor.isConstExpression(variableEntity->declaration)) {
+                semantic->addError("Expression is not constant");
+
             } else {
-                field = new FieldEntity(scopesDeclarations.find(identifier)->type, expressionNode);
-            }
-            
-            if (!packageClass->addField(identifier, field)) {
-                semantic->errors.push_back(identifier + " redclared in block");
+                scopesDeclarations.add(variableName, new VariableEntity(typeExpression, isConstVariable));
+                variableEntity->type = typeExpression;
             }
         }
     }
 
     // Analize methods
-    for (auto & [identifier, methodSignature] : packageClass->getMethods()) {
+    for (auto & [methodName, methodSignature] : packageClass->getMethods()) {
         currentMethodEntity = methodSignature;
 
         scopesDeclarations.pushScope();
@@ -67,8 +56,6 @@ ClassEntity* TypesVisitor::createGlobalClass(std::list<FunctionDeclaration*> fun
         methodSignature->setNumberLocalVariables(numberLocalVariables);
         numberLocalVariables = 0;
     }
-
-    return packageClass;
 }
 
 
@@ -83,7 +70,7 @@ void TypesVisitor::onFinishVisit(BlockStatement* node) {
     for (auto & [id, var] : scopesDeclarations.getLastScope()) {
 
         if (var->numberUsage == 0 && !var->isArgument && !var->isConst) {
-            semantic->errors.push_back("Unused variable " + id);
+            semantic->addError("Unused variable " + id);
         }
     }
 
@@ -93,31 +80,29 @@ void TypesVisitor::onFinishVisit(BlockStatement* node) {
 void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
 
     if (node->identifiersWithType->identifiers.size() != node->values.size() && node->values.size() != 0) {
-        semantic->errors.push_back("Assignment count mismatch");
+        semantic->addError("Assignment count mismatch");
 
     } else {
-        auto constCheckVisitor = ConstExpressionVisitor(this);
-
         auto currentValue = node->values.begin();
         for (auto id : node->identifiersWithType->identifiers) {
             if (id != "_") numberLocalVariables++;
 
             if (scopesDeclarations.findAtLastScope(id) != nullptr) {
-                semantic->errors.push_back(id + " redeclared in this block");
+                semantic->addError(id + " redeclared in this block");
                 continue;
             }
 
             if (TypeEntity::IsBuiltInType(id)) {
-                semantic->errors.push_back("Variable " + id + " collides with the 'builtin' type");
+                semantic->addError("Variable " + id + " collides with the 'builtin' type");
                 continue;
             }
 
             // Const checking
             if (node->isConst && typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::Array) {
-                semantic->errors.push_back("Go does not support constant arrays, maps or slices");
+                semantic->addError("Go does not support constant arrays, maps or slices");
 
             } else if (node->isConst && !constCheckVisitor.isConstExpression(*currentValue)) {
-                semantic->errors.push_back("Cannot assignment not const expression for " + id);
+                semantic->addError("Cannot assignment not const expression for " + id);
             }
             
             if (node->identifiersWithType->type != nullptr) {
@@ -130,7 +115,7 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
                         scopesDeclarations.add(id, new VariableEntity(generalType, node->isConst));
 
                     } else {
-                        semantic->errors.push_back("Assignment variable " + id + " must have equals types");
+                        semantic->addError("Assignment variable " + id + " must have equals types");
                     }
                 } else {
                     scopesDeclarations.add(id, new VariableEntity(generalType, node->isConst));
@@ -156,7 +141,7 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
 void TypesVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
     
     if (node->identifiers.size() != node->values.size() && node->values.size() != 0) {
-        semantic->errors.push_back("Short variable declaration: assignment count mismatch");
+        semantic->addError("Short variable declaration: assignment count mismatch");
 
     } else {
         auto currentValue = node->values.begin();
@@ -165,7 +150,7 @@ void TypesVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
             if (id != "_") numberLocalVariables++;
 
             if (TypeEntity::IsBuiltInType(id)) {
-                semantic->errors.push_back("Variable " + id + " collides with the 'builtin' type");
+                semantic->addError("Variable " + id + " collides with the 'builtin' type");
             }
 
             if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedFloat) {
@@ -207,7 +192,7 @@ void TypesVisitor::onFinishVisit(IdentifierAsExpression* node) {
         errorMessage = "Cannot use _ as value";
     }
 
-    semantic->errors.push_back(errorMessage);
+    semantic->addError(errorMessage);
     typesExpressions[node->nodeId] = new TypeEntity();
 }
 
@@ -248,7 +233,7 @@ void TypesVisitor::onFinishVisit(UnaryExpression* node) {
             typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
         } else {
             typesExpressions[node->nodeId] = new TypeEntity();
-            semantic->errors.push_back(node->name() + " must have boolean expression");
+            semantic->addError(node->name() + " must have boolean expression");
         }
 
     } else if (node->type == UnaryExpression::Variadic) {
@@ -256,7 +241,7 @@ void TypesVisitor::onFinishVisit(UnaryExpression* node) {
             typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
         } else {
             typesExpressions[node->nodeId] = new TypeEntity();
-            semantic->errors.push_back(node->name() + " must have array expression");
+            semantic->addError(node->name() + " must have array expression");
         }
 
     } else {
@@ -264,7 +249,7 @@ void TypesVisitor::onFinishVisit(UnaryExpression* node) {
             typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
         } else {
             typesExpressions[node->nodeId] = new TypeEntity();
-            semantic->errors.push_back(node->name() + " must have numeric expression");
+            semantic->addError(node->name() + " must have numeric expression");
         }
     }
 }
@@ -298,7 +283,7 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
 
         } else {
             typesExpressions[node->nodeId] = new TypeEntity();
-            semantic->errors.push_back(node->name() + " must have same numeric types expressions");
+            semantic->addError(node->name() + " must have same numeric types expressions");
         }
 
     } else if (node->type == BinaryExpression::Or || node->type == BinaryExpression::And) {
@@ -306,7 +291,7 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
             typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
         } else {
             typesExpressions[node->nodeId] = new TypeEntity();
-            semantic->errors.push_back(node->name() + " must have boolean expressions");
+            semantic->addError(node->name() + " must have boolean expressions");
         }
     } else {
         if (leftExprType->equal(rightExprType) && (leftExprType->isFloat()
@@ -319,7 +304,7 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
 
         } else {
             typesExpressions[node->nodeId] = new TypeEntity();
-            semantic->errors.push_back(node->name() + " must have equal types of expressions. Comparison of booleans, arrays and functions are'nt supported");
+            semantic->addError(node->name() + " must have equal types of expressions. Comparison of booleans, arrays and functions are'nt supported");
         }
     }
 }
@@ -336,7 +321,7 @@ void TypesVisitor::onFinishVisit(CallableExpression* node) {
         auto signature = std::get<FunctionSignatureEntity*>(baseType->value);
 
         if (signature->argsTypes.size() != node->arguments.size()) {
-            semantic->errors.push_back("Invalid number of arguments");
+            semantic->addError("Invalid number of arguments");
             typesExpressions[node->nodeId] = new TypeEntity();
             return;
         }
@@ -345,7 +330,7 @@ void TypesVisitor::onFinishVisit(CallableExpression* node) {
         for (auto argType : signature->argsTypes) {
             if (!argType->equal(typesExpressions[(*argExprType)->nodeId])) {
                 typesExpressions[node->nodeId] = new TypeEntity();
-                semantic->errors.push_back("Cannot use expression index " + std::to_string(index) + " in argument");
+                semantic->addError("Cannot use expression index " + std::to_string(index) + " in argument");
                 return;
 
             } else {
@@ -367,7 +352,7 @@ void TypesVisitor::onFinishVisit(CallableExpression* node) {
         return ;
     }
 
-    semantic->errors.push_back("Cannot call non-function");
+    semantic->addError("Cannot call non-function");
     typesExpressions[node->nodeId] = new TypeEntity();
 }
 
@@ -377,10 +362,10 @@ void TypesVisitor::onFinishVisit(AccessExpression* node) {
     {
     case AccessExpression::Indexing:
         if (typesExpressions[node->base->nodeId]->type != TypeEntity::Array) {
-            semantic->errors.push_back("Base for indexing must be array");
+            semantic->addError("Base for indexing must be array");
 
         } else if (!typesExpressions[node->accessor->nodeId]->isInteger()) {
-            semantic->errors.push_back("Index must be integer value");
+            semantic->addError("Index must be integer value");
 
         } else {
             typesExpressions[node->nodeId] = std::get<ArraySignatureEntity*>(typesExpressions[node->base->nodeId]->value)->elementType;
@@ -419,7 +404,7 @@ void TypesVisitor::onFinishVisit(CompositeLiteral* node) {
     if (auto arrayType = dynamic_cast<ArraySignature*>(node->type)) {
 
         if (arrayType->dimensions < node->elements.size()) {
-            semantic->errors.push_back("Array has more elements than declarated");
+            semantic->addError("Array has more elements than declarated");
             typesExpressions[node->nodeId] = new TypeEntity();
             return;
         }
@@ -457,7 +442,7 @@ void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
             typesExpressions[node->nodeId] = declaratedElementType;
 
         } else {
-            semantic->errors.push_back("Expression at " + std::to_string(indexCurrentAxisArray) + " axis has invalid type");
+            semantic->addError("Expression at " + std::to_string(indexCurrentAxisArray) + " axis has invalid type");
             typesExpressions[node->nodeId] = new TypeEntity();
         }
 
@@ -466,7 +451,7 @@ void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
         if (auto declaratedTypeAxis = std::get<ArraySignatureEntity*>(declaratedElementType->value)) {
 
             if (declaratedTypeAxis->dims < std::get<std::list<ElementCompositeLiteral*>>(node->value).size() ) {
-                semantic->errors.push_back("Array at " + std::to_string(indexCurrentAxisArray) + " axis has many values");
+                semantic->addError("Array at " + std::to_string(indexCurrentAxisArray) + " axis has many values");
                 typesExpressions[node->nodeId] = new TypeEntity();
 
             } else {
@@ -474,7 +459,7 @@ void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
             }
 
         } else {
-            semantic->errors.push_back("Expression at " + std::to_string(indexCurrentAxisArray) + " axis has invalid type");
+            semantic->addError("Expression at " + std::to_string(indexCurrentAxisArray) + " axis has invalid type");
             typesExpressions[node->nodeId] = new TypeEntity();
         }
     }
@@ -492,18 +477,18 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
             VariableEntity* variable = scopesDeclarations.find(idVariable->identifier);
 
             if (variable != nullptr && variable->isConst) {
-                semantic->errors.push_back("Cannot assign to const " + idVariable->identifier);
+                semantic->addError("Cannot assign to const " + idVariable->identifier);
             }
             
         } else if (dynamic_cast<AccessExpression*>(var) == nullptr) {
-            semantic->errors.push_back("Cannot assign to " + var->name());
+            semantic->addError("Cannot assign to " + var->name());
         }
     }
 
     if (node->type == AssignmentStatement::SimpleAssign) {
 
         if (node->lhs.size() != node->rhs.size()) {
-            semantic->errors.push_back(
+            semantic->addError(
                 "Assignment count mismatch " + std::to_string(node->lhs.size()) + " and " + std::to_string(node->rhs.size()));
 
         } else {
@@ -519,7 +504,7 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
                 if ((*indexIterator) == nullptr) {
 
                     if (!typesExpressions[(*idIterator)->nodeId]->equal(typesExpressions[(*valueIterator)->nodeId])) {
-                        semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented for assignment"));
+                        semantic->addError("Value by index " + std::to_string(index) + std::string(" cannot be represented for assignment"));
 
                     } else {
                         typesExpressions[(*valueIterator)->nodeId] = 
@@ -534,16 +519,16 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
                         TypeEntity* typeElement = std::get<ArraySignatureEntity*>(typesExpressions[(*idIterator)->nodeId]->value)->elementType;
 
                         if (!typeElement->equal(typesExpressions[(*valueIterator)->nodeId])) {
-                            semantic->errors.push_back("Value by index " + std::to_string(index) + std::string(" cannot be represented for assignment"));
+                            semantic->addError("Value by index " + std::to_string(index) + std::string(" cannot be represented for assignment"));
 
                         } else if (!typesExpressions[(*indexIterator)->nodeId]->isInteger()) {
-                            semantic->errors.push_back("Index must be integer value");
+                            semantic->addError("Index must be integer value");
 
                         } else {
                             typesExpressions[(*valueIterator)->nodeId] = typesExpressions[(*valueIterator)->nodeId]->determinePriorityType(typeElement);
                         }
                     } else {
-                        semantic->errors.push_back("Cannot get value by index. Not array");
+                        semantic->addError("Cannot get value by index. Not array");
                     }
                 }
 
@@ -559,15 +544,15 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
 void TypesVisitor::onFinishVisit(ReturnStatement* node) {
 
     if (node->returnValues.size() > 1) {
-        semantic->errors.push_back("Return cannot take more than one value");
+        semantic->addError("Return cannot take more than one value");
 
     } else if (currentMethodEntity->getReturnType()->type != TypeEntity::Void && node->returnValues.empty()) {
-        semantic->errors.push_back("Missing return value");
+        semantic->addError("Missing return value");
     }
 
     for (auto value : node->returnValues) {
         if (!currentMethodEntity->getReturnType()->equal(typesExpressions[value->nodeId])) {
-            semantic->errors.push_back("Cannot use this value for return");
+            semantic->addError("Cannot use this value for return");
         }
     }
 }
@@ -588,18 +573,18 @@ void TypesVisitor::onStartVisit(ExpressionStatement* node) {
         }
     }
     
-    semantic->errors.push_back(node->expression->name() + " expression not available for statement");
+    semantic->addError(node->expression->name() + " expression not available for statement");
 }
 
 void TypesVisitor::onFinishVisit(WhileStatement* node) {
     if (typesExpressions[node->conditionExpression->nodeId]->type != TypeEntity::Boolean) {
-        semantic->errors.push_back("The non-bool value used as a condition in loop");
+        semantic->addError("The non-bool value used as a condition in loop");
     }
 }
 
 void TypesVisitor::onFinishVisit(IfStatement* node) {
     if (typesExpressions[node->condition->nodeId]->type != TypeEntity::Boolean) {
-        semantic->errors.push_back("The non-bool value used as a condition in if statement");
+        semantic->addError("The non-bool value used as a condition in if statement");
     }
 }
 
@@ -616,7 +601,7 @@ void TypesVisitor::onFinishVisit(SwitchStatement* node) {
                 typesExpressions[caseClause->expressionCase->nodeId] = typeSwitchExpression;
                 
             } else {
-                semantic->errors.push_back("The type of expression in case " + std::to_string(index) + " statement should be the same as in switch");
+                semantic->addError("The type of expression in case " + std::to_string(index) + " statement should be the same as in switch");
             }
         }
 
@@ -624,7 +609,7 @@ void TypesVisitor::onFinishVisit(SwitchStatement* node) {
     }
 }
 
-std::unordered_map<size_t, TypeEntity*> TypesVisitor::getTypesExpressions() const {
+std::unordered_map<size_t, TypeEntity*>& TypesVisitor::getTypesExpressions() {
     return this->typesExpressions;
 }
 
@@ -653,4 +638,129 @@ void ConstExpressionVisitor::onFinishVisit(AccessExpression* node) {
 
 void ConstExpressionVisitor::onFinishVisit(CompositeLiteral* node) {
     constValid &= false;
+}
+
+bool TypesVisitor::definePrintsFunctions(CallableExpression* function) {
+    std::vector<TypeEntity::TypeEntityEnum> printableTypes = {
+            TypeEntity::Int,
+            TypeEntity::UntypedInt,
+            TypeEntity::Float,
+            TypeEntity::UntypedFloat,
+            TypeEntity::Boolean,
+            TypeEntity::String,
+            TypeEntity::Array,
+        };
+
+    if (function->arguments.size() == 1) {
+        auto typeArgument = typesExpressions[function->arguments.front()->nodeId];
+
+        auto equal = std::find_if(printableTypes.begin(), printableTypes.end(), 
+                        [typeArgument](TypeEntity::TypeEntityEnum type){ return type == typeArgument->type; });
+
+        if (equal != printableTypes.end()) {
+            typesExpressions[function->nodeId] = new TypeEntity(TypeEntity::Void);
+            return true;
+
+        } else {
+            semantic->addError("The invalid print/println function argument");
+        }
+
+    } else {
+        semantic->addError("The print/println functions accept only one argument");
+    }
+
+    return false;
+}
+
+bool TypesVisitor::defineLenFunction(CallableExpression* function) {
+    std::vector<TypeEntity::TypeEntityEnum> lenableTypes = {
+        TypeEntity::String,
+        TypeEntity::Array
+    };
+
+    if (function->arguments.size() == 1) {
+        auto typeArgument = typesExpressions[function->arguments.front()->nodeId];
+
+        auto equal = std::find_if(lenableTypes.begin(), lenableTypes.end(), 
+                        [typeArgument](TypeEntity::TypeEntityEnum type){ return type == typeArgument->type; });
+
+        if (equal != lenableTypes.end()) {
+            typesExpressions[function->nodeId] = new TypeEntity(TypeEntity::Int);
+
+            return true;
+
+        } else {
+            semantic->addError("The invalid len function argument");
+        }
+
+    } else {
+        semantic->addError("The len function accept only one argument");
+    }
+
+    return false;
+}
+
+bool TypesVisitor::defineAppendFunction(CallableExpression* function) {
+    if (function->arguments.size() == 2) {
+        auto arrayArgType = typesExpressions[function->arguments.front()->nodeId];
+        auto newElementArgType = typesExpressions[(*(++function->arguments.begin()))->nodeId];
+
+        if (arrayArgType->type == TypeEntity::Array && std::get<ArraySignatureEntity*>(arrayArgType->value)->elementType->equal(newElementArgType)) {
+
+            typesExpressions[function->nodeId] = arrayArgType;
+
+            return true;
+
+        } else {
+            semantic->addError("The invalid append function arguments");
+        }
+
+    } else {
+        semantic->addError("The append function accepts two arguments");
+    }
+
+    return false;
+}
+
+bool TypesVisitor::defineReadFunction(CallableExpression* function, TypeEntity::TypeEntityEnum type) {
+    if (function->arguments.size() == 0) {
+        typesExpressions[function->nodeId] = new TypeEntity(type);
+        return true;
+    }
+    
+    semantic->addError("The readable functions not accepts arguments");
+    return false;
+}
+
+bool TypesVisitor::defineTypeBuiltInFunction(CallableExpression* function) {
+    
+    if (auto idFunctionBase = dynamic_cast<IdentifierAsExpression*>(function->base)) {
+
+        if (idFunctionBase->identifier == "len") {
+            return defineLenFunction(function);
+
+        } else if (idFunctionBase->identifier == "print") {
+            return definePrintsFunctions(function);
+
+        } else if (idFunctionBase->identifier == "println") {
+            return definePrintsFunctions(function);
+
+        } else if (idFunctionBase->identifier == "readInt" && function->arguments.empty()) {
+            return defineReadFunction(function, TypeEntity::Int);
+
+        } else if (idFunctionBase->identifier == "readFloat" && function->arguments.empty()) {
+            return defineReadFunction(function, TypeEntity::Float);
+
+        } else if (idFunctionBase->identifier == "readString" && function->arguments.empty()) {
+            return defineReadFunction(function, TypeEntity::String);
+            
+        } else if (idFunctionBase->identifier == "readBool" && function->arguments.empty()) {
+            return defineReadFunction(function, TypeEntity::Boolean);
+            
+        } else if (idFunctionBase->identifier == "append") {
+            return defineAppendFunction(function);
+        }
+    }
+
+    return false;
 }

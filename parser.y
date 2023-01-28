@@ -33,7 +33,6 @@
     ElementCompositeLiteral *elementCompositLiteral;
     SwitchCaseClause *switchCaseClause;
     FunctionSignature *functionSignature;
-    ShortVarDeclarationStatement *shortDeclaration;
     
     DeclarationList *declarationList;
     FunctionList *functionList;
@@ -64,8 +63,7 @@
 %type <varDecl> VariableSpec ConstSpec
 %type <typedIdentifiers> IdentifiersWithType VariadicNamedArgument
 %type <declarationNode> FunctionDecl MethodDecl TypeDef
-%type <shortDeclaration> ShortVarDecl
-%type <statementNode> Statement SimpleStmt Assignment ReturnStmt IfStmt ForStmt SwitchStmt
+%type <statementNode> Statement SimpleStmt Assignment ReturnStmt IfStmt ForStmt SwitchStmt ShortVarDecl
 %type <typeNode> Type TypeOnly LiteralType StructType SliceDeclType ArrayDeclType FunctionType VariadicType InterfaceType
 %type <expressionNode> Expression ExpressionOptional Operand BasicLiteral CompositeLiteral FunctionLiteral AccessExpression
 
@@ -115,7 +113,7 @@
 
 %%
     // The first statement in a Go source file must be package name
-    Root: PACKAGE IDENTIFIER SCs TopLevelDeclListOrEmpty                           { Root = new PackageAST($2, *$4); }
+    Root: PACKAGE IDENTIFIER SCs TopLevelDeclListOrEmpty                            { Root = new PackageAST($2, *$4); }
     ;
 
     TopLevelDeclListOrEmpty: TopLevelDeclList                                       { $$ = $1; }
@@ -165,13 +163,11 @@
                 | STRUCT '{' FieldDeclMoreTwo SCs '}'                               { $$ = new StructSignature(*$3); }
                 | STRUCT '{' IdentifiersWithType '}'                                { $$ = new StructSignature(*(new std::list<IdentifiersWithType *>({$3}))); }
                 | STRUCT '{' IdentifiersWithType SCs '}'                            { $$ = new StructSignature(*(new std::list<IdentifiersWithType *>({$3}))); }
-
                 | STRUCT '{' IDENTIFIER '}'                                         {
                                                                                         auto typedIds = new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3));
                                                                                         auto fields = new std::list<IdentifiersWithType *>({typedIds});
                                                                                         $$ = new StructSignature(*fields); 
                                                                                     }
-
                 | STRUCT '{' IDENTIFIER SCs '}'                                     {
                                                                                         auto typedIds = new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3));
                                                                                         auto fields = new std::list<IdentifiersWithType *>({typedIds});
@@ -182,19 +178,16 @@
     FieldDeclMoreTwo: IdentifiersWithType SCs IdentifiersWithType                   { $$ = new std::list<IdentifiersWithType *>({$1, $3}); }
                 | FieldDeclMoreTwo SCs IdentifiersWithType                          { $$ = $1; $$ -> push_back($3); }
                 | FieldDeclMoreTwo SCs IDENTIFIER                                   { $$ = $1; $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3))); }
-
                 | IDENTIFIER SCs IdentifiersWithType                                { 
                                                                                         $$ = new std::list<IdentifiersWithType *>();
                                                                                         $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($1)));
                                                                                         $$ -> push_back($3);
                                                                                     }
-
                 | IdentifiersWithType SCs IDENTIFIER                                {
                                                                                         $$ = new std::list<IdentifiersWithType *>();
                                                                                         $$ -> push_back($1); 
                                                                                         $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3)));
                                                                                     }
-
                 | IDENTIFIER SCs IDENTIFIER                                         {
                                                                                         $$ = new std::list<IdentifiersWithType *>();
                                                                                         $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($1)));
@@ -239,12 +232,10 @@
                 | '(' IdentifiersList ')'                                           { yyerror("Many returns are not supported yet"); }
                 | '(' TypesWithIdentifiersList ',' ')'                              { yyerror("Many returns are not supported yet"); }
                 | '(' IdentifiersList ',' ')'                                       { yyerror("Many returns are not supported yet"); }
-
                 | LiteralType                                                       { 
                                                                                         $$ = new std::list<IdentifiersWithType *>();
                                                                                         $$ -> push_back(new IdentifiersWithType( *(new IdentifiersList({"_"})), $1));
                                                                                     }
-
                 | IDENTIFIER                                                        { 
                                                                                         $$ = new std::list<IdentifiersWithType *>(); 
                                                                                         $$ -> push_back(new IdentifiersWithType( *(new IdentifiersList({"_"})), new IdentifierAsType($1)));
@@ -260,23 +251,19 @@
                 | '(' IdentifiersList ')'                                           { $$ = AttachIdentifiersToListTypes( *ListIdentifiersToListTypes(*$2) ); }
                 | '(' TypesWithIdentifiersList ',' ')'                              { $$ = AttachIdentifiersToListTypes(*$2); }
                 | '(' IdentifiersList ',' ')'                                       { $$ = AttachIdentifiersToListTypes( *ListIdentifiersToListTypes(*$2) ); }
-
                 | '(' TypesWithIdentifiersList ',' VariadicType ')'                 { 
                                                                                         $2 -> push_back($4);
                                                                                         $$ = AttachIdentifiersToListTypes(*$2);
                                                                                     }
-
                 | '(' IdentifiersList ',' VariadicType ')'                          {
                                                                                         TypeList* temp = ListIdentifiersToListTypes(*$2);
                                                                                         temp -> push_back($4);
                                                                                         $$ = AttachIdentifiersToListTypes(*temp);
                                                                                     }
-
                 | '(' TypesWithIdentifiersList ',' VariadicType ',' ')'             { 
                                                                                         $2 -> push_back($4);
                                                                                         $$ = AttachIdentifiersToListTypes(*$2);
                                                                                     }
-
                 | '(' IdentifiersList ',' VariadicType ',' ')'                      { 
                                                                                         TypeList* temp = ListIdentifiersToListTypes(*$2);
                                                                                         temp -> push_back($4);
@@ -341,13 +328,11 @@
                                                                                         type->isPointer = true;
                                                                                         $$ = new MethodDeclaration($7, $3, type, $8, $9); 
                                                                                     }
-
                 | FUNC '(' IDENTIFIER '*' IDENTIFIER ')' IDENTIFIER Signature      {
                                                                                         IdentifierAsType* type = new IdentifierAsType($5);
                                                                                         type->isPointer = true;
                                                                                         $$ = new MethodDeclaration($7, $3, new IdentifierAsType($5), $8, nullptr); 
                                                                                     }
-
                 | FUNC '(' IDENTIFIER IDENTIFIER ')' IDENTIFIER Signature Block    { $$ = new MethodDeclaration($6, $3, new IdentifierAsType($4), $7, $8); }
                 | FUNC '(' IDENTIFIER IDENTIFIER ')' IDENTIFIER Signature          { $$ = new MethodDeclaration($6, $3, new IdentifierAsType($4), $7, nullptr); }
     ;
@@ -379,8 +364,8 @@
 
 
     BasicLiteral: INT_LIT                                                           { $$ = new IntegerExpression($1);       }
-		| RUNE_LIT                                                          { $$ = new IntegerExpression($1);       }
-		| FLOAT_LIT                                                         { $$ = new FloatExpression($1);         }
+		        | RUNE_LIT                                                          { $$ = new IntegerExpression($1);       }
+		        | FLOAT_LIT                                                         { $$ = new FloatExpression($1);         }
                 | STRING_LIT                                                        { $$ = new StringExpression($1);        }
                 | FALSE                                                             { $$ = new BooleanExpression(false);    }
                 | TRUE                                                              { $$ = new BooleanExpression(true);     }

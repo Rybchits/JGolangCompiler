@@ -105,7 +105,7 @@ StatementList StatementsVisitor::transformKeywordStatements(StatementList body) 
             {
                 case KeywordStatement::Continue:
                     if (nextIterationsLoops.empty()) {
-                        semantic->errors.push_back("Continue keyword out of loop");
+                        semantic->addError("Continue keyword out of loop");
                         
                     } else if (nextIterationsLoops.top() != nullptr) {
                         newBody.push_back(nextIterationsLoops.top()->clone());
@@ -114,12 +114,12 @@ StatementList StatementsVisitor::transformKeywordStatements(StatementList body) 
 
                 case KeywordStatement::Break:
                     if (nextIterationsLoops.empty() && !insideSwitchCaseClause) {
-                        semantic->errors.push_back("Break keyword out of loop and switch case clause");
+                        semantic->addError("Break keyword out of loop and switch case clause");
                     }
                     break;
 
                 case KeywordStatement::Fallthrough:
-                    semantic->errors.push_back("Fallthrough keyword out of maswitch case clause");
+                    semantic->addError("Fallthrough keyword out of maswitch case clause");
                     break;
             }
         }
@@ -148,7 +148,7 @@ BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *f
     );
 
     if (forRangeStmt->initStatement.size() > 2) {
-        semantic->errors.push_back("Many variables in initialization ForRange loop");
+        semantic->addError("Many variables in initialization ForRange loop");
     }
 
     auto variableForRange = forRangeStmt->initStatement.begin();
@@ -166,7 +166,7 @@ BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *f
                         )
                 );
             } else {
-                semantic->errors.push_back("Undefined expression (1) in initialization ForRange loop");
+                semantic->addError("Undefined expression (1) in initialization ForRange loop");
             }
         } else {
             indexVariableStatement = new AssignmentStatement(
@@ -198,7 +198,7 @@ BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *f
                         )
                 );
             } else {
-                semantic->errors.push_back("Undefined expression (2) in initialization ForRange loop");
+                semantic->addError("Undefined expression (2) in initialization ForRange loop");
             }
         } else {
             elementVariableStatement = new AssignmentStatement(
@@ -348,7 +348,7 @@ bool StatementsVisitor::checkReturnStatements(SwitchStatement* switchStmt) {
 void StatementsVisitor::onFinishVisit(FunctionDeclaration* node) {
     if (node->signature->idsAndTypesResults.size() != 0 && !checkReturnStatements(node->block)) {
 
-        semantic->errors.push_back("Missing the 'return' statement at the end of the function");
+        semantic->addError("Missing the 'return' statement at the end of the function");
     }
 }
 
@@ -372,11 +372,11 @@ void StatementsVisitor::onFinishVisit(SwitchStatement* node) {
     for (auto caseClause : node->clauseList) {
 
         if (hasDefault && caseClause->expressionCase == nullptr) {
-            semantic->errors.push_back("Switch has multiple defaults");
+            semantic->addError("Switch has multiple defaults");
         }
 
         if (index == node->clauseList.size() - 1 && caseClause->fallthrowEnds) {
-            semantic->errors.push_back("Last case can't end with fallthrough");
+            semantic->addError("Last case can't end with fallthrough");
         }
 
         hasDefault |= caseClause->expressionCase == nullptr;
