@@ -24,6 +24,7 @@ struct RefConstant {
 };
 
 class Generator {
+private:
     std::unordered_map<size_t, TypeEntity*> typesExpressions;
     std::unordered_map<std::string, ClassEntity*> classes;
 
@@ -36,7 +37,6 @@ class Generator {
     const int8_t BREAK_FILLER = 0xFB;
     const int8_t CONTINUE_FILLER = 0xFC;
 
-    std::vector<char> generateConstant(Constant & constant);
     std::vector<char> generateInteger(int64_t number);
     std::vector<char> generateFloating(float number);
 
@@ -84,12 +84,13 @@ class Generator {
     std::vector<char> generateLoadFromArrayCommand(TypeEntity::TypeEntityEnum type);
     std::vector<char> generateCloneArrayCommand(ExpressionAST* array);
 
-    void replaceBreakFillersWithGotoInBlockCodeBytes(std::vector<char>& bytes);
-    void replaceContinueFillersWithGotoInBlockCodeBytes(std::vector<char>& bytes);
+    void replaceBreakFillers(std::vector<char>& bytes);
+    void replaceContinueFillers(std::vector<char>& bytes);
 
-    std::string createDescriptorBuiltInFunction(CallableExpression* expr);
     std::vector<char> initializeLocalVariables(const IdentifiersList& identifiers, const ExpressionList& values);
     void fillConstantPool(std::string_view className, ClassEntity* classEntity);
+
+    std::string createDescriptorBuiltInFunction(CallableExpression* expr);
 
 public:
     Generator(std::unordered_map<std::string, ClassEntity*>& classPool

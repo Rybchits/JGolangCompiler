@@ -91,7 +91,91 @@ Constant Constant::CreateMethodRef(IdT natId, IdT classId)
     return constant;
 }
 
-IdT ConstantPool::FindUtf8(std::string_view utf8)
+std::vector<char> Constant::toBytes() {
+    std::vector<char> bytes;
+	std::vector<char> buffer;
+
+	switch (type)
+	{
+	case Constant::TypeT::Utf8: {
+		char const* c = utf8.c_str();
+	    bytes.push_back((char)Constant::TypeT::Utf8);
+
+		buffer = intToBytes(strlen(c));
+	    bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+		bytes.insert(bytes.end(), c, c + strlen(c));
+		break;
+	}
+	case Constant::TypeT::Integer: {
+		bytes.push_back((char)Constant::TypeT::Integer);
+
+		buffer = intToBytes(integer);
+		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+		break;
+	}
+		
+	case Constant::TypeT::Float: {
+		bytes.push_back((char)Constant::TypeT::Float);
+
+		buffer = floatToBytes(floating);
+		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
+		break;
+	}
+
+	case Constant::TypeT::Class: {
+		bytes.push_back((char)Constant::TypeT::Class);
+
+		buffer = intToBytes(classNameId);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+		break;
+	}
+	
+	case Constant::TypeT::String: {
+		bytes.push_back((char)Constant::TypeT::String);
+
+		buffer = intToBytes(utf8Id);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+		break;
+	}
+
+	case Constant::TypeT::FieldRef: {
+		bytes.push_back((char)Constant::TypeT::FieldRef);
+
+		buffer = intToBytes(classId);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+
+		buffer = intToBytes(nameAndTypeId);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+		break;
+	}
+
+	case Constant::TypeT::MethodRef: {
+		bytes.push_back((char)Constant::TypeT::MethodRef);
+		
+		buffer = intToBytes(classId);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+
+		buffer = intToBytes(nameAndTypeId);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+		break;
+	}
+
+	case Constant::TypeT::NameAndType: {
+		bytes.push_back((char)Constant::TypeT::NameAndType);
+
+		buffer = intToBytes(nameId);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+
+		buffer = intToBytes(typeId);
+		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
+		break;
+	}
+	}
+
+	return bytes;
+}
+
+IdT ConstantPool::FindOrCreateUtf8(std::string_view utf8)
 {
     const auto constant = Constant::CreateUtf8(std::string{ utf8 });
     const auto foundIter = std::find(pool.begin(), pool.end(), constant);
@@ -103,9 +187,9 @@ IdT ConstantPool::FindUtf8(std::string_view utf8)
     return foundIter - pool.begin() + 1;
 }
 
-IdT ConstantPool::FindString(std::string_view str)
+IdT ConstantPool::FindOrCreateString(std::string_view str)
 {
-    const auto constant = Constant::CreateString(FindUtf8(str));
+    const auto constant = Constant::CreateString(FindOrCreateUtf8(str));
     const auto foundIter = std::find(pool.begin(), pool.end(), constant);
     if (foundIter == pool.end())
     {
@@ -115,7 +199,7 @@ IdT ConstantPool::FindString(std::string_view str)
     return foundIter - pool.begin() + 1;
 }
 
-IdT ConstantPool::FindInt(int value)
+IdT ConstantPool::FindOrCreateInt(int value)
 {
     const auto constant = Constant::CreateInt(value);
     const auto foundIter = std::find(pool.begin(), pool.end(), constant);
@@ -127,7 +211,7 @@ IdT ConstantPool::FindInt(int value)
     return foundIter - pool.begin() + 1;
 }
 
-IdT ConstantPool::FindFloat(float value)
+IdT ConstantPool::FindOrCreateFloat(float value)
 {
     const auto constant = Constant::CreateFloat(value);
     const auto foundIter = std::find(pool.begin(), pool.end(), constant);
@@ -139,9 +223,9 @@ IdT ConstantPool::FindFloat(float value)
     return foundIter - pool.begin() + 1;
 }
 
-IdT ConstantPool::FindClass(std::string_view className)
+IdT ConstantPool::FindOrCreateClass(std::string_view className)
 {
-    const auto constant = Constant::CreateClass(FindUtf8(className));
+    const auto constant = Constant::CreateClass(FindOrCreateUtf8(className));
     const auto foundIter = std::find(pool.begin(), pool.end(), constant);
     if (foundIter == pool.end())
     {
@@ -151,9 +235,9 @@ IdT ConstantPool::FindClass(std::string_view className)
     return foundIter - pool.begin() + 1;
 }
 
-IdT ConstantPool::FindNaT(std::string_view name, std::string_view type)
+IdT ConstantPool::FindOrCreateNaT(std::string_view name, std::string_view type)
 {
-    const auto constant = Constant::CreateNaT(FindUtf8(name), FindUtf8(type));
+    const auto constant = Constant::CreateNaT(FindOrCreateUtf8(name), FindOrCreateUtf8(type));
     const auto foundIter = std::find(pool.begin(), pool.end(), constant);
     if (foundIter == pool.end())
     {
@@ -163,9 +247,9 @@ IdT ConstantPool::FindNaT(std::string_view name, std::string_view type)
     return foundIter - pool.begin() + 1;
 }
 
-IdT ConstantPool::FindFieldRef(std::string_view className, std::string_view name, std::string_view type)
+IdT ConstantPool::FindOrCreateFieldRef(std::string_view className, std::string_view name, std::string_view type)
 {
-    const auto constant = Constant::CreateFieldRef(FindNaT(name, type), FindClass(className));
+    const auto constant = Constant::CreateFieldRef(FindOrCreateNaT(name, type), FindOrCreateClass(className));
     const auto foundIter = std::find(pool.begin(), pool.end(), constant);
     if (foundIter == pool.end())
     {
@@ -175,9 +259,9 @@ IdT ConstantPool::FindFieldRef(std::string_view className, std::string_view name
     return foundIter - pool.begin() + 1;
 }
 
-IdT ConstantPool::FindMethodRef(std::string_view className, std::string_view name, std::string_view type)
+IdT ConstantPool::FindOrCreateMethodRef(std::string_view className, std::string_view name, std::string_view type)
 {
-    const auto constant = Constant::CreateMethodRef(FindNaT(name, type), FindClass(className));
+    const auto constant = Constant::CreateMethodRef(FindOrCreateNaT(name, type), FindOrCreateClass(className));
     const auto foundIter = std::find(pool.begin(), pool.end(), constant);
     if (foundIter == pool.end())
     {

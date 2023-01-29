@@ -1,6 +1,7 @@
 #include "ast.h"
 #include "semantic/semantic.h"
 #include "codegen/codegen.h"
+
 #include "./utils/io.hpp"
 
 #include "parser.tab.c"

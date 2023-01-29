@@ -1,89 +1,4 @@
 #include "codegen.h"
-#include "../utils/bytes.hpp"
-
-std::vector<char> Generator::generateConstant(Constant & constant) {
-	std::vector<char> bytes;
-	std::vector<char> buffer;
-
-	switch (constant.type)
-	{
-	case Constant::TypeT::Utf8: {
-		char const* c = constant.utf8.c_str();
-	    bytes.push_back((char)Constant::TypeT::Utf8);
-
-		buffer = intToBytes(strlen(c));
-	    bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
-		bytes.insert(bytes.end(), c, c + strlen(c));
-		break;
-	}
-	case Constant::TypeT::Integer: {
-		bytes.push_back((char)Constant::TypeT::Integer);
-
-		buffer = intToBytes(constant.integer);
-		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
-		break;
-	}
-		
-	case Constant::TypeT::Float: {
-		bytes.push_back((char)Constant::TypeT::Float);
-
-		buffer = floatToBytes(constant.floating);
-		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
-		break;
-	}
-
-	case Constant::TypeT::Class: {
-		bytes.push_back((char)Constant::TypeT::Class);
-
-		buffer = intToBytes(constant.classNameId);
-		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
-		break;
-	}
-	
-	case Constant::TypeT::String: {
-		bytes.push_back((char)Constant::TypeT::String);
-
-		buffer = intToBytes(constant.utf8Id);
-		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
-		break;
-	}
-
-	case Constant::TypeT::FieldRef: {
-		bytes.push_back((char)Constant::TypeT::FieldRef);
-
-		buffer = intToBytes(constant.classId);
-		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
-
-		buffer = intToBytes(constant.nameAndTypeId);
-		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
-		break;
-	}
-
-	case Constant::TypeT::MethodRef: {
-		bytes.push_back((char)Constant::TypeT::MethodRef);
-		
-		buffer = intToBytes(constant.classId);
-		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
-
-		buffer = intToBytes(constant.nameAndTypeId);
-		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
-		break;
-	}
-
-	case Constant::TypeT::NameAndType: {
-		bytes.push_back((char)Constant::TypeT::NameAndType);
-
-		buffer = intToBytes(constant.nameId);
-		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
-
-		buffer = intToBytes(constant.typeId);
-		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
-		break;
-	}
-	}
-
-	return bytes;
-}
 
 std::vector<char> Generator::generateInteger(int64_t number) {
 	std::vector<char> codeBytes;
@@ -94,7 +9,7 @@ std::vector<char> Generator::generateInteger(int64_t number) {
 
 	} else {
 		codeBytes.push_back((char)Command::ldc_w);
-		buffer = intToBytes(constantPool.FindInt(number));
+		buffer = intToBytes(constantPool.FindOrCreateInt(number));
 		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 	}
 
@@ -105,7 +20,7 @@ std::vector<char> Generator::generateFloating(float number) {
 	std::vector<char> codeBytes;
 
 	codeBytes.push_back((char)Command::ldc_w);
-	std::vector<char> buffer = intToBytes(constantPool.FindFloat(number));
+	std::vector<char> buffer = intToBytes(constantPool.FindOrCreateFloat(number));
 	codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 
 	return codeBytes;
@@ -135,13 +50,13 @@ std::vector<char> Generator::generateNewArrayCommand(TypeEntity* elementType) {
 
 	case TypeEntity::Array:
 		codeBytes.push_back((char)Command::anewarray);
-		buffer = intToBytes(constantPool.FindClass(elementType->toByteCode()));
+		buffer = intToBytes(constantPool.FindOrCreateClass(elementType->toByteCode()));
 		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 		break;
 
 	case TypeEntity::String:
 		codeBytes.push_back((char)Command::anewarray);
-		buffer = intToBytes(constantPool.FindClass("java/lang/String"));
+		buffer = intToBytes(constantPool.FindOrCreateClass("java/lang/String"));
 		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 		break;
 		
@@ -163,7 +78,7 @@ std::vector<char> Generator::generateCloneArrayCommand(ExpressionAST* array) {
 
 		codeBytes.push_back(char(Command::invokevirtual));
 
-		std::vector<char> buffer = intToBytes(constantPool.FindMethodRef(arrayType->toByteCode(), "clone", "()Ljava/lang/Object;"));
+		std::vector<char> buffer = intToBytes(constantPool.FindOrCreateMethodRef(arrayType->toByteCode(), "clone", "()Ljava/lang/Object;"));
 		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 	}
 
@@ -174,7 +89,7 @@ std::vector<char> Generator::generateNewArray(ArraySignatureEntity* arrayType, E
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	codeBytes = generateInteger(arrayType->dims == -1? elements.size() : arrayType->dims);
+	codeBytes = generateInteger(arrayType->isSlice()? elements.size() : arrayType->dims);
 
 	buffer = generateNewArrayCommand(arrayType->elementType);
 	codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
@@ -206,13 +121,13 @@ std::vector<char> Generator::generateNewArray(ArraySignatureEntity* arrayType, E
 		} else if (arrayType->elementType->type == TypeEntity::String) {
 			codeBytes.push_back(char(Command::new_));
 
-			buffer = intToBytes(constantPool.FindClass("java/lang/String"));
+			buffer = intToBytes(constantPool.FindOrCreateClass("java/lang/String"));
 			codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 
 			codeBytes.push_back(char(Command::dup));
 			
 			codeBytes.push_back(char(Command::invokespecial));
-			buffer = intToBytes(constantPool.FindMethodRef("java/lang/String", "<init>", "()V"));
+			buffer = intToBytes(constantPool.FindOrCreateMethodRef("java/lang/String", "<init>", "()V"));
 			codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 		}
 
@@ -229,23 +144,23 @@ void Generator::fillConstantPool(std::string_view className, ClassEntity* classE
     constantPool.pool.push_back(Constant::CreateUtf8("Code"));
     
     // Current class
-    constantPool.pool.push_back(Constant::CreateClass(constantPool.FindUtf8(className)));
-	constantPool.pool.push_back(Constant::CreateClass(constantPool.FindUtf8("java/lang/Object")));
+    constantPool.pool.push_back(Constant::CreateClass(constantPool.FindOrCreateUtf8(className)));
+	constantPool.pool.push_back(Constant::CreateClass(constantPool.FindOrCreateUtf8("java/lang/Object")));
 
-    constantPool.FindMethodRef("java/lang/Object", "<init>", "()V");
+    constantPool.FindOrCreateMethodRef("java/lang/Object", "<init>", "()V");
      
     // Add name of name, name of types and N&T of fields
     for (auto & [fieldIdentifier, field] : classEntity->getFields()) {
-        int index = constantPool.FindFieldRef(className, fieldIdentifier, field->type->toByteCode());
+        int index = constantPool.FindOrCreateFieldRef(className, fieldIdentifier, field->type->toByteCode());
 		context.add(fieldIdentifier, new RefConstant(index, false));
     }
 
     for (auto & [methodIdentifier, method] : classEntity->getMethods()) {
-        int index = constantPool.FindMethodRef(className, methodIdentifier, method->toTypeEntity()->toByteCode());
+        int index = constantPool.FindOrCreateMethodRef(className, methodIdentifier, method->toTypeEntity()->toByteCode());
 		context.add(methodIdentifier, new RefConstant(index, false));
     }
 
-	constantPool.FindUtf8("<clinit>");
+	constantPool.FindOrCreateUtf8("<clinit>");
 }
 
 void Generator::generate() {
@@ -282,11 +197,11 @@ void Generator::generate() {
 		classFileTail = {(char)0x00, (char)0x21};
 
 		// This class constant
-		buffer = intToBytes(constantPool.FindClass(className));
+		buffer = intToBytes(constantPool.FindOrCreateClass(className));
 		classFileTail.insert(classFileTail.end(), buffer.begin() + 2, buffer.end());
 
 		// Parent class constant
-		buffer = intToBytes(constantPool.FindClass("java/lang/Object"));
+		buffer = intToBytes(constantPool.FindOrCreateClass("java/lang/Object"));
 		classFileTail.insert(classFileTail.end(), buffer.begin() + 2, buffer.end());
 
 		// Interfaces table
@@ -324,6 +239,7 @@ void Generator::generate() {
 						 , methodEntity->getNumberLocalVariables(), uint16_t(AccessFlags::Public)
 																  | uint16_t(AccessFlags::Static)
 						 , generateMethodBodyCode(methodEntity));
+
 			classFileTail.insert(classFileTail.end(), buffer.begin(), buffer.end());
 		}
 
@@ -338,7 +254,7 @@ void Generator::generate() {
 
 		//constants table
         for (auto & constant : constantPool.pool) {
-            buffer = generateConstant(constant);
+            buffer = constant.toBytes();
 			outfile.write(buffer.data(), buffer.size());
         }
 
@@ -357,11 +273,11 @@ std::vector<char> Generator::generateField(std::string fieldName, FieldEntity* f
 	bytes = {(char)0x00, (char)0x09};
 
 	// field name index
-	buffer = intToBytes(constantPool.FindUtf8(fieldName));
+	buffer = intToBytes(constantPool.FindOrCreateUtf8(fieldName));
 	bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 	
 	// field descriptor index
-	buffer = intToBytes(constantPool.FindUtf8(field->type->toByteCode()));
+	buffer = intToBytes(constantPool.FindOrCreateUtf8(field->type->toByteCode()));
 	bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 
 	// field attributes	(may add final flag and ConstValue attribute)
@@ -383,19 +299,19 @@ std::vector<char> Generator::generateMethod(std::string_view methodName, std::st
 
 	// field name index
 	if (!methodName.empty()) {
-		buffer = intToBytes(constantPool.FindUtf8(methodName));
+		buffer = intToBytes(constantPool.FindOrCreateUtf8(methodName));
 		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 	}
 	
 	// field descriptor index
-	buffer = intToBytes(constantPool.FindUtf8(descriptor));
+	buffer = intToBytes(constantPool.FindOrCreateUtf8(descriptor));
 	bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 	
 	// Only code attribute
 	bytes.push_back((char)0x00); bytes.push_back((char)0x01);
 
 	// method atribute (Code - 0x01)
-	buffer = intToBytes(constantPool.FindUtf8("Code"));
+	buffer = intToBytes(constantPool.FindOrCreateUtf8("Code"));
 	bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 
 	std::vector<char> codeAttributeBytes;
@@ -438,7 +354,7 @@ std::vector<char> Generator::generateGlobalClassConstructorCode() {
 	bytes.push_back(char(0));
 
 	bytes.push_back(char(Command::invokespecial));
-	auto methodRefId = intToBytes(constantPool.FindMethodRef("java/lang/Object", "<init>", "()V"));
+	auto methodRefId = intToBytes(constantPool.FindOrCreateMethodRef("java/lang/Object", "<init>", "()V"));
 	bytes.insert(bytes.end(), methodRefId.begin() + 2, methodRefId.end());
 
 	bytes.push_back(char(Command::return_));
@@ -615,7 +531,7 @@ std::vector<char> Generator::generate(CallableExpression* expr) {
 		} else if (Semantic::IsBuiltInFunction(idExpression->identifier)) {
 			std::string descriptor = createDescriptorBuiltInFunction(expr);
 
-			int indexBuiltInFunction = constantPool.FindMethodRef("$Base", idExpression->identifier, descriptor);
+			int indexBuiltInFunction = constantPool.FindOrCreateMethodRef("$Base", idExpression->identifier, descriptor);
 			buffer = intToBytes(indexBuiltInFunction);
 			codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 		}
@@ -667,7 +583,7 @@ std::vector<char> Generator::generate(StringExpression* expr) {
 	std::vector<char> buffer;
 
 	codeBytes.push_back((char)Command::ldc_w);
-	buffer = intToBytes(constantPool.FindString(expr->stringLit));
+	buffer = intToBytes(constantPool.FindOrCreateString(expr->stringLit));
 	codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 
 	return codeBytes;
@@ -846,16 +762,16 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 
 			codeBytes.push_back((char)Command::invokestatic);
 			if (arrayElementType->isInteger()) {
-				buffer = intToBytes(constantPool.FindMethodRef("$Base", "equals", "([I[I)Z"));
+				buffer = intToBytes(constantPool.FindOrCreateMethodRef("$Base", "equals", "([I[I)Z"));
 
 			} else if (arrayElementType->type == TypeEntity::Boolean) {
-				buffer = intToBytes(constantPool.FindMethodRef("$Base", "equals", "([Z[Z)Z"));
+				buffer = intToBytes(constantPool.FindOrCreateMethodRef("$Base", "equals", "([Z[Z)Z"));
 
 			} else if (arrayElementType->isFloat()) {
-				buffer = intToBytes(constantPool.FindMethodRef("$Base", "equals", "([F[F)Z"));
+				buffer = intToBytes(constantPool.FindOrCreateMethodRef("$Base", "equals", "([F[F)Z"));
 				
 			} else {
-				buffer = intToBytes(constantPool.FindMethodRef("$Base", "equals", "([Ljava/lang/Object;[Ljava/lang/Object;)Z"));
+				buffer = intToBytes(constantPool.FindOrCreateMethodRef("$Base", "equals", "([Ljava/lang/Object;[Ljava/lang/Object;)Z"));
 			}
 
 			codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
@@ -910,7 +826,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 					codeBytes.push_back((char)Command::ifle);
 				else {
 					codeBytes.push_back((char)Command::invokestatic);
-					buffer = intToBytes(constantPool.FindMethodRef("$Base", "compare", "(Ljava/lang/String;Ljava/lang/String;)I"));
+					buffer = intToBytes(constantPool.FindOrCreateMethodRef("$Base", "compare", "(Ljava/lang/String;Ljava/lang/String;)I"));
 					codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 
 					codeBytes.push_back((char)Command::iconst_1);
@@ -928,7 +844,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 
 				else {
 					codeBytes.push_back((char)Command::invokestatic);
-					buffer = intToBytes(constantPool.FindMethodRef("$Base", "compare", "(Ljava/lang/String;Ljava/lang/String;)I"));
+					buffer = intToBytes(constantPool.FindOrCreateMethodRef("$Base", "compare", "(Ljava/lang/String;Ljava/lang/String;)I"));
 					codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 
 					codeBytes.push_back((char)Command::iconst_m1);
@@ -946,7 +862,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 
 				else {
 					codeBytes.push_back((char)Command::invokestatic);
-					buffer = intToBytes(constantPool.FindMethodRef("$Base", "compare", "(Ljava/lang/String;Ljava/lang/String;)I"));
+					buffer = intToBytes(constantPool.FindOrCreateMethodRef("$Base", "compare", "(Ljava/lang/String;Ljava/lang/String;)I"));
 					codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 
 					codeBytes.push_back((char)Command::iconst_m1);
@@ -964,7 +880,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 
 				else {
 					codeBytes.push_back((char)Command::invokestatic);
-					buffer = intToBytes(constantPool.FindMethodRef("$Base", "compare", "(Ljava/lang/String;Ljava/lang/String;)I"));
+					buffer = intToBytes(constantPool.FindOrCreateMethodRef("$Base", "compare", "(Ljava/lang/String;Ljava/lang/String;)I"));
 					codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 
 					codeBytes.push_back((char)Command::iconst_1);
@@ -1001,7 +917,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 			} else if (typesExpressions[expr->nodeId]->type == TypeEntity::String) {
 				codeBytes.push_back(char(Command::invokevirtual));
 
-				auto concatRef = constantPool.FindMethodRef("java/lang/String", "concat", "(Ljava/lang/String;)Ljava/lang/String;");
+				auto concatRef = constantPool.FindOrCreateMethodRef("java/lang/String", "concat", "(Ljava/lang/String;)Ljava/lang/String;");
 				buffer = intToBytes(concatRef);
 
 				codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
@@ -1387,7 +1303,7 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 
 	bytes.push_back((char)Command::nop);
 
-	replaceBreakFillersWithGotoInBlockCodeBytes(bytes);
+	replaceBreakFillers(bytes);
 
 	return bytes;
 }
@@ -1416,8 +1332,8 @@ std::vector<char> Generator::generate(WhileStatement* stmt) {
 
 	bytes.push_back((char)Command::nop);
 	
-	replaceBreakFillersWithGotoInBlockCodeBytes(bytes);
-	replaceContinueFillersWithGotoInBlockCodeBytes(bytes);
+	replaceBreakFillers(bytes);
+	replaceContinueFillers(bytes);
 
 	return bytes; 
 }
@@ -1442,7 +1358,7 @@ std::vector<char> Generator::generate(KeywordStatement* stmt) {
 	return bytes;
 }
 
-void Generator::replaceContinueFillersWithGotoInBlockCodeBytes(std::vector<char>& bytes) {
+void Generator::replaceContinueFillers(std::vector<char>& bytes) {
 	std::vector<char> buffer;
 
 	for (int i = 0; i < bytes.size() - 3; ++i) {
@@ -1459,7 +1375,7 @@ void Generator::replaceContinueFillersWithGotoInBlockCodeBytes(std::vector<char>
 	}
 }
 
-void Generator::replaceBreakFillersWithGotoInBlockCodeBytes(std::vector<char>& bytes) {
+void Generator::replaceBreakFillers(std::vector<char>& bytes) {
 	std::vector<char> buffer;
 
 	for (int i = 0; i < bytes.size() - 2; ++i) {
