@@ -1,9 +1,9 @@
 %{
-    #include "ast.h"
-    #include "lex.yy.cc"
+    #include "../ast.h"
+    #include "../lexer/lex.yy.cc"
 
-    yyFlexLexer* lexer;
-    PackageAST *Root;
+    extern yyFlexLexer* lexer;
+    extern PackageAST *Root;
 
     int yylex() {
         return lexer->yylex();
@@ -364,8 +364,8 @@
 
 
     BasicLiteral: INT_LIT                                                           { $$ = new IntegerExpression($1);       }
-		        | RUNE_LIT                                                          { $$ = new IntegerExpression($1);       }
-		        | FLOAT_LIT                                                         { $$ = new FloatExpression($1);         }
+		| RUNE_LIT                                                          { $$ = new IntegerExpression($1);       }
+		| FLOAT_LIT                                                         { $$ = new FloatExpression($1);         }
                 | STRING_LIT                                                        { $$ = new StringExpression($1);        }
                 | FALSE                                                             { $$ = new BooleanExpression(false);    }
                 | TRUE                                                              { $$ = new BooleanExpression(true);     }

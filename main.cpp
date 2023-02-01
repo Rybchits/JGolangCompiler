@@ -3,11 +3,14 @@
 #include "codegen/codegen.h"
 
 #include "./utils/io.hpp"
+#include "./parser/parser.tab.h"
 
-#include "parser.tab.c"
-
+#include <FlexLexer.h>
 #include <iostream>
 #include <filesystem>
+
+yyFlexLexer* lexer;
+PackageAST *Root;
 
 int main(int argc, char** argv) {
     yydebug = 0;    // set 1 to debug bison

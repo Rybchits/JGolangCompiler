@@ -22,7 +22,8 @@
             "type": "shell",
             "command": "flex",
             "args": [
-                "./lexer.lpp",
+                "--outfile=lexer/lex.yy.cc",
+                "lexer/lexer.lpp",
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -38,9 +39,11 @@
             "type": "shell",
             "command": "bison",
             "args": [
-                "./parser.y",
+                "--defines=parser/parser.tab.h",
+                "--output=parser/parser.tab.cpp",
+                "parser/parser.y",
                 "-t",
-                "-d"
+                "--verbose",
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -58,19 +61,15 @@
             "args": [
                 "-std=c++17",
                 "-g",
-                "./main.cpp",
-                "./ast.cpp",
-                "./semantic/visitors/statements_visitor.cpp",
-                "./semantic/visitors/expressions_visitor.cpp",
-                "./semantic/visitors/types_visitor.cpp",
-                "./semantic/semantic.cpp",
-                "./semantic/entities.cpp",
-                "./utils/dot_visitor.cpp",
-                "./utils/bytes.cpp",
-                "./codegen/constant.cpp",
-                "./codegen/codegen.cpp",
+                "main.cpp",
+                "ast.cpp",
+                "parser/*.cpp",
+                "semantic/*.cpp",
+                "semantic/visitors/*.cpp",
+                "utils/*.cpp",
+                "codegen/*.cpp",
                 "-o",
-                "./parser"
+                "compiler"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -105,7 +104,8 @@
             "type": "cppbuild",
             "command": "/usr/bin/flex",
             "args": [
-                "./lexer.lpp",
+                "--outfile=lexer/lex.yy.cc",
+                "lexer/lexer.lpp",
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -121,9 +121,11 @@
             "type": "cppbuild",
             "command": "/usr/bin/bison",
             "args": [
-                "./parser.y",
+                "--defines=parser/parser.tab.h",
+                "--output=parser/parser.tab.cpp",
+                "parser/parser.y",
                 "-t",
-                "-d"
+                "--verbose",
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -141,19 +143,15 @@
             "args": [
                 "-std=c++17",
                 "-g",
-                "./main.cpp",
-                "./ast.cpp",
-                "./semantic/visitors/statements_visitor.cpp",
-                "./semantic/visitors/expressions_visitor.cpp",
-                "./semantic/visitors/types_visitor.cpp",
-                "./semantic/semantic.cpp",
-                "./semantic/entities.cpp",
-                "./utils/dot_visitor.cpp",
-                "./utils/bytes.cpp",
-                "./codegen/constant.cpp",
-                "./codegen/codegen.cpp",
+                "main.cpp",
+                "ast.cpp",
+                "parser/*.cpp",
+                "semantic/*.cpp",
+                "semantic/visitors/*.cpp",
+                "utils/*.cpp",
+                "codegen/*.cpp",
                 "-o",
-                "./parser"
+                "compiler"
             ],
             "options": {
                 "cwd": "${workspaceFolder}"
@@ -171,8 +169,7 @@
             "label": "[osx] clean lldb cache",
             "type": "shell",
             "command": "rm",
-            "args": ["-rf", "parser.dSYM"]
-            //TODO 
+            "args": ["-rf", "compiler.dSYM"]
         }
     ],
     "version": "2.0.0"

@@ -5,7 +5,7 @@
 %option stack
 
 %{
-  #include "ast.h"
+  #include "../ast.h"
   #include "lexer.hpp"
 %}
 
