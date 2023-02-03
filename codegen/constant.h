@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../semantic/entities.h"
 #include "../utils/bytes.h"
 
 #include <string>

@@ -1,6 +1,8 @@
 #pragma once
 
-#include "./entities.h"
+#include "../entities/class_entity.h"
+#include "../entities/type_entity.h"
+
 #include "../ast.h"
 #include "./visitors/types_visitor.h"
 

@@ -8,6 +8,20 @@
 class TypesVisitor;
 class Semantic;
 
+class VariableEntity{
+public:
+    TypeEntity* type;
+    bool isConst;
+    bool isArgument;
+    int numberUsage = 0;
+
+    VariableEntity(TypeEntity* type, bool isConst = false, bool isArgument = false): 
+        type(type), isConst(isConst), isArgument(isArgument) {};
+
+    void use() { numberUsage++; };
+};
+
+
 class ConstExpressionVisitor : private Visitor {
 private:
     TypesVisitor* typesVisitor;

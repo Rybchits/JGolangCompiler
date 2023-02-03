@@ -4,7 +4,6 @@
 #include "./commands.h"
 #include "../visitor.h"
 #include "../context.h"
-#include "../semantic/entities.h"
 #include "../semantic/semantic.h"
 
 #include <unordered_map>
