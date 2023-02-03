@@ -24,7 +24,6 @@ struct RefConstant {
 
 class Generator {
 private:
-    std::unordered_map<size_t, TypeEntity*> typesExpressions;
     std::unordered_map<std::string, ClassEntity*> classes;
 
     ConstantPool constantPool;
@@ -92,8 +91,7 @@ private:
     std::string createDescriptorBuiltInFunction(CallableExpression* expr);
 
 public:
-    Generator(std::unordered_map<std::string, ClassEntity*>& classPool
-                , std::unordered_map<size_t, TypeEntity*>& typesExprs): classes(classPool), typesExpressions(typesExprs) {};
+    Generator(std::unordered_map<std::string, ClassEntity*>& classPool): classes(classPool) {};
     
     void generate();
 };

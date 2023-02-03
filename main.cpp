@@ -40,8 +40,8 @@ int main(int argc, char** argv) {
     
     if (isSematicOk) {
         // Only package class
-        std::unordered_map<std::string, ClassEntity*> classes = {{ "$" + Root->packageName, semantic->packageClass}};
-        Generator(classes, semantic->getTypesVisitor()->getTypesExpressions()).generate();
+        std::unordered_map<std::string, ClassEntity*> classes = { { "$" + Root->packageName, semantic->packageClass} };
+        Generator(classes).generate();
     }
 
     return 0;

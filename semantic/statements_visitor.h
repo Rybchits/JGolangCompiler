@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../semantic.h"
+#include "./semantic.h"
 
 #include <stack>
 

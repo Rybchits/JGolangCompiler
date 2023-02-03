@@ -17,7 +17,7 @@ void TypesVisitor::analyzePackageClass(ClassEntity* packageClass, std::vector<st
         
         if (variableEntity->declaration != nullptr) {
             variableEntity->declaration->acceptVisitor(this);
-            auto typeExpression = typesExpressions[variableEntity->declaration->nodeId];
+            auto typeExpression = variableEntity->declaration->typeExpression;
 
             bool isConstVariable = std::find(idsConstants.begin(), idsConstants.end(), variableName) != idsConstants.end();
 
@@ -98,7 +98,7 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
             }
 
             // Const checking
-            if (node->isConst && typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::Array) {
+            if (node->isConst && (*currentValue)->typeExpression->type == TypeEntity::Array) {
                 semantic->addError("Go does not support constant arrays, maps or slices");
 
             } else if (node->isConst && !constCheckVisitor.isConstExpression(*currentValue)) {
@@ -110,8 +110,8 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
 
                 // Compare types expressions with the declared type
                 if (node->values.size() != 0 ) {
-                    if (typesExpressions[(*currentValue)->nodeId]->equal(generalType)) {
-                        typesExpressions[(*currentValue)->nodeId] = typesExpressions[(*currentValue)->nodeId]->determinePriorityType(generalType);
+                    if ((*currentValue)->typeExpression->equal(generalType)) {
+                        (*currentValue)->typeExpression = (*currentValue)->typeExpression->determinePriorityType(generalType);
                         scopesDeclarations.add(id, new VariableEntity(generalType, node->isConst));
 
                     } else {
@@ -122,14 +122,14 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
                 }
                 
             } else {
-                if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedFloat) {
+                if ((*currentValue)->typeExpression->type == TypeEntity::UntypedFloat) {
                     scopesDeclarations.add(id, new VariableEntity(new TypeEntity(TypeEntity::Float), node->isConst));
 
-                } else if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedInt) {
+                } else if ((*currentValue)->typeExpression->type == TypeEntity::UntypedInt) {
                     scopesDeclarations.add(id, new VariableEntity(new TypeEntity(TypeEntity::Int), node->isConst));
 
                 } else {
-                    scopesDeclarations.add(id, new VariableEntity(typesExpressions[(*currentValue)->nodeId], node->isConst));
+                    scopesDeclarations.add(id, new VariableEntity((*currentValue)->typeExpression, node->isConst));
                 }
             }
 
@@ -153,14 +153,14 @@ void TypesVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
                 semantic->addError("Variable " + id + " collides with the 'builtin' type");
             }
 
-            if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedFloat) {
+            if ((*currentValue)->typeExpression->type == TypeEntity::UntypedFloat) {
                 scopesDeclarations.add(id, new VariableEntity(new TypeEntity(TypeEntity::Float)));
                     
-            } else if (typesExpressions[(*currentValue)->nodeId]->type == TypeEntity::UntypedInt) {
+            } else if ((*currentValue)->typeExpression->type == TypeEntity::UntypedInt) {
                 scopesDeclarations.add(id, new VariableEntity(new TypeEntity(TypeEntity::Int)));
 
             } else {
-                scopesDeclarations.add(id, new VariableEntity(typesExpressions[(*currentValue)->nodeId]));
+                scopesDeclarations.add(id, new VariableEntity((*currentValue)->typeExpression));
             }
 
             currentValue++;
@@ -173,16 +173,16 @@ void TypesVisitor::onFinishVisit(IdentifierAsExpression* node) {
     VariableEntity* variable = scopesDeclarations.find(node->identifier);
 
     if (variable != nullptr) {
-        typesExpressions[node->nodeId] = variable->type;
+        node->typeExpression = variable->type;
         if (!node->isDestination) variable->use();
         return ;
 
     } else if (Semantic::IsBuiltInFunction(node->identifier)) {
-        typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::BuiltInFunction, node->identifier);
+        node->typeExpression = new TypeEntity(TypeEntity::BuiltInFunction, node->identifier);
         return;
 
     } else if (node->identifier == "_" && node->isDestination) {
-        typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Any);
+        node->typeExpression = new TypeEntity(TypeEntity::Any);
         return;
     }
     
@@ -193,62 +193,62 @@ void TypesVisitor::onFinishVisit(IdentifierAsExpression* node) {
     }
 
     semantic->addError(errorMessage);
-    typesExpressions[node->nodeId] = new TypeEntity();
+    node->typeExpression = new TypeEntity();
 }
 
 
 void TypesVisitor::onFinishVisit(IntegerExpression* node) {
-    typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::UntypedInt);
+    node->typeExpression = new TypeEntity(TypeEntity::UntypedInt);
 }
 
 
 void TypesVisitor::onFinishVisit(BooleanExpression* node) {
-    typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
+    node->typeExpression = new TypeEntity(TypeEntity::Boolean);
 }
 
 
 void TypesVisitor::onFinishVisit(FloatExpression* node) {
-    typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::UntypedFloat);
+    node->typeExpression = new TypeEntity(TypeEntity::UntypedFloat);
 }
 
 
 void TypesVisitor::onFinishVisit(StringExpression* node) {
-    typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::String);
+    node->typeExpression = new TypeEntity(TypeEntity::String);
 }
 
 
 void TypesVisitor::onFinishVisit(NilExpression* node) {
-    typesExpressions[node->nodeId] = new TypeEntity();
+    node->typeExpression = new TypeEntity();
 }
 
 
 void TypesVisitor::onFinishVisit(UnaryExpression* node) {
-    if (typesExpressions[node->expression->nodeId]->type == TypeEntity::Invalid) {
-        typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
+    if (node->expression->typeExpression->type == TypeEntity::Invalid) {
+        node->typeExpression = node->expression->typeExpression;
         return ;
     }
 
     if (node->type == UnaryExpression::UnaryNot) {
-        if (typesExpressions[node->expression->nodeId]->type == TypeEntity::Boolean) {
-            typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
+        if (node->expression->typeExpression->type == TypeEntity::Boolean) {
+            node->typeExpression = node->expression->typeExpression;
         } else {
-            typesExpressions[node->nodeId] = new TypeEntity();
+            node->typeExpression = new TypeEntity();
             semantic->addError(node->name() + " must have boolean expression");
         }
 
     } else if (node->type == UnaryExpression::Variadic) {
-        if (typesExpressions[node->expression->nodeId]->type == TypeEntity::Array) {
-            typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
+        if (node->expression->typeExpression->type == TypeEntity::Array) {
+            node->typeExpression = node->expression->typeExpression;
         } else {
-            typesExpressions[node->nodeId] = new TypeEntity();
+            node->typeExpression = new TypeEntity();
             semantic->addError(node->name() + " must have array expression");
         }
 
     } else {
-        if (typesExpressions[node->expression->nodeId]->isNumeric()) {
-            typesExpressions[node->nodeId] = typesExpressions[node->expression->nodeId];
+        if (node->expression->typeExpression->isNumeric()) {
+            node->typeExpression = node->expression->typeExpression;
         } else {
-            typesExpressions[node->nodeId] = new TypeEntity();
+            node->typeExpression = new TypeEntity();
             semantic->addError(node->name() + " must have numeric expression");
         }
     }
@@ -256,20 +256,20 @@ void TypesVisitor::onFinishVisit(UnaryExpression* node) {
 
 
 void TypesVisitor::onFinishVisit(BinaryExpression* node) {
-    auto leftExprType = typesExpressions[node->lhs->nodeId];
-    auto rightExprType = typesExpressions[node->rhs->nodeId];
+    auto leftExprType = node->lhs->typeExpression;
+    auto rightExprType = node->rhs->typeExpression;
 
     if (leftExprType->type == TypeEntity::Invalid) {
-        typesExpressions[node->nodeId] = leftExprType;
+        node->typeExpression = leftExprType;
         return ;
 
     } else if (rightExprType->type == TypeEntity::Invalid) {
-        typesExpressions[node->nodeId] = rightExprType;
+        node->typeExpression = rightExprType;
         return ;
     }
 
     if (leftExprType->type == TypeEntity::String && rightExprType->type == TypeEntity::String && node->type == BinaryExpression::Addition) {
-        typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::String);
+        node->typeExpression = new TypeEntity(TypeEntity::String);
 
     } else if (node->type == BinaryExpression::Addition || node->type == BinaryExpression::Subtraction 
     || node->type == BinaryExpression::Multiplication || node->type == BinaryExpression::Division || node->type == BinaryExpression::Mod) {
@@ -277,20 +277,20 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
         if (leftExprType->isNumeric() && rightExprType->isNumeric() && leftExprType->equal(rightExprType)) {
             auto resultTypeExression = leftExprType->determinePriorityType(rightExprType);
 
-            typesExpressions[node->nodeId] = resultTypeExression;
-            typesExpressions[node->lhs->nodeId] = resultTypeExression;
-            typesExpressions[node->rhs->nodeId] = resultTypeExression;
+            node->typeExpression = resultTypeExression;
+            node->lhs->typeExpression = resultTypeExression;
+            node->rhs->typeExpression = resultTypeExression;
 
         } else {
-            typesExpressions[node->nodeId] = new TypeEntity();
+            node->typeExpression = new TypeEntity();
             semantic->addError(node->name() + " must have same numeric types expressions");
         }
 
     } else if (node->type == BinaryExpression::Or || node->type == BinaryExpression::And) {
         if (leftExprType->type == TypeEntity::Boolean && rightExprType->type == TypeEntity::Boolean) {
-            typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
+            node->typeExpression = new TypeEntity(TypeEntity::Boolean);
         } else {
-            typesExpressions[node->nodeId] = new TypeEntity();
+            node->typeExpression = new TypeEntity();
             semantic->addError(node->name() + " must have boolean expressions");
         }
     } else {
@@ -300,10 +300,10 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
             || ((leftExprType->type == TypeEntity::Boolean || leftExprType->type == TypeEntity::Array) 
             && (node->type == BinaryExpression::Equal || node->type == BinaryExpression::NotEqual)))
         ) {
-            typesExpressions[node->nodeId] = new TypeEntity(TypeEntity::Boolean);
+            node->typeExpression = new TypeEntity(TypeEntity::Boolean);
 
         } else {
-            typesExpressions[node->nodeId] = new TypeEntity();
+            node->typeExpression = new TypeEntity();
             semantic->addError(node->name() + " must have equal types of expressions. Comparison of booleans, arrays and functions are'nt supported");
         }
     }
@@ -313,7 +313,7 @@ void TypesVisitor::onFinishVisit(BinaryExpression* node) {
 void TypesVisitor::onFinishVisit(CallableExpression* node) {
 
     // Call declarated function
-    TypeEntity* baseType = typesExpressions[node->base->nodeId];
+    TypeEntity* baseType = node->base->typeExpression;
 
     if (baseType->type == TypeEntity::Function) {
 
@@ -322,38 +322,38 @@ void TypesVisitor::onFinishVisit(CallableExpression* node) {
 
         if (signature->argsTypes.size() != node->arguments.size()) {
             semantic->addError("Invalid number of arguments");
-            typesExpressions[node->nodeId] = new TypeEntity();
+            node->typeExpression = new TypeEntity();
             return;
         }
 
         int index = 0;
         for (auto argType : signature->argsTypes) {
-            if (!argType->equal(typesExpressions[(*argExprType)->nodeId])) {
-                typesExpressions[node->nodeId] = new TypeEntity();
+            if (!argType->equal((*argExprType)->typeExpression)) {
+                node->typeExpression = new TypeEntity();
                 semantic->addError("Cannot use expression index " + std::to_string(index) + " in argument");
                 return;
 
             } else {
-                typesExpressions[(*argExprType)->nodeId] = typesExpressions[(*argExprType)->nodeId]->determinePriorityType(argType);
+                (*argExprType)->typeExpression = (*argExprType)->typeExpression->determinePriorityType(argType);
             }
             index++;
             argExprType++;
         }
         
-        typesExpressions[node->nodeId] = signature->returnType;
+        node->typeExpression = signature->returnType;
         return ;
     
     } else if (baseType->type == TypeEntity::BuiltInFunction) {
         bool isCheckBuiltInFunctionSuccess = defineTypeBuiltInFunction(node);
 
         if (!isCheckBuiltInFunctionSuccess) {
-            typesExpressions[node->nodeId] = new TypeEntity();
+            node->typeExpression = new TypeEntity();
         }
         return ;
     }
 
     semantic->addError("Cannot call non-function");
-    typesExpressions[node->nodeId] = new TypeEntity();
+    node->typeExpression = new TypeEntity();
 }
 
 
@@ -361,17 +361,17 @@ void TypesVisitor::onFinishVisit(AccessExpression* node) {
     switch (node->type)
     {
     case AccessExpression::Indexing:
-        if (typesExpressions[node->base->nodeId]->type != TypeEntity::Array) {
+        if (node->base->typeExpression->type != TypeEntity::Array) {
             semantic->addError("Base for indexing must be array");
 
-        } else if (!typesExpressions[node->accessor->nodeId]->isInteger()) {
+        } else if (!node->accessor->typeExpression->isInteger()) {
             semantic->addError("Index must be integer value");
 
         } else {
-            typesExpressions[node->nodeId] = std::get<ArraySignatureEntity*>(typesExpressions[node->base->nodeId]->value)->elementType;
+            node->typeExpression = std::get<ArraySignatureEntity*>(node->base->typeExpression->value)->elementType;
             return ;
         }
-        typesExpressions[node->nodeId] = new TypeEntity();
+        node->typeExpression = new TypeEntity();
         break;
 
     case AccessExpression::FieldSelect:
@@ -381,15 +381,15 @@ void TypesVisitor::onFinishVisit(AccessExpression* node) {
         break;
     }
 
-    typesExpressions[node->nodeId] = new TypeEntity();
+    node->typeExpression = new TypeEntity();
 }
 
 void TypesVisitor::onStartVisit(CompositeLiteral* node) {
 
     // Если это массив, нам нужно записать его тип и запомнить id узла для проверки элементов
     if (auto arrayType = dynamic_cast<ArraySignature*>(node->type)) {
-        typesExpressions[node->nodeId] = new TypeEntity(arrayType);
-        nodeIdCurrentArray = node->nodeId;
+        node->typeExpression = new TypeEntity(arrayType);
+        typeCurrentArray = node->typeExpression;
         indexCurrentAxisArray = 0;
     }
 }
@@ -405,25 +405,24 @@ void TypesVisitor::onFinishVisit(CompositeLiteral* node) {
 
         if (arrayType->dimensions < node->elements.size()) {
             semantic->addError("Array has more elements than declarated");
-            typesExpressions[node->nodeId] = new TypeEntity();
+            node->typeExpression = new TypeEntity();
             return;
         }
 
         // Тип текущего массива был вычислен при первом заходе в этот узел
-        auto declaredElementType = std::get<ArraySignatureEntity*>(typesExpressions[node->nodeId]->value)->elementType;
+        auto declaredElementType = std::get<ArraySignatureEntity*>(node->typeExpression->value)->elementType;
 
         int index = 0;
         for (auto element : node->elements) {
-            if (!typesExpressions[element->nodeId]->equal(declaredElementType)) {
-                semantic->errors
-                    .push_back("Array declarated type mismatch " + std::string("index ") + std::to_string(index));
+            if (!element->typeExpression->equal(declaredElementType)) {
+                semantic->addError("Array declarated type mismatch " + std::string("index ") + std::to_string(index));
 
-                typesExpressions[node->nodeId] = new TypeEntity();
+                node->typeExpression = new TypeEntity();
             }
             index++;
         }
 
-        nodeIdCurrentArray = -1;
+        typeCurrentArray = nullptr;
         indexCurrentAxisArray = -1;
     }
 }
@@ -432,18 +431,18 @@ void TypesVisitor::onFinishVisit(CompositeLiteral* node) {
 void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
 
     TypeEntity* declaratedElementType = 
-        std::get<ArraySignatureEntity*>(typesExpressions[nodeIdCurrentArray]->value)->typeAxis(indexCurrentAxisArray);
+        std::get<ArraySignatureEntity*>(typeCurrentArray->value)->typeAxis(indexCurrentAxisArray);
 
     if (std::holds_alternative<ExpressionAST *>(node->value)) {
         auto expression = std::get<ExpressionAST*>(node->value);
 
-        if (declaratedElementType->equal(typesExpressions[expression->nodeId])) {
-            typesExpressions[expression->nodeId] = declaratedElementType->determinePriorityType(typesExpressions[expression->nodeId]);
-            typesExpressions[node->nodeId] = declaratedElementType;
+        if (declaratedElementType->equal(expression->typeExpression)) {
+            expression->typeExpression = declaratedElementType->determinePriorityType(expression->typeExpression);
+            node->typeExpression = declaratedElementType;
 
         } else {
             semantic->addError("Expression at " + std::to_string(indexCurrentAxisArray) + " axis has invalid type");
-            typesExpressions[node->nodeId] = new TypeEntity();
+            node->typeExpression = new TypeEntity();
         }
 
     } else if (std::holds_alternative<std::list<ElementCompositeLiteral *>>(node->value)) {
@@ -452,15 +451,15 @@ void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
 
             if (declaratedTypeAxis->dims < std::get<std::list<ElementCompositeLiteral*>>(node->value).size() ) {
                 semantic->addError("Array at " + std::to_string(indexCurrentAxisArray) + " axis has many values");
-                typesExpressions[node->nodeId] = new TypeEntity();
+                node->typeExpression = new TypeEntity();
 
             } else {
-                typesExpressions[node->nodeId] = declaratedElementType;
+                node->typeExpression = declaratedElementType;
             }
 
         } else {
             semantic->addError("Expression at " + std::to_string(indexCurrentAxisArray) + " axis has invalid type");
-            typesExpressions[node->nodeId] = new TypeEntity();
+            node->typeExpression = new TypeEntity();
         }
     }
 
@@ -503,29 +502,28 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
                 // if right and left parts have same types ()
                 if ((*indexIterator) == nullptr) {
 
-                    if (!typesExpressions[(*idIterator)->nodeId]->equal(typesExpressions[(*valueIterator)->nodeId])) {
+                    if (!(*idIterator)->typeExpression->equal((*valueIterator)->typeExpression)) {
                         semantic->addError("Value by index " + std::to_string(index) + std::string(" cannot be represented for assignment"));
 
                     } else {
-                        typesExpressions[(*valueIterator)->nodeId] = 
-                            typesExpressions[(*valueIterator)->nodeId]->determinePriorityType(typesExpressions[(*idIterator)->nodeId]);
+                        (*valueIterator)->typeExpression = (*valueIterator)->typeExpression->determinePriorityType((*idIterator)->typeExpression);
                     }
 
                 } else {
 
                     // Indexing access expression must have the base as array type
-                    if (typesExpressions[(*idIterator)->nodeId]->type == TypeEntity::Array) {
+                    if ((*idIterator)->typeExpression->type == TypeEntity::Array) {
 
-                        TypeEntity* typeElement = std::get<ArraySignatureEntity*>(typesExpressions[(*idIterator)->nodeId]->value)->elementType;
+                        TypeEntity* typeElement = std::get<ArraySignatureEntity*>((*idIterator)->typeExpression->value)->elementType;
 
-                        if (!typeElement->equal(typesExpressions[(*valueIterator)->nodeId])) {
+                        if (!typeElement->equal((*valueIterator)->typeExpression)) {
                             semantic->addError("Value by index " + std::to_string(index) + std::string(" cannot be represented for assignment"));
 
-                        } else if (!typesExpressions[(*indexIterator)->nodeId]->isInteger()) {
+                        } else if (!(*indexIterator)->typeExpression->isInteger()) {
                             semantic->addError("Index must be integer value");
 
                         } else {
-                            typesExpressions[(*valueIterator)->nodeId] = typesExpressions[(*valueIterator)->nodeId]->determinePriorityType(typeElement);
+                            (*valueIterator)->typeExpression = (*valueIterator)->typeExpression->determinePriorityType(typeElement);
                         }
                     } else {
                         semantic->addError("Cannot get value by index. Not array");
@@ -551,7 +549,7 @@ void TypesVisitor::onFinishVisit(ReturnStatement* node) {
     }
 
     for (auto value : node->returnValues) {
-        if (!currentMethodEntity->getReturnType()->equal(typesExpressions[value->nodeId])) {
+        if (!currentMethodEntity->getReturnType()->equal(value->typeExpression)) {
             semantic->addError("Cannot use this value for return");
         }
     }
@@ -577,28 +575,28 @@ void TypesVisitor::onStartVisit(ExpressionStatement* node) {
 }
 
 void TypesVisitor::onFinishVisit(WhileStatement* node) {
-    if (typesExpressions[node->conditionExpression->nodeId]->type != TypeEntity::Boolean) {
+    if (node->conditionExpression->typeExpression->type != TypeEntity::Boolean) {
         semantic->addError("The non-bool value used as a condition in loop");
     }
 }
 
 void TypesVisitor::onFinishVisit(IfStatement* node) {
-    if (typesExpressions[node->condition->nodeId]->type != TypeEntity::Boolean) {
+    if (node->condition->typeExpression->type != TypeEntity::Boolean) {
         semantic->addError("The non-bool value used as a condition in if statement");
     }
 }
 
 void TypesVisitor::onFinishVisit(SwitchStatement* node) {
-    TypeEntity* typeSwitchExpression = typesExpressions[node->expression->nodeId];
+    TypeEntity* typeSwitchExpression = node->expression->typeExpression;
 
     int index = 0;
     for (auto caseClause : node->clauseList) {
 
         if (caseClause->expressionCase) {
-            TypeEntity* caseExpressionType = typesExpressions[caseClause->expressionCase->nodeId];
+            TypeEntity* caseExpressionType = caseClause->expressionCase->typeExpression;
 
             if (caseExpressionType->equal(typeSwitchExpression)) {
-                typesExpressions[caseClause->expressionCase->nodeId] = typeSwitchExpression;
+                caseClause->expressionCase->typeExpression = typeSwitchExpression;
                 
             } else {
                 semantic->addError("The type of expression in case " + std::to_string(index) + " statement should be the same as in switch");
@@ -608,11 +606,6 @@ void TypesVisitor::onFinishVisit(SwitchStatement* node) {
         index++;
     }
 }
-
-std::unordered_map<size_t, TypeEntity*>& TypesVisitor::getTypesExpressions() {
-    return this->typesExpressions;
-}
-
 
 bool ConstExpressionVisitor::isConstExpression(ExpressionAST* expr) {
     constValid = true;
@@ -652,13 +645,13 @@ bool TypesVisitor::definePrintsFunctions(CallableExpression* function) {
         };
 
     if (function->arguments.size() == 1) {
-        auto typeArgument = typesExpressions[function->arguments.front()->nodeId];
+        auto typeArgument = function->arguments.front()->typeExpression;
 
         auto equal = std::find_if(printableTypes.begin(), printableTypes.end(), 
                         [typeArgument](TypeEntity::TypeEntityEnum type){ return type == typeArgument->type; });
 
         if (equal != printableTypes.end()) {
-            typesExpressions[function->nodeId] = new TypeEntity(TypeEntity::Void);
+            function->typeExpression = new TypeEntity(TypeEntity::Void);
             return true;
 
         } else {
@@ -679,13 +672,13 @@ bool TypesVisitor::defineLenFunction(CallableExpression* function) {
     };
 
     if (function->arguments.size() == 1) {
-        auto typeArgument = typesExpressions[function->arguments.front()->nodeId];
+        auto typeArgument = function->arguments.front()->typeExpression;
 
         auto equal = std::find_if(lenableTypes.begin(), lenableTypes.end(), 
                         [typeArgument](TypeEntity::TypeEntityEnum type){ return type == typeArgument->type; });
 
         if (equal != lenableTypes.end()) {
-            typesExpressions[function->nodeId] = new TypeEntity(TypeEntity::Int);
+            function->typeExpression = new TypeEntity(TypeEntity::Int);
 
             return true;
 
@@ -702,13 +695,11 @@ bool TypesVisitor::defineLenFunction(CallableExpression* function) {
 
 bool TypesVisitor::defineAppendFunction(CallableExpression* function) {
     if (function->arguments.size() == 2) {
-        auto arrayArgType = typesExpressions[function->arguments.front()->nodeId];
-        auto newElementArgType = typesExpressions[(*(++function->arguments.begin()))->nodeId];
+        auto arrayArgType = function->arguments.front()->typeExpression;
+        auto newElementArgType = (*(++function->arguments.begin()))->typeExpression;
 
         if (arrayArgType->type == TypeEntity::Array && std::get<ArraySignatureEntity*>(arrayArgType->value)->elementType->equal(newElementArgType)) {
-
-            typesExpressions[function->nodeId] = arrayArgType;
-
+            function->typeExpression = arrayArgType;
             return true;
 
         } else {
@@ -724,7 +715,7 @@ bool TypesVisitor::defineAppendFunction(CallableExpression* function) {
 
 bool TypesVisitor::defineReadFunction(CallableExpression* function, TypeEntity::TypeEntityEnum type) {
     if (function->arguments.size() == 0) {
-        typesExpressions[function->nodeId] = new TypeEntity(type);
+        function->typeExpression = new TypeEntity(type);
         return true;
     }
     

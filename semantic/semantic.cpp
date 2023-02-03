@@ -1,7 +1,7 @@
 #include "semantic.h"
-#include "visitors/statements_visitor.h"
-#include "visitors/expressions_visitor.h"
-#include "visitors/types_visitor.h"
+#include "./statements_visitor.h"
+#include "./precalculate_visitor.h"
+#include "./types_visitor.h"
 
 #include <iostream>
 
@@ -39,13 +39,13 @@ bool Semantic::analyze() {
 }
 
 void Semantic::transformStatements() {
-    auto loopVisitor = new StatementsVisitor(this);
-    loopVisitor->transform(root);
+    auto visitor = new StatementsVisitor(this);
+    visitor->transform(root);
 }
 
 void Semantic::precalculateExpressions() {
-    auto expressionsVisitor = new ExpressionsVisitor(this);
-    expressionsVisitor->transform(root);
+    auto visitor = new PrecalculateVisitor(this);
+    visitor->transform(root);
 }
 
 void Semantic::createPackageClass() {

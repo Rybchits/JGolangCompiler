@@ -1,6 +1,7 @@
 #pragma once
 
 #include "visitor.h"
+#include "entities/type_entity.h"
 
 #include <list>
 #include <string>
@@ -8,6 +9,7 @@
 #include <variant>
 #include <algorithm>
 
+class TypeEntity;
 class Visitor;
 
 class NodeAST;
@@ -140,6 +142,8 @@ public:
 /* -------------------------------- Expression -------------------------------- */
 class ExpressionAST : public NodeAST {
 public:
+    TypeEntity* typeExpression;
+
     void acceptVisitor(Visitor* visitor) noexcept override = 0;
     ExpressionAST* clone() const noexcept override = 0;
     [[nodiscard]] std::string name() const noexcept override = 0;

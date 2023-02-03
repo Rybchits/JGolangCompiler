@@ -1,9 +1,9 @@
 #pragma once
 
-#include "../../visitor.h"
-#include "../semantic.h"
+#include "../visitor.h"
+#include "./semantic.h"
 
-class ExpressionsVisitor : public Visitor {
+class PrecalculateVisitor : public Visitor {
 private:
     Semantic* semantic;
 
@@ -31,7 +31,7 @@ private:
 
 public:
     void transform(PackageAST* packageAst);
-    explicit ExpressionsVisitor(Semantic* semantic): semantic(semantic) {};
-    ~ExpressionsVisitor() override = default;
+    explicit PrecalculateVisitor(Semantic* semantic): semantic(semantic) {};
+    ~PrecalculateVisitor() override = default;
 };
 

@@ -71,14 +71,14 @@ std::vector<char> Generator::generateNewArrayCommand(TypeEntity* elementType) {
 std::vector<char> Generator::generateCloneArrayCommand(ExpressionAST* array) {
 	std::vector<char> codeBytes;
 
-	auto arrayType = typesExpressions[array->nodeId];
-
-	if (arrayType->type == TypeEntity::Array 
-			&& !std::get<ArraySignatureEntity*>(arrayType->value)->isSlice() && !dynamic_cast<CompositeLiteral*>(array)) {
+	if (array->typeExpression->type == TypeEntity::Array 
+			&& !std::get<ArraySignatureEntity*>(array->typeExpression->value)->isSlice() 
+			&& !dynamic_cast<CompositeLiteral*>(array)
+		) {
 
 		codeBytes.push_back(char(Command::invokevirtual));
 
-		std::vector<char> buffer = intToBytes(constantPool.FindOrCreateMethodRef(arrayType->toByteCode(), "clone", "()Ljava/lang/Object;"));
+		auto buffer = intToBytes(constantPool.FindOrCreateMethodRef(array->typeExpression->toByteCode(), "clone", "()Ljava/lang/Object;"));
 		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 	}
 
@@ -373,7 +373,7 @@ std::vector<char> Generator::generateStaticConstuctorCode(std::string_view class
 		buffer = generateCloneArrayCommand(field->declaration);
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 		
-		buffer = generateStoreToVariableCommand(fieldIdentifier, typesExpressions[field->declaration->nodeId]->type);
+		buffer = generateStoreToVariableCommand(fieldIdentifier, field->declaration->typeExpression->type);
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 	}
 
@@ -465,7 +465,7 @@ std::string Generator::createDescriptorBuiltInFunction(CallableExpression* expr)
 	int index = 0;
 	for (auto arg : expr->arguments) {
 		
-		TypeEntity* typeArgument = typesExpressions[arg->nodeId];
+		TypeEntity* typeArgument = arg->typeExpression;
 		ArraySignatureEntity** arrayArgument = std::get_if<ArraySignatureEntity*>(&(typeArgument->value));
 
 		if (arrayArgument && ((*arrayArgument)->elementType->type == TypeEntity::String 
@@ -488,7 +488,7 @@ std::string Generator::createDescriptorBuiltInFunction(CallableExpression* expr)
 
 	descriptor += ")";
 
-	auto returnType = typesExpressions[expr->nodeId];
+	auto returnType = expr->typeExpression;
 
 	if (returnType->type == TypeEntity::String) {
 		descriptor += "Ljava/lang/Object;";
@@ -548,7 +548,7 @@ std::vector<char> Generator::generate(IdentifierAsExpression* expr) {
 	buffer = intToBytes(refConst->index);
 
 	if (refConst->isLocal) {
-		switch (typesExpressions[expr->nodeId]->type)
+		switch (expr->typeExpression->type)
 		{
 		case TypeEntity::Boolean:
 		case TypeEntity::Int:
@@ -593,10 +593,10 @@ std::vector<char> Generator::generate(IntegerExpression* expr) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	if (typesExpressions[expr->nodeId]->isInteger())
+	if (expr->typeExpression->isInteger())
 		buffer = generateInteger(expr->intLit);
 
-	else if (typesExpressions[expr->nodeId]->isFloat())
+	else if (expr->typeExpression->isFloat())
 		buffer = generateFloating(expr->intLit);
 	
 	codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
@@ -629,10 +629,10 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 	case UnaryExpression::UnaryMinus:
 		codeBytes = generate(expr->expression);
 
-		if (typesExpressions[expr->nodeId]->isInteger()) {
+		if (expr->typeExpression->isInteger()) {
 			codeBytes.push_back(char(Command::ineg));
 
-		} else if (typesExpressions[expr->nodeId]->isFloat()) {
+		} else if (expr->typeExpression->isFloat()) {
 			codeBytes.push_back(char(Command::fneg));
 		}
 
@@ -648,22 +648,20 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 			codeBytes.insert(codeBytes.end() - 1, (char)Command::dup2);
 		}
 
-		if (typesExpressions[expr->expression->nodeId]->isInteger()) {
+		if (expr->expression->typeExpression->isInteger()) {
 			codeBytes.push_back(uint8_t(Command::iconst_1));
 			codeBytes.push_back(uint8_t(expr->type == UnaryExpression::Increment? Command::iadd : Command::isub));
 			
-		} else if (typesExpressions[expr->expression->nodeId]->isFloat()) {
+		} else if (expr->expression->typeExpression->isFloat()) {
 			codeBytes.push_back(uint8_t(Command::fconst_1));
 			codeBytes.push_back(uint8_t(expr->type == UnaryExpression::Increment? Command::fadd : Command::fsub));
 		}
 		
 		if (auto identifierAsExpression = dynamic_cast<IdentifierAsExpression*>(expr->expression)) {
-			buffer = generateStoreToVariableCommand(identifierAsExpression->identifier
-											, typesExpressions[identifierAsExpression->nodeId]->type);
+			buffer = generateStoreToVariableCommand(identifierAsExpression->identifier, identifierAsExpression->typeExpression->type);
 
 		} else if (auto accessExpression = dynamic_cast<AccessExpression*>(expr->expression)) {
-			
-			buffer = generateStoreToArrayCommand(typesExpressions[accessExpression->nodeId]->type);
+			buffer = generateStoreToArrayCommand(accessExpression->typeExpression->type);
 		}
 
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
@@ -748,16 +746,16 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 	} else if (expr->isComparison()) {
 		codeBytes.insert(codeBytes.end(), rightExprBytes.begin(), rightExprBytes.end());
 
-		if (typesExpressions[expr->lhs->nodeId]->isFloat()
+		if (expr->lhs->typeExpression->isFloat()
 		 && (expr->type == BinaryExpression::Less || expr->type == BinaryExpression::LessOrEqual)) {
 			codeBytes.push_back((char)Command::fcmpg);
 
-		} else if (typesExpressions[expr->lhs->nodeId]->isFloat()) { 
+		} else if (expr->lhs->typeExpression->isFloat()) { 
 			codeBytes.push_back((char)Command::fcmpl); 
 		}
 		
-		if (typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Array) {
-			auto arrayEntity = typesExpressions[expr->lhs->nodeId];
+		if (expr->lhs->typeExpression->type == TypeEntity::Array) {
+			auto arrayEntity = expr->lhs->typeExpression;
 			auto arrayElementType = std::get<ArraySignatureEntity*>(arrayEntity->value)->elementType;
 
 			codeBytes.push_back((char)Command::invokestatic);
@@ -781,17 +779,17 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 		switch(expr->type) {
 
 			case BinaryExpression::Equal:
-				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
-				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
+				if (expr->lhs->typeExpression->isInteger() 
+				 || expr->lhs->typeExpression->type == TypeEntity::Boolean)
 				 	codeBytes.push_back((char)Command::if_icmpne);
 
-				else if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+				else if (expr->lhs->typeExpression->isFloat()) 
 					codeBytes.push_back((char)Command::ifne);
 
-				else if (typesExpressions[expr->lhs->nodeId]->type == TypeEntity::String)
+				else if (expr->lhs->typeExpression->type == TypeEntity::String)
 					codeBytes.push_back((char)Command::if_acmpne);
 
-				else if (typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Array) {
+				else if (expr->lhs->typeExpression->type == TypeEntity::Array) {
 					codeBytes.push_back((char)Command::iconst_1);
 					codeBytes.push_back((char)Command::if_icmpne);
 				}
@@ -799,17 +797,17 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 				break;
 
 			case BinaryExpression::NotEqual:
-				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
-				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
+				if (expr->lhs->typeExpression->isInteger() 
+				 || expr->lhs->typeExpression->type == TypeEntity::Boolean)
 				 	codeBytes.push_back((char)Command::if_icmpeq);
 
-				else if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+				else if (expr->lhs->typeExpression->isFloat()) 
 					codeBytes.push_back((char)Command::ifeq);
 
-				else if (typesExpressions[expr->lhs->nodeId]->type == TypeEntity::String)
+				else if (expr->lhs->typeExpression->type == TypeEntity::String)
 					codeBytes.push_back((char)Command::if_acmpeq);
 
-				else if (typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Array) {
+				else if (expr->lhs->typeExpression->type == TypeEntity::Array) {
 					codeBytes.push_back((char)Command::iconst_1);
 					codeBytes.push_back((char)Command::if_icmpeq);
 				}
@@ -817,11 +815,11 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 				break;
 
 			case BinaryExpression::Greater:
-				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
-				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
+				if (expr->lhs->typeExpression->isInteger() 
+				 || expr->lhs->typeExpression->type == TypeEntity::Boolean)
 				 	codeBytes.push_back((char)Command::if_icmple);
 
-				else if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+				else if (expr->lhs->typeExpression->isFloat()) 
 
 					codeBytes.push_back((char)Command::ifle);
 				else {
@@ -835,11 +833,11 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 				break;
 
 			case BinaryExpression::GreatOrEqual:
-				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
-				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
+				if (expr->lhs->typeExpression->isInteger() 
+				 || expr->lhs->typeExpression->type == TypeEntity::Boolean)
 					codeBytes.push_back((char)Command::if_icmplt);
 
-				else if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+				else if (expr->lhs->typeExpression->isFloat()) 
 					codeBytes.push_back((char)Command::iflt);
 
 				else {
@@ -853,11 +851,11 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 				break;
 
 			case BinaryExpression::Less:
-				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
-				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
+				if (expr->lhs->typeExpression->isInteger() 
+				 || expr->lhs->typeExpression->type == TypeEntity::Boolean)
 					codeBytes.push_back((char)Command::if_icmpge);
 
-				else if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+				else if (expr->lhs->typeExpression->isFloat()) 
 					codeBytes.push_back((char)Command::ifge);
 
 				else {
@@ -871,11 +869,11 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 				break;
 				
 			case BinaryExpression::LessOrEqual:
-				if (typesExpressions[expr->lhs->nodeId]->isInteger() 
-				 || typesExpressions[expr->lhs->nodeId]->type == TypeEntity::Boolean)
+				if (expr->lhs->typeExpression->isInteger() 
+				 || expr->lhs->typeExpression->type == TypeEntity::Boolean)
 				 	codeBytes.push_back((char)Command::if_icmpgt);
 
-				else if (typesExpressions[expr->lhs->nodeId]->isFloat()) 
+				else if (expr->lhs->typeExpression->isFloat()) 
 					codeBytes.push_back((char)Command::ifgt);
 
 				else {
@@ -908,13 +906,13 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 
 		switch (expr->type) {
 		case BinaryExpression::Addition:
-			if (typesExpressions[expr->nodeId]->isInteger()) {
+			if (expr->typeExpression->isInteger()) {
 				codeBytes.push_back(char(Command::iadd));
 
-			} else if (typesExpressions[expr->nodeId]->isFloat()) {
+			} else if (expr->typeExpression->isFloat()) {
 				codeBytes.push_back(char(Command::fadd));
 
-			} else if (typesExpressions[expr->nodeId]->type == TypeEntity::String) {
+			} else if (expr->typeExpression->type == TypeEntity::String) {
 				codeBytes.push_back(char(Command::invokevirtual));
 
 				auto concatRef = constantPool.FindOrCreateMethodRef("java/lang/String", "concat", "(Ljava/lang/String;)Ljava/lang/String;");
@@ -925,37 +923,37 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 			break;
 
 		case BinaryExpression::Subtraction:
-			if (typesExpressions[expr->nodeId]->isInteger()) {
+			if (expr->typeExpression->isInteger()) {
 				codeBytes.push_back(char(Command::isub));
 
-			} else if (typesExpressions[expr->nodeId]->isFloat()) {
+			} else if (expr->typeExpression->isFloat()) {
 				codeBytes.push_back(char(Command::fsub));
 			}
 			break;
 
 		case BinaryExpression::Multiplication:
-			if (typesExpressions[expr->nodeId]->isInteger()) {
+			if (expr->typeExpression->isInteger()) {
 				codeBytes.push_back(char(Command::imul));
 
-			} else if (typesExpressions[expr->nodeId]->isFloat()) {
+			} else if (expr->typeExpression->isFloat()) {
 				codeBytes.push_back(char(Command::fmul));
 			}
 			break;
 
 		case BinaryExpression::Division:
-			if (typesExpressions[expr->nodeId]->isInteger()) {
+			if (expr->typeExpression->isInteger()) {
 				codeBytes.push_back(char(Command::idiv));
 
-			} else if (typesExpressions[expr->nodeId]->isFloat()) {
+			} else if (expr->typeExpression->isFloat()) {
 				codeBytes.push_back(char(Command::fdiv));
 			}
 			break;
 
 		case BinaryExpression::Mod:
-			if (typesExpressions[expr->nodeId]->isInteger()) {
+			if (expr->typeExpression->isInteger()) {
 				codeBytes.push_back(char(Command::irem));
 
-			} else if (typesExpressions[expr->nodeId]->isFloat()) {
+			} else if (expr->typeExpression->isFloat()) {
 				codeBytes.push_back(char(Command::frem));
 			}
 			break;
@@ -981,7 +979,7 @@ std::vector<char> Generator::generate(AccessExpression* expr) {
 		buffer = generate(expr->accessor);
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
-		buffer = generateLoadFromArrayCommand(typesExpressions[expr->nodeId]->type);
+		buffer = generateLoadFromArrayCommand(expr->typeExpression->type);
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 	}
 
@@ -993,9 +991,9 @@ std::vector<char> Generator::generate(CompositeLiteral* expr) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	if (typesExpressions[expr->nodeId]->type == TypeEntity::Array) {
+	if (expr->typeExpression->type == TypeEntity::Array) {
 
-		auto arraySignature = std::get<ArraySignatureEntity*>(typesExpressions[expr->nodeId]->value);
+		auto arraySignature = std::get<ArraySignatureEntity*>(expr->typeExpression->value);
 		codeBytes = generateNewArray(arraySignature, expr->elements);
 	}
 
@@ -1015,13 +1013,13 @@ std::vector<char> Generator::generate(ElementCompositeLiteral* expr) {
 		buffer = generateCloneArrayCommand(value);;
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
-		buffer = generateStoreToArrayCommand(typesExpressions[value->nodeId]->type);
+		buffer = generateStoreToArrayCommand(value->typeExpression->type);
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
     } else if (std::holds_alternative<ElementCompositeLiteralList>(expr->value)) {
 
         auto elements = std::get<ElementCompositeLiteralList>(expr->value);
-		auto arrayType = std::get<ArraySignatureEntity*>(typesExpressions[expr->nodeId]->value);
+		auto arrayType = std::get<ArraySignatureEntity*>(expr->typeExpression->value);
 
 		codeBytes = generateNewArray(arrayType, elements);
 		codeBytes.push_back((char)Command::aastore);
@@ -1077,7 +1075,7 @@ std::vector<char> Generator::initializeLocalVariables(const IdentifiersList& ide
 			bytes.push_back(char(Command::pop));
 			
 		} else {
-			buffer = generateStoreToVariableCommand(*idIter, typesExpressions[(*valueIter)->nodeId]->type);
+			buffer = generateStoreToVariableCommand(*idIter, (*valueIter)->typeExpression->type);
 			bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 		}
 
@@ -1165,7 +1163,7 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 			auto identifierAsExpression = dynamic_cast<IdentifierAsExpression*>(*leftIterator);
 
 			if (*indexIterator) {
-				buffer = generateStoreToArrayCommand(typesExpressions[(*rightIterator)->nodeId]->type);
+				buffer = generateStoreToArrayCommand((*rightIterator)->typeExpression->type);
 				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 			}
 			else if (identifierAsExpression) {
@@ -1175,8 +1173,7 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 					bytes.push_back(char(Command::pop));
 
 				} else {
-					buffer = generateStoreToVariableCommand(identifier
-								, typesExpressions[(*leftIterator)->nodeId]->type);
+					buffer = generateStoreToVariableCommand(identifier, (*leftIterator)->typeExpression->type);
 
 					bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 				}

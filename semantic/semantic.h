@@ -4,7 +4,7 @@
 #include "../entities/type_entity.h"
 
 #include "../ast.h"
-#include "./visitors/types_visitor.h"
+#include "./types_visitor.h"
 
 #include <vector>
 #include <unordered_map>
@@ -14,7 +14,6 @@
 class TypesVisitor;
 
 class Semantic {
-    friend class TypesVisitor;
 private:
     PackageAST* root;
 

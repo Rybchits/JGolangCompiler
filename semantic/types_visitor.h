@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../context.h"
-#include "../semantic.h"
+#include "../context.h"
+#include "./semantic.h"
 
 #include <vector>
 
@@ -43,7 +43,6 @@ friend class ConstExpressionVisitor;
 private:
     Semantic* semantic;
     Context<VariableEntity*> scopesDeclarations;
-    std::unordered_map<size_t, TypeEntity*> typesExpressions;
 
     ConstExpressionVisitor constCheckVisitor = ConstExpressionVisitor(this);
 
@@ -53,7 +52,7 @@ private:
     // supporting 
     bool lastAddedScopeInFuncDecl = false;
 
-    int nodeIdCurrentArray;
+    TypeEntity* typeCurrentArray;
     int indexCurrentAxisArray;
 
     void onStartVisit(CompositeLiteral* node);
@@ -91,6 +90,5 @@ private:
 
 public:
     explicit TypesVisitor(Semantic* semantic): semantic(semantic) {};
-    std::unordered_map<size_t, TypeEntity*>& getTypesExpressions();
     void analyzePackageClass(ClassEntity* classEntity, std::vector<std::string>& idsConstPackageVariables);
 };

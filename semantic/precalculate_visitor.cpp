@@ -1,10 +1,10 @@
-#include "expressions_visitor.h"
+#include "precalculate_visitor.h"
 
-void ExpressionsVisitor::transform(PackageAST* packageAst) {
+void PrecalculateVisitor::transform(PackageAST* packageAst) {
     packageAst->acceptVisitor(this);
 }
 
-ExpressionAST* ExpressionsVisitor::transformUnaryExpression(UnaryExpression* expr) {
+ExpressionAST* PrecalculateVisitor::transformUnaryExpression(UnaryExpression* expr) {
     ExpressionAST* result = expr;
 
     switch (expr->type) {
@@ -42,7 +42,7 @@ ExpressionAST* ExpressionsVisitor::transformUnaryExpression(UnaryExpression* exp
     return result;
 }
 
-ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* expr) {
+ExpressionAST* PrecalculateVisitor::transformBinaryExpression(BinaryExpression* expr) {
     ExpressionAST* result = expr;
 
     auto leftInt = dynamic_cast<IntegerExpression*>(expr->lhs);
@@ -255,7 +255,7 @@ ExpressionAST* ExpressionsVisitor::transformBinaryExpression(BinaryExpression* e
     return result;
 }
 
-ExpressionAST* ExpressionsVisitor::transformExpression(ExpressionAST* expr) {
+ExpressionAST* PrecalculateVisitor::transformExpression(ExpressionAST* expr) {
     ExpressionAST* transofrmedExpression = expr;
 
     if (auto unary = dynamic_cast<UnaryExpression*>(expr)) {
@@ -268,7 +268,7 @@ ExpressionAST* ExpressionsVisitor::transformExpression(ExpressionAST* expr) {
     return transofrmedExpression;
 }
 
-ExpressionList ExpressionsVisitor::transformExpressionList(ExpressionList& list) {
+ExpressionList PrecalculateVisitor::transformExpressionList(ExpressionList& list) {
     ExpressionList transofrmedList;
 
     for (auto expr : list) {
@@ -278,30 +278,30 @@ ExpressionList ExpressionsVisitor::transformExpressionList(ExpressionList& list)
     return transofrmedList;
 }
 
-void ExpressionsVisitor::onFinishVisit(VariableDeclaration* node) {
+void PrecalculateVisitor::onFinishVisit(VariableDeclaration* node) {
     node->values = transformExpressionList(node->values);
 }
 
-void ExpressionsVisitor::onFinishVisit(UnaryExpression* node) {
+void PrecalculateVisitor::onFinishVisit(UnaryExpression* node) {
     node->expression = transformExpression(node->expression);
 }
 
-void ExpressionsVisitor::onFinishVisit(BinaryExpression* node) {
+void PrecalculateVisitor::onFinishVisit(BinaryExpression* node) {
     node->lhs = transformExpression(node->lhs);
     node->rhs = transformExpression(node->rhs);
 }
 
-void ExpressionsVisitor::onFinishVisit(CallableExpression* node) {
+void PrecalculateVisitor::onFinishVisit(CallableExpression* node) {
     node->base = transformExpression(node->base);
     node->arguments = transformExpressionList(node->arguments);
 }
 
-void ExpressionsVisitor::onFinishVisit(AccessExpression* node) {
+void PrecalculateVisitor::onFinishVisit(AccessExpression* node) {
     node->base = transformExpression(node->base);
     node->accessor = transformExpression(node->accessor);
 }
 
-void ExpressionsVisitor::onFinishVisit(ElementCompositeLiteral* node) {
+void PrecalculateVisitor::onFinishVisit(ElementCompositeLiteral* node) {
     node->key = transformExpression(node->key);
 
     if (std::holds_alternative<ExpressionAST *>(node->value)) {
@@ -309,40 +309,40 @@ void ExpressionsVisitor::onFinishVisit(ElementCompositeLiteral* node) {
     }
 }
 
-void ExpressionsVisitor::onFinishVisit(ExpressionStatement* node) {
+void PrecalculateVisitor::onFinishVisit(ExpressionStatement* node) {
     node->expression = transformExpression(node->expression);
 }
 
-void ExpressionsVisitor::onFinishVisit(ReturnStatement* node) {
+void PrecalculateVisitor::onFinishVisit(ReturnStatement* node) {
     node->returnValues = transformExpressionList(node->returnValues);
 }
 
-void ExpressionsVisitor::onFinishVisit(AssignmentStatement* node) {
+void PrecalculateVisitor::onFinishVisit(AssignmentStatement* node) {
     node->indexes = transformExpressionList(node->indexes);
     node->lhs = transformExpressionList(node->lhs);
     node->rhs = transformExpressionList(node->rhs);
 }
 
-void ExpressionsVisitor::onFinishVisit(ForStatement* node) {
+void PrecalculateVisitor::onFinishVisit(ForStatement* node) {
     node->conditionExpression = transformExpression(node->conditionExpression);
 }
 
-void ExpressionsVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
+void PrecalculateVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
     node->values = transformExpressionList(node->values);
 }
 
-void ExpressionsVisitor::onFinishVisit(WhileStatement* node) {
+void PrecalculateVisitor::onFinishVisit(WhileStatement* node) {
     node->conditionExpression = transformExpression(node->conditionExpression);
 }
 
-void ExpressionsVisitor::onFinishVisit(IfStatement* node) {
+void PrecalculateVisitor::onFinishVisit(IfStatement* node) {
     node->condition = transformExpression(node->condition);
 }
 
-void ExpressionsVisitor::onFinishVisit(SwitchStatement* node) {
+void PrecalculateVisitor::onFinishVisit(SwitchStatement* node) {
     node->expression = transformExpression(node->expression);
 }
 
-void ExpressionsVisitor::onFinishVisit(SwitchCaseClause* node) {
+void PrecalculateVisitor::onFinishVisit(SwitchCaseClause* node) {
     node->expressionCase = transformExpression(node->expressionCase);
 }
