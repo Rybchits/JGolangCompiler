@@ -2,6 +2,6 @@
 
 #include <vector>
 
-std::vector<char> intToBytes(int value);
+std::vector<char> IntToBytes(int value);
 
-std::vector<char> floatToBytes(float value);
+std::vector<char> FloatToBytes(float value);

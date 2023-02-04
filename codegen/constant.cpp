@@ -101,7 +101,7 @@ std::vector<char> Constant::toBytes() {
 		char const* c = utf8.c_str();
 	    bytes.push_back((char)Constant::TypeT::Utf8);
 
-		buffer = intToBytes(strlen(c));
+		buffer = IntToBytes(strlen(c));
 	    bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 		bytes.insert(bytes.end(), c, c + strlen(c));
 		break;
@@ -109,7 +109,7 @@ std::vector<char> Constant::toBytes() {
 	case Constant::TypeT::Integer: {
 		bytes.push_back((char)Constant::TypeT::Integer);
 
-		buffer = intToBytes(integer);
+		buffer = IntToBytes(integer);
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 		break;
 	}
@@ -117,7 +117,7 @@ std::vector<char> Constant::toBytes() {
 	case Constant::TypeT::Float: {
 		bytes.push_back((char)Constant::TypeT::Float);
 
-		buffer = floatToBytes(floating);
+		buffer = FloatToBytes(floating);
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 		break;
 	}
@@ -125,7 +125,7 @@ std::vector<char> Constant::toBytes() {
 	case Constant::TypeT::Class: {
 		bytes.push_back((char)Constant::TypeT::Class);
 
-		buffer = intToBytes(classNameId);
+		buffer = IntToBytes(classNameId);
 		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 		break;
 	}
@@ -133,7 +133,7 @@ std::vector<char> Constant::toBytes() {
 	case Constant::TypeT::String: {
 		bytes.push_back((char)Constant::TypeT::String);
 
-		buffer = intToBytes(utf8Id);
+		buffer = IntToBytes(utf8Id);
 		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 		break;
 	}
@@ -141,10 +141,10 @@ std::vector<char> Constant::toBytes() {
 	case Constant::TypeT::FieldRef: {
 		bytes.push_back((char)Constant::TypeT::FieldRef);
 
-		buffer = intToBytes(classId);
+		buffer = IntToBytes(classId);
 		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 
-		buffer = intToBytes(nameAndTypeId);
+		buffer = IntToBytes(nameAndTypeId);
 		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 		break;
 	}
@@ -152,10 +152,10 @@ std::vector<char> Constant::toBytes() {
 	case Constant::TypeT::MethodRef: {
 		bytes.push_back((char)Constant::TypeT::MethodRef);
 		
-		buffer = intToBytes(classId);
+		buffer = IntToBytes(classId);
 		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 
-		buffer = intToBytes(nameAndTypeId);
+		buffer = IntToBytes(nameAndTypeId);
 		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 		break;
 	}
@@ -163,10 +163,10 @@ std::vector<char> Constant::toBytes() {
 	case Constant::TypeT::NameAndType: {
 		bytes.push_back((char)Constant::TypeT::NameAndType);
 
-		buffer = intToBytes(nameId);
+		buffer = IntToBytes(nameId);
 		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 
-		buffer = intToBytes(typeId);
+		buffer = IntToBytes(typeId);
 		bytes.insert(bytes.end(), buffer.begin() + 2, buffer.end());
 		break;
 	}

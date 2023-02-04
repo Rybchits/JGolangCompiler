@@ -1,6 +1,6 @@
 #include <vector>
 
-std::vector<char> intToBytes(int value) {
+std::vector<char> IntToBytes(int value) {
 	std::vector<char> arrayOfByte(4);
 	for (int i = 0; i < 4; ++i) {
 		arrayOfByte[3 - i] = (value >> (i * 8));
@@ -9,7 +9,7 @@ std::vector<char> intToBytes(int value) {
 }
 
 
-std::vector<char> floatToBytes(float value) {
+std::vector<char> FloatToBytes(float value) {
 	std::vector<char> arrayOfByte(4);
 
 	for (int i = 0; i < sizeof(float); ++i)
