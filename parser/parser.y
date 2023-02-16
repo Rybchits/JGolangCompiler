@@ -5,16 +5,19 @@
     extern yyFlexLexer* lexer;
     extern PackageAST *Root;
 
+    extern bool insideHeaderConstruct;
+    extern bool isCompositeLiteralAtHeaderConstruct;
+    extern int nestingBracketsAtHeaderConstruct;
+
     int yylex() {
         return lexer->yylex();
     }
 
     void yyerror(char const *s) {
-        fprintf(stderr, "Error: %s", s);
+        fprintf(stderr, "Error: %s (on line %d)", s, lexer->lineno());
         exit(1);
     }
 %}
-
 
 %union {
     long long integerVal;
@@ -44,6 +47,8 @@
     ElementCompositeLiteralList *elementsCompositeLiteral;
     std::list<IdentifiersWithType *> *identifiersWithTypeList; 
 }
+
+%locations
 
 %type <identifierList> IdentifiersList
 %type <functionList> InterfaceMembersMoreTwo
@@ -204,10 +209,20 @@
     InterfaceMembersMoreTwo: IDENTIFIER Signature SCs IDENTIFIER Signature          { $$ = new FunctionList({new FunctionDeclaration($1, $2, nullptr), new FunctionDeclaration($4, $5, nullptr)}); }
                 | InterfaceMembersMoreTwo SCs IDENTIFIER Signature                  { $$ = $1; $$ -> push_back(new FunctionDeclaration($3, $4, nullptr)); }
 
-    SliceDeclType: '[' ']' Type                                                     { $$ = new ArraySignature($3); }
+    SliceDeclType: '[' ']' Type                                                     { 
+                                                                                        $$ = new ArraySignature($3); 
+                                                                                        if (insideHeaderConstruct && nestingBracketsAtHeaderConstruct == 0) {
+                                                                                            isCompositeLiteralAtHeaderConstruct = true;
+                                                                                        }
+                                                                                    }
     ;
 
-    ArrayDeclType: '[' INT_LIT ']' Type                                             { $$ = new ArraySignature($4, $2); }
+    ArrayDeclType: '[' INT_LIT ']' Type                                             { 
+                                                                                        $$ = new ArraySignature($4, $2);
+                                                                                        if (insideHeaderConstruct && nestingBracketsAtHeaderConstruct == 0) {
+                                                                                            isCompositeLiteralAtHeaderConstruct = true;
+                                                                                        }
+                                                                                    }
     ;
 
     IdentifiersWithType: IdentifiersList Type                                       { $$ = new IdentifiersWithType(*$1, $2); }
@@ -359,7 +374,7 @@
                 | CompositeLiteral                                                  { $$ = $1; }
                 | IDENTIFIER                                                        { $$ = new IdentifierAsExpression($1); }
                 | '(' Expression ')'                                                { $$ = $2; }
-                // | IDENTIFIER CompositeLiteralBody                                { $$ = new CompositeLiteral(new IdentifierAsType($1), *$2); }   // TODO solve conflict to reduce
+                | IDENTIFIER CompositeLiteralBody                                   { $$ = new CompositeLiteral(new IdentifierAsType($1), *$2); }
     ;
 
 
@@ -373,9 +388,9 @@
     ;
 
 // Composite literals
-    CompositeLiteral: SliceDeclType CompositeLiteralBody                            { $$ = new CompositeLiteral($1, *$2); }
-                | ArrayDeclType CompositeLiteralBody                                { $$ = new CompositeLiteral($1, *$2); }
-                | StructType CompositeLiteralBody                                   { $$ = new CompositeLiteral($1, *$2); }
+    CompositeLiteral: SliceDeclType CompositeLiteralBody                            { $$ = new CompositeLiteral($1, *$2); isCompositeLiteralAtHeaderConstruct = false;  }
+                | ArrayDeclType CompositeLiteralBody                                { $$ = new CompositeLiteral($1, *$2); isCompositeLiteralAtHeaderConstruct = false;  }
+                | StructType CompositeLiteralBody                                   { yyerror("Structs are not supported yet");                                         }
     ;
 
     CompositeLiteralBody: '{' ElementList '}'                                       { $$ = $2; }
@@ -500,27 +515,30 @@
                 | StatementMoreTwo SCs Statement                                    { $$ = $1; $$ -> push_back($3); }
     ;
 
+    // In the golang source code, the construction headers don't contain brackets.
+    // Brackets and semicolons are added to the token stream at the lexical stage
+
     // If statements
-    IfStmt: IF SimpleStmt ';' Expression Block ELSE IfStmt                          { $$ = new IfStatement($2, $4, $5, $7); }
-                | IF Expression Block ELSE IfStmt                                   { $$ = new IfStatement(nullptr, $2, $3, $5); }
-                | IF SimpleStmt ';' Expression Block ELSE Block                     { $$ = new IfStatement($2, $4, $5, $7); }
-                | IF Expression Block ELSE Block                                    { $$ = new IfStatement(nullptr, $2, $3, $5); }
-                | IF SimpleStmt ';' Expression Block                                { $$ = new IfStatement($2, $4, $5, nullptr); }
-                | IF Expression Block                                               { $$ = new IfStatement(nullptr, $2, $3, nullptr); }
+    IfStmt: IF '(' SimpleStmt ';' Expression ')' Block ELSE IfStmt                          { $$ = new IfStatement($3, $5, $7, $9);             }
+                | IF '(' Expression ')' Block ELSE IfStmt                                   { $$ = new IfStatement(nullptr, $3, $5, $7);        }
+                | IF '(' SimpleStmt ';' Expression ')' Block ELSE Block                     { $$ = new IfStatement($3, $5, $7, $9);             }
+                | IF '(' Expression ')' Block ELSE Block                                    { $$ = new IfStatement(nullptr, $3, $5, $7);        }
+                | IF '(' SimpleStmt ';' Expression ')' Block                                { $$ = new IfStatement($3, $5, $7, nullptr);        }
+                | IF '(' Expression ')' Block                                               { $$ = new IfStatement(nullptr, $3, $5, nullptr);   }
     ;
 
     // For statement
-    ForStmt: FOR Expression Block                                                   { $$ = new WhileStatement($2, $3); }
-                | FOR SimpleStmt ';' ExpressionOptional ';' SimpleStmt Block        { $$ = new ForStatement($2, $4, $6, $7); }
-                | FOR ExpressionList '=' RANGE Expression Block                     { $$ = new ForRangeStatement(*$2, $5, $6, false); }
-                | FOR ExpressionList SHORT_DECL_OP RANGE Expression Block           { $$ = new ForRangeStatement(*$2, $5, $6, true); }
-                | FOR RANGE Expression Block                                        { $$ = new ForRangeStatement(*(new ExpressionList()), $3, $4, false); }
-                | FOR Block                                                         { $$ = new WhileStatement(new BooleanExpression(true), $2); }
+    ForStmt: FOR '(' Expression ')' Block                                                   { $$ = new WhileStatement($3, $5); }
+                | FOR '(' SimpleStmt ';' ExpressionOptional ';' SimpleStmt ')' Block        { $$ = new ForStatement($3, $5, $7, $9); }
+                | FOR '(' ExpressionList '=' RANGE Expression ')' Block                     { $$ = new ForRangeStatement(*$3, $6, $8, false); }
+                | FOR '(' ExpressionList SHORT_DECL_OP RANGE Expression ')' Block           { $$ = new ForRangeStatement(*$3, $6, $8, true); }
+                | FOR '(' RANGE Expression ')' Block                                        { $$ = new ForRangeStatement(*(new ExpressionList()), $4, $6, false); }
+                | FOR '(' ')' Block                                                         { $$ = new WhileStatement(new BooleanExpression(true), $4); }
     ;
 
     // Switch statements
-    SwitchStmt: SWITCH SimpleStmt ';' ExpressionOptional '{' ExprCaseOrDefaultClauseListOrEmpty '}'     { $$ = new SwitchStatement($2, $4, *$6); }
-                | SWITCH ExpressionOptional '{' ExprCaseOrDefaultClauseListOrEmpty '}'                  { $$ = new SwitchStatement(nullptr, $2, *$4); }
+    SwitchStmt: SWITCH '(' SimpleStmt ';' ExpressionOptional ')' '{' ExprCaseOrDefaultClauseListOrEmpty '}'     { $$ = new SwitchStatement($3, $5, *$8); }
+                | SWITCH '(' ExpressionOptional ')' '{' ExprCaseOrDefaultClauseListOrEmpty '}'                  { $$ = new SwitchStatement(nullptr, $3, *$6); }
     ;
 
     ExprCaseOrDefaultClause: CASE Expression ':' StatementMoreTwo  SCs              { $$ = new SwitchCaseClause($2, new BlockStatement(*$4));       }

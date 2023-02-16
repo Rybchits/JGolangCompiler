@@ -10,7 +10,7 @@
 #include <filesystem>
 
 yyFlexLexer* lexer;
-PackageAST *Root;
+PackageAST* Root;
 
 int main(int argc, char** argv) {
     yydebug = 0;    // set 1 to debug bison

@@ -47,6 +47,8 @@ private:
     inline static int64_t LastNodeId = 1;
 public:
     const int64_t nodeId;
+    const int64_t line = 0;
+
     virtual ~NodeAST() = default;
     virtual void acceptVisitor(Visitor* visitor) noexcept = 0;
     virtual NodeAST* clone() const = 0;

@@ -7,6 +7,11 @@
 %{
   #include "../ast.h"
   #include "lexer.hpp"
+
+  // shared variables for lexer and parser 
+  bool insideHeaderConstruct;
+  bool isCompositeLiteralAtHeaderConstruct;
+  int nestingBracketsAtHeaderConstruct;
 %}
 
 
@@ -37,6 +42,7 @@ OCTAL_BYTE_VALUE        \\{OCT_DIGIT}{3}
 %x STRING_LITERAL
 %x RUNE_LITERAL
 %x ENABLE_SEMICOLON
+%x EDGE_OF_CONSTRUCTION
 
 %%
 
@@ -54,21 +60,23 @@ defer           { PrintKeyword(yytext); }
 go              { PrintKeyword(yytext); }
 chan            { PrintKeyword(yytext); }
 goto            { PrintKeyword(yytext); }
+
 interface       { return yytokentype::INTERFACE;     }
 default         { return yytokentype::DEFAULT;       }
 func            { return yytokentype::FUNC;          }
 case            { return yytokentype::CASE;          }
 map             { return yytokentype::MAP;           }
-struct          { return yytokentype::STRUCT;        }
 else            { return yytokentype::ELSE;          }
 package         { return yytokentype::PACKAGE;       }
-switch          { return yytokentype::SWITCH;        }
 const           { return yytokentype::CONST;         }
-if              { return yytokentype::IF;            }
 range           { return yytokentype::RANGE;         }
 type            { return yytokentype::TYPE;          }
-for             { return yytokentype::FOR;           }
 var             { return yytokentype::VAR;           }
+
+if              { yy_push_state(EDGE_OF_CONSTRUCTION); return yytokentype::IF;      }
+for             { yy_push_state(EDGE_OF_CONSTRUCTION); return yytokentype::FOR;     }
+switch          { yy_push_state(EDGE_OF_CONSTRUCTION); return yytokentype::SWITCH;  }
+
 nil             { yy_push_state(ENABLE_SEMICOLON); return yytokentype::NIL;          }
 false           { yy_push_state(ENABLE_SEMICOLON); return yytokentype::FALSE;        }
 true            { yy_push_state(ENABLE_SEMICOLON); return yytokentype::TRUE;         }
@@ -76,6 +84,13 @@ break           { yy_push_state(ENABLE_SEMICOLON); return yytokentype::BREAK;   
 fallthrough     { yy_push_state(ENABLE_SEMICOLON); return yytokentype::FALLTHROUGH;  }
 continue        { yy_push_state(ENABLE_SEMICOLON); return yytokentype::CONTINUE;     }
 return          { yy_push_state(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
+
+struct          {
+                    if (insideHeaderConstruct && nestingBracketsAtHeaderConstruct == 0) {
+                      isCompositeLiteralAtHeaderConstruct = true;
+                    }
+                    return yytokentype::STRUCT;        
+                }
 
 
 "/*"                            { currentComment.clear(); yy_push_state(MULTILINE_COMMENT);     }
@@ -114,6 +129,12 @@ return          { yy_push_state(ENABLE_SEMICOLON); return yytokentype::RETURN;  
 <ENABLE_SEMICOLON><<EOF>>       { BEGIN(INITIAL); return ';'; }
 <ENABLE_SEMICOLON>\n+           { BEGIN(INITIAL); return ';'; }
 <ENABLE_SEMICOLON>""/[^\n]      { BEGIN(INITIAL); }
+
+<EDGE_OF_CONSTRUCTION>""/.      { 
+                                  yy_pop_state();
+                                  insideHeaderConstruct = !insideHeaderConstruct;
+                                  return insideHeaderConstruct? '(' : '{';
+                                }
 
 \'                                          { runeValue = -1; yy_push_state(RUNE_LITERAL); }
 
@@ -206,32 +227,52 @@ return          { yy_push_state(ENABLE_SEMICOLON); return yytokentype::RETURN;  
 "/="        { return yytokentype::DIV_ASSIGNMENT;            }
 "%="        { return yytokentype::MOD_ASSIGNMENT;            }
 "!="        { return yytokentype::NOT_EQUAL;                 }
-
 "=="        { return yytokentype::EQUAL;                     }
+
 "!"         { return yytext[0];                 }
 ">"         { return yytext[0];                 }
 "<"         { return yytext[0];                 }
 "~"         { return yytext[0];                 }
-
 "="         { return yytext[0];                 }
 "+"         { return yytext[0];                 }
 "-"         { return yytext[0];                 }
 "*"         { return yytext[0];                 }
 "/"         { return yytext[0];                 }
 "%"         { return yytext[0];                 }
-
 "["         { return yytext[0];                 }
-"("         { return yytext[0];                 }
-"{"         { return yytext[0];                 }
-
 "."         { return yytext[0];                 }
 ","         { return yytext[0];                 }
 ";"         { return yytext[0];                 }
 ":"         { return yytext[0];                 }
-
 "}"         { yy_push_state(ENABLE_SEMICOLON); return yytext[0]; }
-")"         { yy_push_state(ENABLE_SEMICOLON); return yytext[0]; }
 "]"         { yy_push_state(ENABLE_SEMICOLON); return yytext[0]; }
+
+")"         {
+              if (insideHeaderConstruct) 
+              {
+                nestingBracketsAtHeaderConstruct--;
+              }
+              yy_push_state(ENABLE_SEMICOLON);
+              return yytext[0];
+            }
+
+"{"         {
+              if (insideHeaderConstruct && nestingBracketsAtHeaderConstruct == 0 && !isCompositeLiteralAtHeaderConstruct) 
+              {
+                yy_push_state(EDGE_OF_CONSTRUCTION);
+                return ')';
+              }
+
+              return yytext[0]; 
+            }
+
+"("         { 
+              if (insideHeaderConstruct) 
+              {
+                nestingBracketsAtHeaderConstruct++;
+              }
+              return yytext[0];
+            }
 
 
 {DECIMAL_DIGITS}+ {
