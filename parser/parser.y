@@ -1,83 +1,64 @@
-%{
-    #include <FlexLexer.h>
-    #include "../ast.h"
+%require "3.8.2"
+%skeleton "lalr1.cc"
+%define api.namespace {jgolang}
+%define api.parser.class {Parser}
+%define api.value.type variant
+%define parse.assert
 
-    extern yyFlexLexer* lexer;
-    extern PackageAST *Root;
-
-    extern bool insideHeaderConstruct;
-    extern bool isCompositeLiteralAtHeaderConstruct;
-    extern int nestingBracketsAtHeaderConstruct;
-
-    int yylex() {
-        return lexer->yylex();
+%code requires {
+    #include "ast.h"
+    #include <string>
+    namespace jgolang {
+        class Driver;
+        class Scanner;
     }
+}
 
-    void yyerror(char const *s) {
-        fprintf(stderr, "Error: %s (on line %d)", s, lexer->lineno());
-        exit(1);
-    }
-%}
+%parse-param {jgolang::Driver& driver}
+%parse-param {jgolang::Scanner& scanner}
+%lex-param {jgolang::Scanner& scanner}
 
-%union {
-    long long integerVal;
-    char* stringVal;
-    char* identifierVal;
-    double floatVal;
-    int32_t runeVal;
+%code provides {
+    int yylex(jgolang::Parser::semantic_type* value,
+              jgolang::Parser::location_type* location,
+              jgolang::Scanner& scanner);
+}
 
-    TypeAST *typeNode;
-    IdentifiersWithType *typedIdentifiers;
-    DeclarationAST *declarationNode;
-    StatementAST *statementNode;
-    BlockStatement *blockStatementNode;
-    ExpressionAST *expressionNode;
-    VariableDeclaration *varDecl;
-    ElementCompositeLiteral *elementCompositLiteral;
-    SwitchCaseClause *switchCaseClause;
-    FunctionSignature *functionSignature;
-    
-    DeclarationList *declarationList;
-    FunctionList *functionList;
-    ExpressionList *expressionList;
-    StatementList *statementList;
-    IdentifiersList *identifierList;
-    SwitchCaseList *switchCaseClauseList;
-    TypeList *typeList;
-    ElementCompositeLiteralList *elementsCompositeLiteral;
-    std::list<IdentifiersWithType *> *identifiersWithTypeList; 
+%code {
+    #include "parser/driver.hpp"
+    #include "lexer/scanner.hpp"
 }
 
 %locations
 
-%type <identifierList> IdentifiersList
-%type <functionList> InterfaceMembersMoreTwo
-%type <typeList> TypesWithIdentifiersList
-%type <expressionList> ExpressionList Arguments
-%type <statementList> StatementMoreTwo
-%type <switchCaseClauseList> ExprCaseOrDefaultClauseList ExprCaseOrDefaultClauseListOrEmpty
-%type <declarationList> Declaration TopLevelDecl TopLevelDeclList TopLevelDeclListOrEmpty
-%type <identifiersWithTypeList> FieldDeclMoreTwo Result Parameters NamedArgsList
-%type <elementsCompositeLiteral> CompositeLiteralBody ElementList
-%type <declarationList> VariableDecl VariableSpecMoreTwo ConstDecl ConstSpecMoreTwo TypeDefMoreTwo TypeDecl
+%type <IdentifiersList *> IdentifiersList
+%type <FunctionList *> InterfaceMembersMoreTwo
+%type <TypeList *> TypesWithIdentifiersList
+%type <ExpressionList *> ExpressionList Arguments
+%type <StatementList *> StatementMoreTwo
+%type <SwitchCaseList *> ExprCaseOrDefaultClauseList ExprCaseOrDefaultClauseListOrEmpty
+%type <DeclarationList *> Declaration TopLevelDecl TopLevelDeclList TopLevelDeclListOrEmpty
+%type <std::list<IdentifiersWithType *> *> FieldDeclMoreTwo Result Parameters NamedArgsList
+%type <ElementCompositeLiteralList *> CompositeLiteralBody ElementList
+%type <DeclarationList *> VariableDecl VariableSpecMoreTwo ConstDecl ConstSpecMoreTwo TypeDefMoreTwo TypeDecl
 
-%type <blockStatementNode> Block
-%type <functionSignature> Signature
-%type <switchCaseClause> ExprCaseOrDefaultClause
-%type <elementCompositLiteral> KeyedElement
-%type <varDecl> VariableSpec ConstSpec
-%type <typedIdentifiers> IdentifiersWithType VariadicNamedArgument
-%type <declarationNode> FunctionDecl MethodDecl TypeDef
-%type <statementNode> Statement SimpleStmt Assignment ReturnStmt IfStmt ForStmt SwitchStmt ShortVarDecl
-%type <typeNode> Type TypeOnly LiteralType StructType SliceDeclType ArrayDeclType FunctionType VariadicType InterfaceType
-%type <expressionNode> Expression ExpressionOptional Operand BasicLiteral CompositeLiteral FunctionLiteral AccessExpression
+%type <BlockStatement *> Block
+%type <FunctionSignature *> Signature
+%type <SwitchCaseClause *> ExprCaseOrDefaultClause
+%type <ElementCompositeLiteral *> KeyedElement
+%type <VariableDeclaration *> VariableSpec ConstSpec
+%type <IdentifiersWithType *> IdentifiersWithType VariadicNamedArgument
+%type <DeclarationAST *> FunctionDecl MethodDecl TypeDef
+%type <StatementAST *> Statement SimpleStmt Assignment ReturnStmt IfStmt ForStmt SwitchStmt ShortVarDecl
+%type <TypeAST *> Type TypeOnly LiteralType StructType SliceDeclType ArrayDeclType FunctionType VariadicType InterfaceType
+%type <ExpressionAST *> Expression ExpressionOptional Operand BasicLiteral CompositeLiteral FunctionLiteral AccessExpression
 
 
-%token <integerVal>INT_LIT
-%token <floatVal> FLOAT_LIT
-%token <runeVal> RUNE_LIT
-%token <stringVal> STRING_LIT
-%token <identifierVal> IDENTIFIER
+%token <long long> INT_LIT
+%token <double> FLOAT_LIT
+%token <int32_t> RUNE_LIT
+%token <std::string> STRING_LIT
+%token <std::string> IDENTIFIER
 
 %token END   0 	"end of file"
 
@@ -118,7 +99,7 @@
 
 %%
     // The first statement in a Go source file must be package name
-    Root: PACKAGE IDENTIFIER SCs TopLevelDeclListOrEmpty                            { Root = new PackageAST($2, *$4); }
+    Root: PACKAGE IDENTIFIER SCs TopLevelDeclListOrEmpty                            { driver.setRoot(new PackageAST($2, *$4)); }
     ;
 
     TopLevelDeclListOrEmpty: TopLevelDeclList                                       { $$ = $1; }
@@ -211,17 +192,13 @@
 
     SliceDeclType: '[' ']' Type                                                     { 
                                                                                         $$ = new ArraySignature($3); 
-                                                                                        if (insideHeaderConstruct && nestingBracketsAtHeaderConstruct == 0) {
-                                                                                            isCompositeLiteralAtHeaderConstruct = true;
-                                                                                        }
+                                                                                        scanner.markCompositeLiteralInHeader();
                                                                                     }
     ;
 
     ArrayDeclType: '[' INT_LIT ']' Type                                             { 
                                                                                         $$ = new ArraySignature($4, $2);
-                                                                                        if (insideHeaderConstruct && nestingBracketsAtHeaderConstruct == 0) {
-                                                                                            isCompositeLiteralAtHeaderConstruct = true;
-                                                                                        }
+                                                                                        scanner.markCompositeLiteralInHeader();
                                                                                     }
     ;
 
@@ -240,13 +217,13 @@
                 | Parameters Result                                                 { $$ = new FunctionSignature(*$1, *$2); }
     ;
 
-    Result: '(' ')'                                                                 { yyerror("Many returns are not supported yet"); }
-                | '(' NamedArgsList ')'                                             { yyerror("Many returns are not supported yet"); }
-                | '(' NamedArgsList ',' ')'                                         { yyerror("Many returns are not supported yet"); }
-                | '(' TypesWithIdentifiersList ')'                                  { yyerror("Many returns are not supported yet"); }
-                | '(' IdentifiersList ')'                                           { yyerror("Many returns are not supported yet"); }
-                | '(' TypesWithIdentifiersList ',' ')'                              { yyerror("Many returns are not supported yet"); }
-                | '(' IdentifiersList ',' ')'                                       { yyerror("Many returns are not supported yet"); }
+    Result: '(' ')'                                                                 { throw jgolang::Parser::syntax_error(@$, "Many returns are not supported yet"); }
+                | '(' NamedArgsList ')'                                             { throw jgolang::Parser::syntax_error(@$, "Many returns are not supported yet"); }
+                | '(' NamedArgsList ',' ')'                                         { throw jgolang::Parser::syntax_error(@$, "Many returns are not supported yet"); }
+                | '(' TypesWithIdentifiersList ')'                                  { throw jgolang::Parser::syntax_error(@$, "Many returns are not supported yet"); }
+                | '(' IdentifiersList ')'                                           { throw jgolang::Parser::syntax_error(@$, "Many returns are not supported yet"); }
+                | '(' TypesWithIdentifiersList ',' ')'                              { throw jgolang::Parser::syntax_error(@$, "Many returns are not supported yet"); }
+                | '(' IdentifiersList ',' ')'                                       { throw jgolang::Parser::syntax_error(@$, "Many returns are not supported yet"); }
                 | LiteralType                                                       { 
                                                                                         $$ = new std::list<IdentifiersWithType *>();
                                                                                         $$ -> push_back(new IdentifiersWithType( *(new IdentifiersList({"_"})), $1));
@@ -388,9 +365,9 @@
     ;
 
 // Composite literals
-    CompositeLiteral: SliceDeclType CompositeLiteralBody                            { $$ = new CompositeLiteral($1, *$2); isCompositeLiteralAtHeaderConstruct = false;  }
-                | ArrayDeclType CompositeLiteralBody                                { $$ = new CompositeLiteral($1, *$2); isCompositeLiteralAtHeaderConstruct = false;  }
-                | StructType CompositeLiteralBody                                   { yyerror("Structs are not supported yet");                                         }
+    CompositeLiteral: SliceDeclType CompositeLiteralBody                            { $$ = new CompositeLiteral($1, *$2); scanner.finishCompositeLiteral();  }
+                | ArrayDeclType CompositeLiteralBody                                { $$ = new CompositeLiteral($1, *$2); scanner.finishCompositeLiteral();  }
+                | StructType CompositeLiteralBody                                   { throw jgolang::Parser::syntax_error(@$, "Structs are not supported yet");                                         }
     ;
 
     CompositeLiteralBody: '{' ElementList '}'                                       { $$ = $2; }
@@ -439,10 +416,10 @@
     AccessExpression: Operand                                                       { $$ = $1; }
                 | AccessExpression '[' Expression ']'                               { $$ = new AccessExpression(AccessExpression::Indexing, $1, $3); }
                 | AccessExpression '.' AccessExpression                             { $$ = new AccessExpression(AccessExpression::FieldSelect, $1, $3); }
-                | AccessExpression '[' ':' ']'                                      { yyerror("array slices are not supported yet"); }
-                | AccessExpression '[' Expression ':' ']'                           { yyerror("array slices are not supported yet"); }
-                | AccessExpression '[' ':' Expression ']'                           { yyerror("array slices are not supported yet"); }
-                | AccessExpression '[' Expression ':' Expression ']'                { yyerror("array slices are not supported yet"); }
+                | AccessExpression '[' ':' ']'                                      { throw jgolang::Parser::syntax_error(@$, "array slices are not supported yet"); }
+                | AccessExpression '[' Expression ':' ']'                           { throw jgolang::Parser::syntax_error(@$, "array slices are not supported yet"); }
+                | AccessExpression '[' ':' Expression ']'                           { throw jgolang::Parser::syntax_error(@$, "array slices are not supported yet"); }
+                | AccessExpression '[' Expression ':' Expression ']'                { throw jgolang::Parser::syntax_error(@$, "array slices are not supported yet"); }
                 | AccessExpression Arguments                                        { $$ = new CallableExpression($1, *$2); }
     ;
 
@@ -469,7 +446,7 @@
                                                                                         IdentifiersList* temp = IdentifiersListFromExpressions(*$1);
 
                                                                                         if (temp == nullptr) {
-                                                                                            yyerror("Lhs of short declaration must contains only identifiers");
+                                                                                            throw jgolang::Parser::syntax_error(@$, "Lhs of short declaration must contains only identifiers");
 
                                                                                         } else {
                                                                                             $$ = new ShortVarDeclarationStatement(*temp, *$3);
@@ -559,4 +536,3 @@
     SCs: ';'                                                                        { }
                 | SCs ';'                                                           { }
 %%
-

@@ -1,17 +1,16 @@
 %option noyywrap
 %option never-interactive
 %option c++
+%option yyclass="jgolang::Scanner"
 %option yylineno
 %option stack
 
 %{
-  #include "../ast.h"
+  #include "lexer/scanner.hpp"
   #include "lexer.hpp"
 
-  // shared variables for lexer and parser 
-  bool insideHeaderConstruct;
-  bool isCompositeLiteralAtHeaderConstruct;
-  int nestingBracketsAtHeaderConstruct;
+  using yytokentype = jgolang::Parser::token;
+  #define YY_USER_ACTION advanceLocation(yytext, yyleng);
 %}
 
 
@@ -46,13 +45,6 @@ OCTAL_BYTE_VALUE        \\{OCT_DIGIT}{3}
 
 %%
 
-%{
-std::string stringLiteral;
-std::string currentComment;
-int32_t runeValue;
-long long currentInteger;
-double floatingPoint;
-%}
 
 import                                  { PrintKeyword(yytext); }
 select                                  { PrintKeyword(yytext); }
@@ -96,12 +88,12 @@ struct                                  {
 "/*"                                    { currentComment.clear(); yy_push_state(MULTILINE_COMMENT); }
 <MULTILINE_COMMENT>\*+\/                { yy_pop_state();                                           }
 <MULTILINE_COMMENT>[^\*\/]+             { currentComment += yytext;                                 }
-<MULTILINE_COMMENT><<EOF>>              { PrintErrorAndExit("expected */ "); yy_pop_state();        }
+<MULTILINE_COMMENT><<EOF>>              { fail("expected */ "); yy_pop_state();        }
 
 \/\/.*                                  { std::string tempStr = yytext;                             }
 
 
-\"                                      { stringLiteral.clear(); yy_push_state(STRING_LITERAL);     }
+\"                                      { stringLiteral.clear(); literalLocation_ = location_; yy_push_state(STRING_LITERAL);     }
 <STRING_LITERAL>{OCTAL_BYTE_VALUE}      { stringLiteral += char(std::stoi(yytext + 1, nullptr, 8)); }
 <STRING_LITERAL>{HEX_BYTE_VALUE}        { stringLiteral += char(std::stoi(yytext + 2, nullptr, 16));}
 <STRING_LITERAL>[^\\\"\n#{}]+           { stringLiteral += yytext;  }
@@ -114,11 +106,11 @@ struct                                  {
 <STRING_LITERAL>\\r                     { stringLiteral += "\r";    }
 <STRING_LITERAL>\\v                     { stringLiteral += "\v";    }
 <STRING_LITERAL>\\\"                    { stringLiteral += "\"";    }
-<STRING_LITERAL>\\.                     { PrintErrorAndExit("unknown escape sequence"); yy_pop_state();}
-<STRING_LITERAL>\n                      { PrintErrorAndExit("newline in string"); yy_pop_state();      }
-<STRING_LITERAL><<EOF>>                 { PrintErrorAndExit("expected \" "); yy_pop_state();           }
+<STRING_LITERAL>\\.                     { fail("unknown escape sequence"); yy_pop_state();}
+<STRING_LITERAL>\n                      { fail("newline in string"); yy_pop_state();      }
+<STRING_LITERAL><<EOF>>                 { fail("expected \" "); yy_pop_state();           }
 
-<STRING_LITERAL>\"                      {   yylval.stringVal = DuplicateString(stringLiteral.c_str());
+<STRING_LITERAL>\"                      {   location_.begin = literalLocation_.begin; value_->emplace<std::string>(stringLiteral);
                                             yy_push_state(ENABLE_SEMICOLON);
                                             return yytokentype::STRING_LIT;
                                         }
@@ -139,62 +131,62 @@ struct                                  {
 <EDGE_OF_CONSTRUCTION>[[:space:]]+      { }
 
 
-\'                                      { runeValue = -1; yy_push_state(RUNE_LITERAL); }
+\'                                      { runeValue = -1; literalLocation_ = location_; yy_push_state(RUNE_LITERAL); }
 
 <RUNE_LITERAL>{OCTAL_BYTE_VALUE}        { if (runeValue == -1) runeValue = std::stoi(yytext + 1, nullptr, 8);
-                                          else PrintErrorAndExit("more than one character in rune literal");
+                                          else fail("more than one character in rune literal");
                                         }
 
 <RUNE_LITERAL>{HEX_BYTE_VALUE}          { if (runeValue == -1) runeValue = std::stoi(yytext + 1, nullptr, 16);   
-                                          else PrintErrorAndExit("more than one character in rune literal");
+                                          else fail("more than one character in rune literal");
                                         }
 
 <RUNE_LITERAL>[^'\n\\]                  { if (runeValue == -1) runeValue = *yytext;                              
-                                          else PrintErrorAndExit("more than one character in rune literal");
+                                          else fail("more than one character in rune literal");
                                         }
 
 <RUNE_LITERAL>\\a                       { if (runeValue == -1) runeValue = '\a';                                 
-                                          else PrintErrorAndExit("more than one character in rune literal");
+                                          else fail("more than one character in rune literal");
                                         }
 
 <RUNE_LITERAL>\\b                       { if (runeValue == -1) runeValue = '\b';                                 
-                                          else PrintErrorAndExit("more than one character in rune literal");
+                                          else fail("more than one character in rune literal");
                                         }
 
 <RUNE_LITERAL>\\\\                      { if (runeValue == -1) runeValue = '\\';                                 
-                                          else PrintErrorAndExit("more than one character in rune literal");
+                                          else fail("more than one character in rune literal");
                                         }
 
 <RUNE_LITERAL>\\t                       { if (runeValue == -1) runeValue = '\t';                                 
-                                          else PrintErrorAndExit("more than one character in rune literal");
+                                          else fail("more than one character in rune literal");
                                         }
 
 <RUNE_LITERAL>\\n                       { if (runeValue == -1) runeValue = '\n';                                 
-                                          else PrintErrorAndExit("more than one character in rune literal");
+                                          else fail("more than one character in rune literal");
                                         }
 
 <RUNE_LITERAL>\\f                       { if (runeValue == -1) runeValue = '\f';                                 
-                                          else PrintErrorAndExit("more than one character in rune literal");
+                                          else fail("more than one character in rune literal");
                                         }
 
 <RUNE_LITERAL>\\r                       { if (runeValue == -1) runeValue = '\r';                                 
-                                          else PrintErrorAndExit("more than one character in rune literal");
+                                          else fail("more than one character in rune literal");
                                         }
 
 <RUNE_LITERAL>\\v                       { if (runeValue == -1) runeValue = '\v';                                 
-                                          else PrintErrorAndExit("more than one character in rune literal");
+                                          else fail("more than one character in rune literal");
                                         }
 
 <RUNE_LITERAL>\\\'                      { if (runeValue == -1) runeValue = '\'';                                 
-                                          else PrintErrorAndExit("more than one character in rune literal");
+                                          else fail("more than one character in rune literal");
                                         }
 
-<RUNE_LITERAL>\\.                       { PrintErrorAndExit("unknown escape sequence");    }
-<RUNE_LITERAL>\n                        { PrintErrorAndExit("newline in string");          }
-<RUNE_LITERAL><<EOF>>                   { PrintErrorAndExit("expected \" ");               }
+<RUNE_LITERAL>\\.                       { fail("unknown escape sequence");    }
+<RUNE_LITERAL>\n                        { fail("newline in string");          }
+<RUNE_LITERAL><<EOF>>                   { fail("expected \" ");               }
 
-<RUNE_LITERAL>\'                        { if (runeValue == -1) PrintErrorAndExit("empty rune literal");
-                                          yylval.runeVal = runeValue;
+<RUNE_LITERAL>\'                        { if (runeValue == -1) fail("empty rune literal");
+                                          location_.begin = literalLocation_.begin; value_->emplace<int32_t>(runeValue);
                                           yy_pop_state();
                                           return yytokentype::RUNE_LIT;
                                         }
@@ -282,7 +274,7 @@ struct                                  {
                                           tempStr.erase(std::remove(tempStr.begin(), tempStr.end(), '_'), tempStr.end());
                                           currentInteger = std::stoll(tempStr);
 
-                                          yylval.integerVal = currentInteger;
+                                          value_->emplace<long long>(currentInteger);
                                           yy_push_state(ENABLE_SEMICOLON);
                                           return yytokentype::INT_LIT;
                                         }
@@ -292,7 +284,7 @@ struct                                  {
                                           tempStr.erase(std::remove(tempStr.begin(), tempStr.end(), '_'), tempStr.end());
                                           currentInteger = std::stoll(tempStr.substr(2), nullptr, 8);
 
-                                          yylval.integerVal = currentInteger;
+                                          value_->emplace<long long>(currentInteger);
                                           yy_push_state(ENABLE_SEMICOLON);
                                           return yytokentype::INT_LIT;
                                         }
@@ -302,7 +294,7 @@ struct                                  {
                                           tempStr.erase(std::remove(tempStr.begin(), tempStr.end(), '_'), tempStr.end());
                                           currentInteger = std::stoll(tempStr, nullptr, 16);
 
-                                          yylval.integerVal = currentInteger;
+                                          value_->emplace<long long>(currentInteger);
                                           yy_push_state(ENABLE_SEMICOLON);
                                           return yytokentype::INT_LIT;
                                         }
@@ -312,7 +304,7 @@ struct                                  {
                                           tempStr.erase(std::remove(tempStr.begin(), tempStr.end(), '_'), tempStr.end());
                                           currentInteger = std::stoll(tempStr.substr(2), nullptr, 2);
 
-                                          yylval.integerVal = currentInteger;
+                                          value_->emplace<long long>(currentInteger);
                                           yy_push_state(ENABLE_SEMICOLON);
                                           return yytokentype::INT_LIT;
                                         }
@@ -322,19 +314,18 @@ struct                                  {
                                                 tempStr.erase(std::remove(tempStr.begin(), tempStr.end(), '_'), tempStr.end());
                                                 floatingPoint = std::stod(tempStr.c_str());
 
-                                                yylval.floatVal = floatingPoint;
+                                                value_->emplace<double>(floatingPoint);
                                                 yy_push_state(ENABLE_SEMICOLON);
                                                 return yytokentype::FLOAT_LIT;
                                             }
 
 
 ({LETTER})({LETTER}|{DECIMAL_DIGIT})*   {
-                                          yylval.identifierVal = DuplicateString(yytext);
+                                          value_->emplace<std::string>(yytext, yyleng);
                                           yy_push_state(ENABLE_SEMICOLON);
                                           return yytokentype::IDENTIFIER;
                                         }
 
 [[:space:]]+                            { }
 
-.                                       { PrintErrorAndExit("found bad character"); }
-
+.                                       { fail("found bad character"); }

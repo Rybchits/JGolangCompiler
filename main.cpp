@@ -3,18 +3,12 @@
 #include "codegen/codegen.h"
 
 #include "./utils/io.hpp"
-#include <parser/parser.tab.h>
+#include "parser/driver.hpp"
 
-#include <FlexLexer.h>
 #include <iostream>
 #include <filesystem>
 
-yyFlexLexer* lexer;
-PackageAST* Root;
-
 int main(int argc, char** argv) {
-    yydebug = 0;    // set 1 to debug bison
-
     std::istringstream iStringStream;
 
     if (argc > 1) {
@@ -30,19 +24,26 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    lexer = new yyFlexLexer(iStringStream, std::cout);
-    yyparse();
+    jgolang::Driver driver;
+    auto result = driver.parse(iStringStream, argv[1]);
+    if (!result) {
+        for (const auto& diagnostic : result.diagnostics) {
+            std::cerr << diagnostic.filename << ':' << diagnostic.line << ':'
+                      << diagnostic.column << ": Error: " << diagnostic.message << '\n';
+        }
+        return 1;
+    }
 
-    auto semantic = new Semantic(Root);
-    bool isSematicOk = semantic->analyze();
+    Semantic semantic(result.root.get());
+    bool isSematicOk = semantic.analyze();
 
-    CreateDotFile(Root);
+    CreateDotFile(result.root.get());
     
     if (isSematicOk) {
         // Only package class
-        std::unordered_map<std::string, ClassEntity*> classes = { { "$" + Root->packageName, semantic->packageClass} };
+        std::unordered_map<std::string, ClassEntity*> classes = { { "$" + result.root->packageName, semantic.packageClass} };
         Generator(classes).generate();
     }
 
-    return 0;
+    return isSematicOk ? 0 : 1;
 }

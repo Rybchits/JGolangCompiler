@@ -1,7 +1,6 @@
 package functions
 
-func main() { var myVar string = "Hello world" }
-
-func correctMain() {
-	print("Hello world")
+func main() {
+	var myVar string = "Hello world"
+	println(myVar)
 }

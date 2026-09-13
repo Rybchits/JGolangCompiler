@@ -1,6 +1,6 @@
 #pragma once
 
-#include "parser/parser.tab.h"
+#include <parser/parser.tab.h>
 
 #include <string>
 #include <cstdio>
@@ -21,9 +21,7 @@ void PrintIntegerLiteral(const std::string & type, long long integer);
 void PrintIdentifier(const std::string & identifier);
 void PrintRune(const int32_t rune);
 void PrintFloatingPointLiteral(const double floatingPoint);
-void PrintErrorAndExit(const std::string & e);
 
-char* DuplicateString(const char* source);
 
 
 void Print(const std::string & message) {
@@ -74,18 +72,4 @@ void PrintRune(const int32_t rune) {
 
 void PrintFloatingPointLiteral(const double floatingPoint) {
     std::cout << "Floating point literal: " << floatingPoint << std::endl;
-}
-
-
-void PrintErrorAndExit(const std::string & e) {
-    Print("Error: " + e);
-    exit(1);
-}
-
-char* DuplicateString(const char* source) {
-    const auto length = std::strlen(source) + 1;
-    char* destination = new char[length];
-    std::fill(destination, destination + length, 0);
-    std::copy(source, source + length, destination);
-    return destination;
 }

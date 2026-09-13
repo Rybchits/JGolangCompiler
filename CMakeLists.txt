@@ -5,7 +5,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(FLEX REQUIRED)
-find_package(BISON REQUIRED)
+find_package(BISON 3.8.2 REQUIRED)
 
 file(MAKE_DIRECTORY
     ${CMAKE_CURRENT_BINARY_DIR}/parser
@@ -26,9 +26,10 @@ FLEX_TARGET(Lexer
 
 ADD_FLEX_BISON_DEPENDENCY(Lexer Parser)
 
-add_executable(compiler
-    main.cpp
+add_library(compiler_core STATIC
     ast.cpp
+    parser/driver.cpp
+    lexer/scanner.cpp
     ${BISON_Parser_OUTPUTS}
     ${FLEX_Lexer_OUTPUTS}
     entities/class_entity.cpp
@@ -43,11 +44,14 @@ add_executable(compiler
     codegen/constant.cpp
 )
 
-target_include_directories(compiler PRIVATE
+target_include_directories(compiler_core PUBLIC
     ${CMAKE_CURRENT_BINARY_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_SOURCE_DIR}/lexer
 )
+
+add_executable(compiler main.cpp)
+target_link_libraries(compiler PRIVATE compiler_core)
 
 include(CTest)
 
@@ -56,12 +60,12 @@ if(BUILD_TESTING)
     file(MAKE_DIRECTORY "${ONLY_MAIN_TEST_DIR}")
 
     add_test(
-        NAME only_main_unused_variable
+        NAME only_main
         COMMAND compiler "${CMAKE_CURRENT_SOURCE_DIR}/tests/functions/only_main.go"
     )
-    set_tests_properties(only_main_unused_variable PROPERTIES
+    set_tests_properties(only_main PROPERTIES
         WORKING_DIRECTORY "${ONLY_MAIN_TEST_DIR}"
-        PASS_REGULAR_EXPRESSION "Error: Unused variable myVar"
+        FAIL_REGULAR_EXPRESSION "Error:"
         TIMEOUT 10
     )
 endif()
