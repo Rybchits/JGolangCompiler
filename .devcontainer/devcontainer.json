@@ -1,0 +1,25 @@
+{
+  "name": "JGolangCompiler",
+  "build": {
+    "dockerfile": "../Dockerfile",
+    "context": "..",
+    "target": "dev"
+  },
+  "workspaceMount": "source=${localWorkspaceFolder},target=/src,type=bind",
+  "workspaceFolder": "/src",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cpptools",
+        "ms-vscode.cmake-tools"
+      ],
+      "settings": {
+        "cmake.cmakePath": "/usr/bin/cmake",
+        "cmake.buildDirectory": "${workspaceFolder}/build-linux",
+        "cmake.buildType": "Debug",
+        "cmake.configureOnOpen": false,
+        "C_Cpp.default.configurationProvider": "ms-vscode.cmake-tools"
+      }
+    }
+  }
+}

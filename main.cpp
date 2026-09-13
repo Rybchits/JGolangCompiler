@@ -3,7 +3,7 @@
 #include "codegen/codegen.h"
 
 #include "./utils/io.hpp"
-#include "./parser/parser.tab.h"
+#include <parser/parser.tab.h>
 
 #include <FlexLexer.h>
 #include <iostream>

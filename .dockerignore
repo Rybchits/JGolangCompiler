@@ -1,0 +1,9 @@
+build/
+build-linux/
+*.o
+compiler
+lexer/lex.yy.cc
+parser/parser.tab.cpp
+parser/parser.tab.h
+parser/parser.output
+RTL/*.class

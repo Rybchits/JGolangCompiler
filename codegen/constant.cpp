@@ -1,4 +1,6 @@
 #include "constant.h"
+#include <cstring>
+#include <algorithm>
 
 bool operator==(const Constant& lhs, const Constant& rhs)
 {
