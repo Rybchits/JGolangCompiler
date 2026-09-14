@@ -51,8 +51,11 @@
 %type <DeclarationAST *> FunctionDecl MethodDecl TypeDef
 %type <StatementAST *> Statement SimpleStmt Assignment ReturnStmt IfStmt ForStmt SwitchStmt ShortVarDecl
 %type <TypeAST *> Type TypeOnly LiteralType StructType SliceDeclType ArrayDeclType FunctionType VariadicType InterfaceType
-%type <ExpressionAST *> Expression ExpressionOptional Operand BasicLiteral CompositeLiteral FunctionLiteral AccessExpression
+%type <ExpressionAST *> Expression Operand BasicLiteral CompositeLiteral FunctionLiteral AccessExpression
 
+%type <ExpressionAST *> HeaderOperand HeaderExpression HeaderAccessExpression HeaderExpressionOptional
+%type <ExpressionList *> HeaderExpressionList
+%type <StatementAST *> HeaderAssignment HeaderShortVarDecl HeaderSimpleStmt
 
 %token <long long> INT_LIT
 %token <double> FLOAT_LIT
@@ -64,7 +67,7 @@
 
 %token BREAK DEFAULT FUNC CASE RETURN VAR TRUE FALSE
        MAP STRUCT ELSE PACKAGE SWITCH INTERFACE NIL
-       CONST FALLTHROUGH IF RANGE TYPE CONTINUE FOR 
+       CONST FALLTHROUGH IF RANGE TYPE CONTINUE FOR
 
 %left OR                            // ||
 %left AND                           // &&
@@ -152,26 +155,26 @@
                 | STRUCT '{' IDENTIFIER '}'                                         {
                                                                                         auto typedIds = new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3));
                                                                                         auto fields = new std::list<IdentifiersWithType *>({typedIds});
-                                                                                        $$ = new StructSignature(*fields); 
+                                                                                        $$ = new StructSignature(*fields);
                                                                                     }
                 | STRUCT '{' IDENTIFIER SCs '}'                                     {
                                                                                         auto typedIds = new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3));
                                                                                         auto fields = new std::list<IdentifiersWithType *>({typedIds});
-                                                                                        $$ = new StructSignature(*fields); 
+                                                                                        $$ = new StructSignature(*fields);
                                                                                     }
     ;
 
     FieldDeclMoreTwo: IdentifiersWithType SCs IdentifiersWithType                   { $$ = new std::list<IdentifiersWithType *>({$1, $3}); }
                 | FieldDeclMoreTwo SCs IdentifiersWithType                          { $$ = $1; $$ -> push_back($3); }
                 | FieldDeclMoreTwo SCs IDENTIFIER                                   { $$ = $1; $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3))); }
-                | IDENTIFIER SCs IdentifiersWithType                                { 
+                | IDENTIFIER SCs IdentifiersWithType                                {
                                                                                         $$ = new std::list<IdentifiersWithType *>();
                                                                                         $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($1)));
                                                                                         $$ -> push_back($3);
                                                                                     }
                 | IdentifiersWithType SCs IDENTIFIER                                {
                                                                                         $$ = new std::list<IdentifiersWithType *>();
-                                                                                        $$ -> push_back($1); 
+                                                                                        $$ -> push_back($1);
                                                                                         $$ -> push_back(new IdentifiersWithType(*(new IdentifiersList({""})), new IdentifierAsType($3)));
                                                                                     }
                 | IDENTIFIER SCs IDENTIFIER                                         {
@@ -190,16 +193,10 @@
     InterfaceMembersMoreTwo: IDENTIFIER Signature SCs IDENTIFIER Signature          { $$ = new FunctionList({new FunctionDeclaration($1, $2, nullptr), new FunctionDeclaration($4, $5, nullptr)}); }
                 | InterfaceMembersMoreTwo SCs IDENTIFIER Signature                  { $$ = $1; $$ -> push_back(new FunctionDeclaration($3, $4, nullptr)); }
 
-    SliceDeclType: '[' ']' Type                                                     { 
-                                                                                        $$ = new ArraySignature($3); 
-                                                                                        scanner.markCompositeLiteralInHeader();
-                                                                                    }
+    SliceDeclType: '[' ']' Type { $$ = new ArraySignature($3); }
     ;
 
-    ArrayDeclType: '[' INT_LIT ']' Type                                             { 
-                                                                                        $$ = new ArraySignature($4, $2);
-                                                                                        scanner.markCompositeLiteralInHeader();
-                                                                                    }
+    ArrayDeclType: '[' INT_LIT ']' Type { $$ = new ArraySignature($4, $2); }
     ;
 
     IdentifiersWithType: IdentifiersList Type                                       { $$ = new IdentifiersWithType(*$1, $2); }
@@ -212,7 +209,7 @@
 // Function type
     FunctionType: FUNC Signature                                                    { $$ = $2; }
     ;
-    
+
     Signature: Parameters                                                           { $$ = new FunctionSignature(*$1, *(new std::list<IdentifiersWithType *>())); }
                 | Parameters Result                                                 { $$ = new FunctionSignature(*$1, *$2); }
     ;
@@ -224,16 +221,16 @@
                 | '(' IdentifiersList ')'                                           { throw jgolang::Parser::syntax_error(@$, "Many returns are not supported yet"); }
                 | '(' TypesWithIdentifiersList ',' ')'                              { throw jgolang::Parser::syntax_error(@$, "Many returns are not supported yet"); }
                 | '(' IdentifiersList ',' ')'                                       { throw jgolang::Parser::syntax_error(@$, "Many returns are not supported yet"); }
-                | LiteralType                                                       { 
+                | LiteralType                                                       {
                                                                                         $$ = new std::list<IdentifiersWithType *>();
                                                                                         $$ -> push_back(new IdentifiersWithType( *(new IdentifiersList({"_"})), $1));
                                                                                     }
-                | IDENTIFIER                                                        { 
-                                                                                        $$ = new std::list<IdentifiersWithType *>(); 
+                | IDENTIFIER                                                        {
+                                                                                        $$ = new std::list<IdentifiersWithType *>();
                                                                                         $$ -> push_back(new IdentifiersWithType( *(new IdentifiersList({"_"})), new IdentifierAsType($1)));
                                                                                     }
     ;
-    
+
     Parameters: '(' ')'                                                             { $$ = new std::list<IdentifiersWithType *>(); }
                 | '(' NamedArgsList ')'                                             { $$ = $2; }
                 | '(' NamedArgsList ',' ')'                                         { $$ = $2; }
@@ -243,7 +240,7 @@
                 | '(' IdentifiersList ')'                                           { $$ = AttachIdentifiersToListTypes( *ListIdentifiersToListTypes(*$2) ); }
                 | '(' TypesWithIdentifiersList ',' ')'                              { $$ = AttachIdentifiersToListTypes(*$2); }
                 | '(' IdentifiersList ',' ')'                                       { $$ = AttachIdentifiersToListTypes( *ListIdentifiersToListTypes(*$2) ); }
-                | '(' TypesWithIdentifiersList ',' VariadicType ')'                 { 
+                | '(' TypesWithIdentifiersList ',' VariadicType ')'                 {
                                                                                         $2 -> push_back($4);
                                                                                         $$ = AttachIdentifiersToListTypes(*$2);
                                                                                     }
@@ -252,14 +249,14 @@
                                                                                         temp -> push_back($4);
                                                                                         $$ = AttachIdentifiersToListTypes(*temp);
                                                                                     }
-                | '(' TypesWithIdentifiersList ',' VariadicType ',' ')'             { 
+                | '(' TypesWithIdentifiersList ',' VariadicType ',' ')'             {
                                                                                         $2 -> push_back($4);
                                                                                         $$ = AttachIdentifiersToListTypes(*$2);
                                                                                     }
-                | '(' IdentifiersList ',' VariadicType ',' ')'                      { 
+                | '(' IdentifiersList ',' VariadicType ',' ')'                      {
                                                                                         TypeList* temp = ListIdentifiersToListTypes(*$2);
                                                                                         temp -> push_back($4);
-                                                                                        $$ = AttachIdentifiersToListTypes(*temp); 
+                                                                                        $$ = AttachIdentifiersToListTypes(*temp);
                                                                                     }
     ;
 
@@ -281,11 +278,11 @@
                 | VAR '(' VariableSpec SCs ')'                                      { $$ = new DeclarationList({$3}); }
                 | VAR '(' ')'                                                       { $$ = new DeclarationList(); }
     ;
-    
+
     VariableSpecMoreTwo: VariableSpecMoreTwo SCs VariableSpec                       { $$ = $1; $$ -> push_back($3); }
                 | VariableSpec SCs VariableSpec                                     { $$ = new DeclarationList({$1, $3}); }
 	;
-    
+
     VariableSpec: IdentifiersWithType '=' ExpressionList                            { $$ = new VariableDeclaration($1, *$3, false); }
 		| IdentifiersWithType                                                       { $$ = new VariableDeclaration($1, *(new ExpressionList()), false); }
 		| IdentifiersList '=' ExpressionList                                        { $$ = new VariableDeclaration(new IdentifiersWithType(*$1, nullptr), *$3, false); }
@@ -299,8 +296,8 @@
                 | CONST '(' ConstSpec SCs ')'                                       { $$ = new DeclarationList({$3}); }
                 | CONST '(' ')'                                                     { $$ = new DeclarationList(); }
     ;
-    
-    
+
+
     ConstSpecMoreTwo: ConstSpec SCs ConstSpec                                       { $$ = new DeclarationList({$1, $3}); }
                 | ConstSpecMoreTwo SCs ConstSpec                                    { $$ = $1; $$ -> push_back($3); }
     ;
@@ -315,15 +312,15 @@
     ;
 
 // Method declaration
-    MethodDecl: FUNC '(' IDENTIFIER '*' IDENTIFIER ')' IDENTIFIER Signature Block  { 
+    MethodDecl: FUNC '(' IDENTIFIER '*' IDENTIFIER ')' IDENTIFIER Signature Block  {
                                                                                         IdentifierAsType* type = new IdentifierAsType($5);
                                                                                         type->isPointer = true;
-                                                                                        $$ = new MethodDeclaration($7, $3, type, $8, $9); 
+                                                                                        $$ = new MethodDeclaration($7, $3, type, $8, $9);
                                                                                     }
                 | FUNC '(' IDENTIFIER '*' IDENTIFIER ')' IDENTIFIER Signature      {
                                                                                         IdentifierAsType* type = new IdentifierAsType($5);
                                                                                         type->isPointer = true;
-                                                                                        $$ = new MethodDeclaration($7, $3, new IdentifierAsType($5), $8, nullptr); 
+                                                                                        $$ = new MethodDeclaration($7, $3, new IdentifierAsType($5), $8, nullptr);
                                                                                     }
                 | FUNC '(' IDENTIFIER IDENTIFIER ')' IDENTIFIER Signature Block    { $$ = new MethodDeclaration($6, $3, new IdentifierAsType($4), $7, $8); }
                 | FUNC '(' IDENTIFIER IDENTIFIER ')' IDENTIFIER Signature          { $$ = new MethodDeclaration($6, $3, new IdentifierAsType($4), $7, nullptr); }
@@ -337,7 +334,7 @@
                 | TYPE '(' TypeDef SCs ')'                                          { $$ = new DeclarationList({$3}); }
                 | TYPE '(' ')'                                                      { $$ = new DeclarationList(); }
     ;
-    
+
     TypeDefMoreTwo: TypeDef SCs TypeDef                                             { $$ = new DeclarationList({$1, $3}); }
                 | TypeDefMoreTwo SCs TypeDef                                        { $$ = $1; $$ -> push_back($3); }
     ;
@@ -365,8 +362,8 @@
     ;
 
 // Composite literals
-    CompositeLiteral: SliceDeclType CompositeLiteralBody                            { $$ = new CompositeLiteral($1, *$2); scanner.finishCompositeLiteral();  }
-                | ArrayDeclType CompositeLiteralBody                                { $$ = new CompositeLiteral($1, *$2); scanner.finishCompositeLiteral();  }
+    CompositeLiteral: SliceDeclType CompositeLiteralBody                            { $$ = new CompositeLiteral($1, *$2);   }
+                | ArrayDeclType CompositeLiteralBody                                { $$ = new CompositeLiteral($1, *$2);   }
                 | StructType CompositeLiteralBody                                   { throw jgolang::Parser::syntax_error(@$, "Structs are not supported yet");                                         }
     ;
 
@@ -409,10 +406,6 @@
                 | Expression VARIADIC                                               { $$ = new UnaryExpression(UnaryExpression::Variadic, $1);              }
     ;
 
-    ExpressionOptional: /* empty */                                                 { $$ = nullptr; }
-                | Expression                                                        { $$ = $1; }
-    ;
-
     AccessExpression: Operand                                                       { $$ = $1; }
                 | AccessExpression '[' Expression ']'                               { $$ = new AccessExpression(AccessExpression::Indexing, $1, $3); }
                 | AccessExpression '.' AccessExpression                             { $$ = new AccessExpression(AccessExpression::FieldSelect, $1, $3); }
@@ -450,7 +443,7 @@
 
                                                                                         } else {
                                                                                             $$ = new ShortVarDeclarationStatement(*temp, *$3);
-                                                                                        } 
+                                                                                        }
                                                                                     }
     ;
 
@@ -492,37 +485,109 @@
                 | StatementMoreTwo SCs Statement                                    { $$ = $1; $$ -> push_back($3); }
     ;
 
-    // In the golang source code, the construction headers don't contain brackets.
-    // Brackets and semicolons are added to the token stream at the lexical stage
-
-    // If statements
-    IfStmt: IF '(' SimpleStmt ';' Expression ')' Block ELSE IfStmt                          { $$ = new IfStatement($3, $5, $7, $9);             }
-                | IF '(' Expression ')' Block ELSE IfStmt                                   { $$ = new IfStatement(nullptr, $3, $5, $7);        }
-                | IF '(' SimpleStmt ';' Expression ')' Block ELSE Block                     { $$ = new IfStatement($3, $5, $7, $9);             }
-                | IF '(' Expression ')' Block ELSE Block                                    { $$ = new IfStatement(nullptr, $3, $5, $7);        }
-                | IF '(' SimpleStmt ';' Expression ')' Block                                { $$ = new IfStatement($3, $5, $7, nullptr);        }
-                | IF '(' Expression ')' Block                                               { $$ = new IfStatement(nullptr, $3, $5, nullptr);   }
+    // At the outer level of a control header, an identifier followed by '{'
+    // starts the block. Parentheses, arguments and indices use ordinary expressions.
+    HeaderOperand: FunctionLiteral                                                  { $$ = $1; }
+                | CompositeLiteral                                                  { $$ = $1; }
+                | IDENTIFIER                                                        { $$ = new IdentifierAsExpression($1); }
+                | '(' Expression ')'                                                { $$ = $2; }
     ;
 
-    // For statement
-    ForStmt: FOR '(' Expression ')' Block                                                   { $$ = new WhileStatement($3, $5); }
-                | FOR '(' SimpleStmt ';' ExpressionOptional ';' SimpleStmt ')' Block        { $$ = new ForStatement($3, $5, $7, $9); }
-                | FOR '(' ExpressionList '=' RANGE Expression ')' Block                     { $$ = new ForRangeStatement(*$3, $6, $8, false); }
-                | FOR '(' ExpressionList SHORT_DECL_OP RANGE Expression ')' Block           { $$ = new ForRangeStatement(*$3, $6, $8, true); }
-                | FOR '(' RANGE Expression ')' Block                                        { $$ = new ForRangeStatement(*(new ExpressionList()), $4, $6, false); }
-                | FOR '(' ')' Block                                                         { $$ = new WhileStatement(new BooleanExpression(true), $4); }
+    HeaderExpression: HeaderAccessExpression                                                    { $$ = $1; }
+                | BasicLiteral                                                                  { $$ = $1; }
+                | HeaderExpression '+' HeaderExpression                                         { $$ = new BinaryExpression(BinaryExpression::Addition, $1, $3);        }
+                | HeaderExpression '-' HeaderExpression                                         { $$ = new BinaryExpression(BinaryExpression::Subtraction, $1, $3);     }
+                | HeaderExpression '*' HeaderExpression                                         { $$ = new BinaryExpression(BinaryExpression::Multiplication, $1, $3);  }
+                | HeaderExpression '/' HeaderExpression                                         { $$ = new BinaryExpression(BinaryExpression::Division, $1, $3);        }
+                | HeaderExpression '%' HeaderExpression                                         { $$ = new BinaryExpression(BinaryExpression::Mod, $1, $3);             }
+                | HeaderExpression '<' HeaderExpression                                         { $$ = new BinaryExpression(BinaryExpression::Less, $1, $3);            }
+                | HeaderExpression '>' HeaderExpression                                         { $$ = new BinaryExpression(BinaryExpression::Greater, $1, $3);         }
+                | HeaderExpression EQUAL HeaderExpression                                       { $$ = new BinaryExpression(BinaryExpression::Equal, $1, $3);           }
+                | HeaderExpression NOT_EQUAL HeaderExpression                                   { $$ = new BinaryExpression(BinaryExpression::NotEqual, $1, $3);        }
+                | HeaderExpression LESS_OR_EQUAL HeaderExpression                               { $$ = new BinaryExpression(BinaryExpression::LessOrEqual, $1, $3);     }
+                | HeaderExpression GREATER_OR_EQUAL HeaderExpression                            { $$ = new BinaryExpression(BinaryExpression::GreatOrEqual, $1, $3);    }
+                | HeaderExpression AND HeaderExpression                                         { $$ = new BinaryExpression(BinaryExpression::And, $1, $3);             }
+                | HeaderExpression OR HeaderExpression                                          { $$ = new BinaryExpression(BinaryExpression::Or, $1, $3);              }
+                | '+' HeaderExpression %prec UNARY_PLUS                                   { $$ = new UnaryExpression(UnaryExpression::UnaryPlus, $2);             }
+                | '-' HeaderExpression %prec UNARY_MINUS                                  { $$ = new UnaryExpression(UnaryExpression::UnaryMinus, $2);            }
+                | '!' HeaderExpression                                                    { $$ = new UnaryExpression(UnaryExpression::UnaryNot, $2);              }
+                | HeaderExpression VARIADIC                                               { $$ = new UnaryExpression(UnaryExpression::Variadic, $1);              }
     ;
 
-    // Switch statements
-    SwitchStmt: SWITCH '(' SimpleStmt ';' ExpressionOptional ')' '{' ExprCaseOrDefaultClauseListOrEmpty '}'     { $$ = new SwitchStatement($3, $5, *$8); }
-                | SWITCH '(' ExpressionOptional ')' '{' ExprCaseOrDefaultClauseListOrEmpty '}'                  { $$ = new SwitchStatement(nullptr, $3, *$6); }
+    HeaderAccessExpression: HeaderOperand                                                 { $$ = $1; }
+                | HeaderAccessExpression '[' Expression ']'                               { $$ = new AccessExpression(AccessExpression::Indexing, $1, $3); }
+                | HeaderAccessExpression '.' HeaderAccessExpression                       { $$ = new AccessExpression(AccessExpression::FieldSelect, $1, $3); }
+                | HeaderAccessExpression '[' ':' ']'                                      { throw jgolang::Parser::syntax_error(@$, "array slices are not supported yet"); }
+                | HeaderAccessExpression '[' Expression ':' ']'                           { throw jgolang::Parser::syntax_error(@$, "array slices are not supported yet"); }
+                | HeaderAccessExpression '[' ':' Expression ']'                           { throw jgolang::Parser::syntax_error(@$, "array slices are not supported yet"); }
+                | HeaderAccessExpression '[' Expression ':' Expression ']'                { throw jgolang::Parser::syntax_error(@$, "array slices are not supported yet"); }
+                | HeaderAccessExpression Arguments                                        { $$ = new CallableExpression($1, *$2); }
+    ;
+
+    HeaderExpressionOptional: /* empty */                                                 { $$ = nullptr; }
+                | HeaderExpression                                                        { $$ = $1; }
+    ;
+
+    HeaderExpressionList: HeaderExpression                                                      { $$ = new ExpressionList({$1}); }
+		| HeaderExpressionList ',' HeaderExpression                                             { $$ = $1; $$ -> push_back($3); }
+    ;
+
+    HeaderAssignment: HeaderExpression PLUS_ASSIGNMENT HeaderExpression                               { $$ = new AssignmentStatement(AssignmentStatement::PlusAssign, $1, $3);     }
+                | HeaderExpression MINUS_ASSIGNMENT HeaderExpression                            { $$ = new AssignmentStatement(AssignmentStatement::MinusAssign, $1, $3);    }
+                | HeaderExpression MUL_ASSIGNMENT HeaderExpression                              { $$ = new AssignmentStatement(AssignmentStatement::MulAssign, $1, $3);      }
+                | HeaderExpression DIV_ASSIGNMENT HeaderExpression                              { $$ = new AssignmentStatement(AssignmentStatement::DivAssign, $1, $3);      }
+                | HeaderExpression MOD_ASSIGNMENT HeaderExpression                              { $$ = new AssignmentStatement(AssignmentStatement::ModAssign, $1, $3);      }
+                | HeaderExpressionList '=' HeaderExpressionList                                 { $$ = new AssignmentStatement(AssignmentStatement::SimpleAssign, *$1, *$3); }
+    ;
+
+    HeaderShortVarDecl: HeaderExpressionList SHORT_DECL_OP HeaderExpressionList     {
+                                                                                        IdentifiersList* temp = IdentifiersListFromExpressions(*$1);
+
+                                                                                        if (temp == nullptr) {
+                                                                                            throw jgolang::Parser::syntax_error(@$, "Lhs of short declaration must contains only identifiers");
+
+                                                                                        } else {
+                                                                                            $$ = new ShortVarDeclarationStatement(*temp, *$3);
+                                                                                        }
+                                                                                    }
+    ;
+
+    HeaderSimpleStmt: HeaderExpression                                                          { $$ = new ExpressionStatement($1); }
+                | HeaderAssignment                                                        { $$ = $1; }
+                | HeaderShortVarDecl                                                      { $$ = $1; }
+                | HeaderExpression INCREMENT                                              { $$ = new ExpressionStatement(new UnaryExpression(UnaryExpression::Increment, $1)); }
+                | HeaderExpression DECREMENT                                              { $$ = new ExpressionStatement(new UnaryExpression(UnaryExpression::Decrement, $1)); }
+    ;
+
+    IfStmt: IF HeaderSimpleStmt ';' HeaderExpression Block ELSE IfStmt   { $$ = new IfStatement($2, $4, $5, $7); }
+        | IF HeaderExpression Block ELSE IfStmt                          { $$ = new IfStatement(nullptr, $2, $3, $5); }
+        | IF HeaderSimpleStmt ';' HeaderExpression Block ELSE Block      { $$ = new IfStatement($2, $4, $5, $7); }
+        | IF HeaderExpression Block ELSE Block                           { $$ = new IfStatement(nullptr, $2, $3, $5); }
+        | IF HeaderSimpleStmt ';' HeaderExpression Block                 { $$ = new IfStatement($2, $4, $5, nullptr); }
+        | IF HeaderExpression Block                                      { $$ = new IfStatement(nullptr, $2, $3, nullptr); }
+    ;
+
+    ForStmt: FOR HeaderExpression Block                                  { $$ = new WhileStatement($2, $3); }
+        | FOR HeaderSimpleStmt ';' HeaderExpressionOptional ';' HeaderSimpleStmt Block
+                                                                         { $$ = new ForStatement($2, $4, $6, $7); }
+        | FOR HeaderExpressionList '=' RANGE HeaderExpression Block      { $$ = new ForRangeStatement(*$2, $5, $6, false); }
+        | FOR HeaderExpressionList SHORT_DECL_OP RANGE HeaderExpression Block
+                                                                         { $$ = new ForRangeStatement(*$2, $5, $6, true); }
+        | FOR RANGE HeaderExpression Block                               { $$ = new ForRangeStatement(*(new ExpressionList()), $3, $4, false); }
+        | FOR Block                                                      { $$ = new WhileStatement(new BooleanExpression(true), $2); }
+    ;
+
+    SwitchStmt: SWITCH HeaderSimpleStmt ';' HeaderExpressionOptional '{' ExprCaseOrDefaultClauseListOrEmpty '}'
+                                                                         { $$ = new SwitchStatement($2, $4, *$6); }
+        | SWITCH HeaderExpressionOptional '{' ExprCaseOrDefaultClauseListOrEmpty '}'
+                                                                         { $$ = new SwitchStatement(nullptr, $2, *$4); }
     ;
 
     ExprCaseOrDefaultClause: CASE Expression ':' StatementMoreTwo  SCs              { $$ = new SwitchCaseClause($2, new BlockStatement(*$4));       }
                 | CASE Expression ':' Statement SCs                                 { $$ = new SwitchCaseClause($2, new BlockStatement($4));        }
                 | CASE Expression ':'                                               { $$ = new SwitchCaseClause($2, new BlockStatement());          }
                 | DEFAULT ':' StatementMoreTwo SCs                                  { $$ = new SwitchCaseClause(nullptr, new BlockStatement(*$3));  }
-                | DEFAULT ':' Statement SCs                                         { $$ = new SwitchCaseClause(nullptr, new BlockStatement($3));   }           
+                | DEFAULT ':' Statement SCs                                         { $$ = new SwitchCaseClause(nullptr, new BlockStatement($3));   }
     ;
 
     ExprCaseOrDefaultClauseList: ExprCaseOrDefaultClause                            { $$ = new SwitchCaseList({$1}); }

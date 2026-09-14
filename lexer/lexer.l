@@ -41,7 +41,6 @@ OCTAL_BYTE_VALUE        \\{OCT_DIGIT}{3}
 %x STRING_LITERAL
 %x RUNE_LITERAL
 %x ENABLE_SEMICOLON
-%x EDGE_OF_CONSTRUCTION
 
 %%
 
@@ -65,9 +64,9 @@ range                                   { return yytokentype::RANGE;         }
 type                                    { return yytokentype::TYPE;          }
 var                                     { return yytokentype::VAR;           }
 
-if                                      { yy_push_state(EDGE_OF_CONSTRUCTION); return yytokentype::IF;      }
-for                                     { yy_push_state(EDGE_OF_CONSTRUCTION); return yytokentype::FOR;     }
-switch                                  { yy_push_state(EDGE_OF_CONSTRUCTION); return yytokentype::SWITCH;  }
+if                                      { return yytokentype::IF;      }
+for                                     { return yytokentype::FOR;     }
+switch                                  { return yytokentype::SWITCH;  }
 
 nil                                     { yy_push_state(ENABLE_SEMICOLON); return yytokentype::NIL;          }
 false                                   { yy_push_state(ENABLE_SEMICOLON); return yytokentype::FALSE;        }
@@ -77,12 +76,7 @@ fallthrough                             { yy_push_state(ENABLE_SEMICOLON); retur
 continue                                { yy_push_state(ENABLE_SEMICOLON); return yytokentype::CONTINUE;     }
 return                                  { yy_push_state(ENABLE_SEMICOLON); return yytokentype::RETURN;       }
 
-struct                                  {
-                                          if (insideHeaderConstruct && nestingBracketsAtHeaderConstruct == 0) {
-                                            isCompositeLiteralAtHeaderConstruct = true;
-                                          }
-                                          return yytokentype::STRUCT;        
-                                        }
+struct                                  { return yytokentype::STRUCT; }
 
 
 "/*"                                    { currentComment.clear(); yy_push_state(MULTILINE_COMMENT); }
@@ -123,12 +117,6 @@ struct                                  {
 <ENABLE_SEMICOLON>""/[^\n]              { BEGIN(INITIAL); }
 
 
-<EDGE_OF_CONSTRUCTION>""/.              { yy_pop_state();
-                                          insideHeaderConstruct = !insideHeaderConstruct;
-                                          return insideHeaderConstruct? '(' : '{';
-                                        }
-
-<EDGE_OF_CONSTRUCTION>[[:space:]]+      { }
 
 
 \'                                      { runeValue = -1; literalLocation_ = location_; yy_push_state(RUNE_LITERAL); }
@@ -242,31 +230,9 @@ struct                                  {
 "}"                                     { yy_push_state(ENABLE_SEMICOLON); return yytext[0]; }
 "]"                                     { yy_push_state(ENABLE_SEMICOLON); return yytext[0]; }
 
-")"                                     {
-                                          if (insideHeaderConstruct) {
-                                            nestingBracketsAtHeaderConstruct--;
-                                          }
-                                          yy_push_state(ENABLE_SEMICOLON);
-                                          return yytext[0];
-                                        }
-
-"{"                                     {
-                                          if (insideHeaderConstruct 
-                                              && nestingBracketsAtHeaderConstruct == 0
-                                              && !isCompositeLiteralAtHeaderConstruct
-                                          ) {
-                                              yy_push_state(EDGE_OF_CONSTRUCTION);
-                                              return ')';
-                                          }
-                                          return yytext[0]; 
-                                        }
-
-"("                                     { 
-                                          if (insideHeaderConstruct) {
-                                            nestingBracketsAtHeaderConstruct++;
-                                          }
-                                          return yytext[0];
-                                        }
+")"                                     { yy_push_state(ENABLE_SEMICOLON); return ')'; }
+"{"                                     { return '{'; }
+"("                                     { return '('; }
 
 
 {DECIMAL_DIGITS}+                       {

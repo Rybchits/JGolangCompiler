@@ -36,16 +36,6 @@ void Scanner::advanceLocation(const char* text, int length) {
     }
 }
 
-void Scanner::markCompositeLiteralInHeader() {
-    if (insideHeaderConstruct && nestingBracketsAtHeaderConstruct == 0) {
-        isCompositeLiteralAtHeaderConstruct = true;
-    }
-}
-
-void Scanner::finishCompositeLiteral() {
-    isCompositeLiteralAtHeaderConstruct = false;
-}
-
 void Scanner::fail(const std::string& message) const {
     throw Parser::syntax_error(location_, message);
 }
@@ -56,6 +46,8 @@ void Scanner::LexerError(const char* message) {
 
 } // namespace jgolang
 
+// Bison entry point: forwards token requests to a specific Scanner instance.
+// This free function is distinct from the generated Scanner::yylex() method.
 int yylex(jgolang::Parser::semantic_type* value,
           jgolang::Parser::location_type* location,
           jgolang::Scanner& scanner) {
