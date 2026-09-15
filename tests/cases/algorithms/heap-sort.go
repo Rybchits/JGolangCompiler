@@ -48,8 +48,12 @@ func HeapSort(arr []int) {
 func main() {
 	arr := []int{5, 3, 4, 7, 8, 9}
 	print("Initial array is: ")
-	println(arr) // here error deep print array
+	for _, value := range arr {
+		println(value)
+	}
 	HeapSort(arr)
 	print("Sorted array is: ")
-	println(arr)
+	for _, value := range arr {
+		println(value)
+	}
 }

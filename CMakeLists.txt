@@ -56,16 +56,5 @@ target_link_libraries(compiler PRIVATE compiler_core)
 include(CTest)
 
 if(BUILD_TESTING)
-    set(ONLY_MAIN_TEST_DIR "${CMAKE_CURRENT_BINARY_DIR}/tests/only_main")
-    file(MAKE_DIRECTORY "${ONLY_MAIN_TEST_DIR}")
-
-    add_test(
-        NAME only_main
-        COMMAND compiler "${CMAKE_CURRENT_SOURCE_DIR}/tests/functions/only_main.go"
-    )
-    set_tests_properties(only_main PROPERTIES
-        WORKING_DIRECTORY "${ONLY_MAIN_TEST_DIR}"
-        FAIL_REGULAR_EXPRESSION "Error:"
-        TIMEOUT 10
-    )
+    add_subdirectory(tests)
 endif()

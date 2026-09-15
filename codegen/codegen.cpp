@@ -78,7 +78,13 @@ std::vector<char> Generator::generateCloneArrayCommand(ExpressionAST* array) {
 
 		codeBytes.push_back(char(Command::invokevirtual));
 
-		auto buffer = IntToBytes(constantPool.FindOrCreateMethodRef(array->typeExpression->toByteCode(), "clone", "()Ljava/lang/Object;"));
+		const auto arrayType = array->typeExpression->toByteCode();
+		auto buffer = IntToBytes(constantPool.FindOrCreateMethodRef(arrayType, "clone", "()Ljava/lang/Object;"));
+		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
+
+		// clone() returns Object; restore the array type for JVM verification.
+		codeBytes.push_back(char(Command::checkcast));
+		buffer = IntToBytes(constantPool.FindOrCreateClass(arrayType));
 		codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 	}
 
@@ -188,8 +194,8 @@ void Generator::generate() {
 		// CAFEBABE
 		outfile << (char)0xCA << (char)0xFE << (char)0xBA << (char)0xBE;
 
-		// JAVA 8 (version 52.0 (0x34))
-		outfile << (char)0x00 << (char)0x00 << (char)0x00 << (char)0x3E;
+		// Java 5 (49.0): verification by type inference requires no StackMapTable.
+		outfile << (char)0x00 << (char)0x00 << (char)0x00 << (char)0x31;
 
 		// fill class file tail to buffer
 

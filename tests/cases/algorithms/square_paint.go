@@ -43,6 +43,10 @@ func main() {
 	paint(matrix, 2, 1, 9, 9)
 
 	for _, array := range matrix {
-		println(array)
+		for _, value := range array {
+			print(value)
+			print(" ")
+		}
+		println("")
 	}
 }

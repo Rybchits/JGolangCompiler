@@ -23,8 +23,9 @@ func BubbleSliceSort(arr []int) {
 
 func main() {
 	a := [8]int{5, 10, -123, 2, 444, 1, 1, 15}
-	println(BubbleArraySort(a))
-	println(a)
+	sorted := BubbleArraySort(a)
+	for _, value := range sorted { println(value) }
+	for _, value := range a { println(value) }
 
 	slice := []int{}
 
@@ -33,5 +34,5 @@ func main() {
 	}
 
 	BubbleSliceSort(slice)
-	println(slice)
+	for _, value := range slice { println(value) }
 }
