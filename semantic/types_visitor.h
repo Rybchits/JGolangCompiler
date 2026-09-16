@@ -1,12 +1,12 @@
 #pragma once
 
 #include "../context.h"
-#include "./semantic.h"
+#include "../entities/class_entity.h"
+#include "../visitor.h"
 
 #include <vector>
 
 class TypesVisitor;
-class Semantic;
 
 class VariableEntity{
 public:
@@ -41,7 +41,9 @@ public:
 class TypesVisitor : public Visitor {
 friend class ConstExpressionVisitor;
 private:
-    Semantic* semantic;
+    std::vector<std::string> errors;
+
+    void addError(const std::string& message) { errors.push_back(message); }
     Context<VariableEntity*> scopesDeclarations;
 
     ConstExpressionVisitor constCheckVisitor = ConstExpressionVisitor(this);
@@ -89,6 +91,6 @@ private:
     bool defineReadFunction(CallableExpression* function, TypeEntity::TypeEntityEnum type);
 
 public:
-    explicit TypesVisitor(Semantic* semantic): semantic(semantic) {};
+    const std::vector<std::string>& getErrors() const { return errors; }
     void analyzePackageClass(ClassEntity* classEntity, std::vector<std::string>& idsConstPackageVariables);
 };

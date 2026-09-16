@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "../semantic/builtins.h"
 
 std::vector<char> Generator::generateInteger(int64_t number) {
 	std::vector<char> codeBytes;
@@ -534,7 +535,7 @@ std::vector<char> Generator::generate(CallableExpression* expr) {
 			buffer = IntToBytes(methodRef->index);
 			codeBytes.insert(codeBytes.end(), buffer.begin() + 2, buffer.end());
 
-		} else if (Semantic::IsBuiltInFunction(idExpression->identifier)) {
+		} else if (IsBuiltInFunction(idExpression->identifier)) {
 			std::string descriptor = createDescriptorBuiltInFunction(expr);
 
 			int indexBuiltInFunction = constantPool.FindOrCreateMethodRef("$Base", idExpression->identifier, descriptor);

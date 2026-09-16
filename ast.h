@@ -88,7 +88,7 @@ public:
     IdentifiersWithType *identifiersWithType;
     ExpressionList values;
 
-    VariableDeclaration(IdentifiersWithType *typedIds, ExpressionList &values, bool isConst = false)
+    VariableDeclaration(IdentifiersWithType *typedIds, ExpressionList values, bool isConst = false)
             : identifiersWithType(typedIds), values(values), isConst(isConst) {};
         
     VariableDeclaration* clone() const noexcept override;

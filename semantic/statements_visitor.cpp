@@ -162,7 +162,7 @@ BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *f
                 indexVariableStatement = new DeclarationStatement(
                         new VariableDeclaration(
                                 new IdentifiersWithType(indexVariableIdentifier->identifier, nullptr),
-                                *(new ExpressionList({new IdentifierAsExpression(indexPrivateVariableName)}))
+                                ExpressionList({new IdentifierAsExpression(indexPrivateVariableName)})
                         )
                 );
             } else {

@@ -36,8 +36,8 @@ bool CreateDotFile(NodeAST* node) {
         std::fstream treeOut;
         treeOut.open(dotFile, std::ios_base::out);
 
-        auto dotVisitor = new DotConvertVisitor(treeOut);
-        dotVisitor->convert(node);
+        auto dotVisitor = DotConvertVisitor(treeOut);
+        dotVisitor.convert(node);
     }
 
     return true;

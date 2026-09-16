@@ -4,7 +4,7 @@
 #include "./commands.h"
 #include "../visitor.h"
 #include "../context.h"
-#include "../semantic/semantic.h"
+#include "../entities/class_entity.h"
 
 #include <unordered_map>
 #include <cstring>

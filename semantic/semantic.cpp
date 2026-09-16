@@ -5,7 +5,7 @@
 
 #include <iostream>
 
-Semantic::Semantic(PackageAST* package): root(package), typeVisitor(new TypesVisitor(this)) {}
+Semantic::Semantic(PackageAST* package): root(package) {}
 
 bool Semantic::analyze() {
     if (root == nullptr) {
@@ -39,13 +39,13 @@ bool Semantic::analyze() {
 }
 
 void Semantic::transformStatements() {
-    auto visitor = new StatementsVisitor(this);
-    visitor->transform(root);
+    auto visitor = StatementsVisitor(this);
+    visitor.transform(root);
 }
 
 void Semantic::precalculateExpressions() {
-    auto visitor = new PrecalculateVisitor(this);
-    visitor->transform(root);
+    auto visitor = PrecalculateVisitor(this);
+    visitor.transform(root);
 }
 
 void Semantic::createPackageClass() {
@@ -96,7 +96,10 @@ void Semantic::createPackageClass() {
         }
     }
 
-    typeVisitor->analyzePackageClass(packageClass, idsConstants);
+    TypesVisitor typeVisitor;
+    typeVisitor.analyzePackageClass(packageClass, idsConstants);
+    const auto& typeErrors = typeVisitor.getErrors();
+    errors.insert(errors.end(), typeErrors.begin(), typeErrors.end());
 }
 
 void Semantic::analyzePackageScope() {
@@ -132,10 +135,6 @@ void Semantic::analyzePackageScope() {
     }
 }
 
-TypesVisitor* Semantic::getTypesVisitor() {
-    return typeVisitor; 
-}
-
 void Semantic::addError(std::string message) {
     errors.push_back(message);
 }
@@ -144,21 +143,6 @@ void Semantic::printErrors() {
     for (auto err : errors) {
         std::cout << "Error: " << err << std::endl;
     }
-}
-
-const std::vector<std::string> Semantic::BuiltInFunctions = {
-    "print", 
-    "println", 
-    "len", 
-    "append", 
-    "readInt", 
-    "readFloat", 
-    "readString", 
-    "readBool",
-};
-
-bool Semantic::IsBuiltInFunction(std::string identifier) {
-    return std::find(BuiltInFunctions.begin(), BuiltInFunctions.end(), identifier) != BuiltInFunctions.end();
 }
 
 bool Semantic::isGeneratedName(const std::string_view name) { return !name.empty() && name[0] == '$'; };
