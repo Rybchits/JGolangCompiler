@@ -49,14 +49,14 @@ void Semantic::precalculateExpressions() {
 }
 
 void Semantic::createPackageClass() {
-    packageClass = new ClassEntity();
+    packageClass = std::make_unique<ClassEntity>();
     auto idsConstants = std::vector<std::string>();
 
     // Add package functions
     for (auto function : packageFunctions) {
-        auto method =  new MethodEntity(function);
+        auto method = std::make_unique<MethodEntity>(function);
 
-        if (!packageClass->addMethod(function->identifier, method)) {
+        if (!packageClass->addMethod(function->identifier, std::move(method))) {
             addError(function->identifier + "redclared in block");
         }
     }
@@ -75,29 +75,29 @@ void Semantic::createPackageClass() {
                 expressionsIter++;
             }
             
-            FieldEntity* field;
+            std::unique_ptr<FieldEntity> field;
 
             // Blank static variables can't be deleted. We need to make them unique and unused
             if (identifier == "_") {
                 identifier = "$_" + std::to_string(indexBlankVariable);
                 indexBlankVariable++;
-                field = new FieldEntity(new TypeEntity(TypeEntity::Any), expressionNode);
+                field = std::make_unique<FieldEntity>(std::make_shared<const TypeEntity>(TypeEntity::Any), expressionNode);
 
             } else {
-                field = new FieldEntity(new TypeEntity(variable->identifiersWithType->type), expressionNode);
+                field = std::make_unique<FieldEntity>(std::make_shared<const TypeEntity>(variable->identifiersWithType->type), expressionNode);
             }
 
             if (variable->isConst)
                 idsConstants.push_back(identifier);
 
-            if (!packageClass->addField(identifier, field)) {
+            if (!packageClass->addField(identifier, std::move(field))) {
                 addError(identifier + "already redclared in package");
             }
         }
     }
 
     TypesVisitor typeVisitor;
-    typeVisitor.analyzePackageClass(packageClass, idsConstants);
+    typeVisitor.analyzePackageClass(packageClass.get(), idsConstants);
     const auto& typeErrors = typeVisitor.getErrors();
     errors.insert(errors.end(), typeErrors.begin(), typeErrors.end());
 }
@@ -116,7 +116,7 @@ void Semantic::analyzePackageScope() {
                 }
 
                 functionDeclaration->signature->idsAndTypesArgs.push_back(
-                    new IdentifiersWithType(*(new IdentifiersList({"$args"})), new ArraySignature(new IdentifierAsType("string")))  
+                    new IdentifiersWithType(IdentifiersList({"$args"}), new ArraySignature(new IdentifierAsType("string")))
                 );
                 
                 findMain = true;

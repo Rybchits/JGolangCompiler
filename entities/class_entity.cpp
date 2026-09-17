@@ -1,20 +1,20 @@
 #include "class_entity.h"
 
-TypeEntity* MethodEntity::toTypeEntity() {
-    std::list<TypeEntity*> args;
+TypePtr MethodEntity::toTypeEntity() const {
+    std::list<TypePtr> args;
 
     for (const auto &arg : this->arguments ) {
        args.push_back(arg.second);
     }
 
-    return new TypeEntity(new FunctionSignatureEntity(args, this->returnType));
+    return std::make_shared<const TypeEntity>(FunctionSignatureEntity(std::move(args), this->returnType));
 }
 
 
 MethodEntity::MethodEntity(FunctionDeclaration* node) : block(node->block) {
     // fill with args
     for (auto identifiersWithType : node->signature->idsAndTypesArgs) {
-        auto type = new TypeEntity(identifiersWithType->type);
+        auto type = std::make_shared<const TypeEntity>(identifiersWithType->type);
         
         for (auto identifier : identifiersWithType->identifiers) {
             arguments.emplace_back(identifier, type);
@@ -22,25 +22,23 @@ MethodEntity::MethodEntity(FunctionDeclaration* node) : block(node->block) {
     }
 
     if (node->signature->idsAndTypesResults.empty()) {
-        returnType = new TypeEntity(TypeEntity::Void);
+        returnType = std::make_shared<const TypeEntity>(TypeEntity::Void);
     } else {
         // fill with return values
         for (auto identifiersWithType : node->signature->idsAndTypesResults) {
-            auto type = new TypeEntity(identifiersWithType->type);
+            auto type = std::make_shared<const TypeEntity>(identifiersWithType->type);
             returnType = type;
         }
     }
  }
 
- bool ClassEntity::addFields(std::unordered_map<std::string, FieldEntity*> & vars) {
-        bool success = true;
-
-        for (auto & [identifier, type] : vars) {
-            success &= fields.try_emplace(identifier, type).second;
-        }
-
-        return success;
-    };
+bool ClassEntity::addFields(std::unordered_map<std::string, std::unique_ptr<FieldEntity>> vars) {
+    bool success = true;
+    for (auto& [identifier, field] : vars) {
+        success &= addField(identifier, std::move(field));
+    }
+    return success;
+}
 
 
 void MethodEntity::setNumberLocalVariables(int number) {

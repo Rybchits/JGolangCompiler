@@ -7,13 +7,14 @@
 #include <string>
 #include <vector>
 #include <variant>
+#include <memory>
 
 class MethodEntity {
 private:
     int numberLocalVariables = 0;
 
-    std::vector<std::pair<std::string, TypeEntity*>> arguments;
-    TypeEntity* returnType;
+    std::vector<std::pair<std::string, TypePtr>> arguments;
+    TypePtr returnType;
 
     BlockStatement* block;
 
@@ -21,12 +22,12 @@ public:
     MethodEntity() {};
     MethodEntity(FunctionDeclaration* node);
 
-    TypeEntity* toTypeEntity();
+    TypePtr toTypeEntity() const;
     
-    const std::vector<std::pair<std::string, TypeEntity*>> & getArguments() { return arguments; }
+    const std::vector<std::pair<std::string, TypePtr>> & getArguments() const { return arguments; }
     BlockStatement* getCodeBlock() const { return block; }
     int getNumberLocalVariables() const;
-    TypeEntity* getReturnType() const { return returnType; };
+    TypePtr getReturnType() const { return returnType; };
     
     void setNumberLocalVariables(int number);
 };
@@ -34,9 +35,9 @@ public:
 
 class FieldEntity {
 public:
-    TypeEntity * type;
+    TypePtr type;
     ExpressionAST * declaration;
-    FieldEntity(TypeEntity * type, ExpressionAST * declaration) : type(type), declaration(declaration) {};
+    FieldEntity(TypePtr type, ExpressionAST * declaration) : type(std::move(type)), declaration(declaration) {};
     
     bool hasDeclaration() { return declaration == nullptr ? false : true; }
 };
@@ -44,18 +45,22 @@ public:
 
 class ClassEntity {
 private:
-    std::unordered_map<std::string, FieldEntity*> fields;
-    std::unordered_map<std::string, MethodEntity*> methods;
+    std::unordered_map<std::string, std::unique_ptr<FieldEntity>> fields;
+    std::unordered_map<std::string, std::unique_ptr<MethodEntity>> methods;
 
 public:
-    bool addMethod(std::string identifier, MethodEntity * method) { return methods.try_emplace(identifier, method).second; }
-    bool addField(std::string identifier, FieldEntity* type) { return fields.try_emplace(identifier, type).second; };
-    bool addFields(std::unordered_map<std::string, FieldEntity*> & vars);
+    bool addMethod(std::string identifier, std::unique_ptr<MethodEntity> method) {
+        return methods.try_emplace(std::move(identifier), std::move(method)).second;
+    }
+    bool addField(std::string identifier, std::unique_ptr<FieldEntity> field) {
+        return fields.try_emplace(std::move(identifier), std::move(field)).second;
+    }
+    bool addFields(std::unordered_map<std::string, std::unique_ptr<FieldEntity>> vars);
     
-    const std::unordered_map<std::string, MethodEntity*>& getMethods() { return methods; };
-    const std::unordered_map<std::string, FieldEntity*>& getFields() { return fields; };
+    const std::unordered_map<std::string, std::unique_ptr<MethodEntity>>& getMethods() const { return methods; };
+    const std::unordered_map<std::string, std::unique_ptr<FieldEntity>>& getFields() const { return fields; };
     
-    bool hasFieldsDeclaration() { 
+    bool hasFieldsDeclaration() const {
         for (auto & [_, field] : fields) {if (field->hasDeclaration()) return true; };
                                                                        return false;}
 };

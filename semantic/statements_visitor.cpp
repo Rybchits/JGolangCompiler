@@ -133,9 +133,8 @@ BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *f
     StatementList list;
 
     auto indexDeclaration = new VariableDeclaration(
-            new IdentifiersWithType(
-                    *(new IdentifiersList{indexPrivateVariableName}), new IdentifierAsType("int")),
-            *(new ExpressionList{new IntegerExpression(0)})
+            new IdentifiersWithType(IdentifiersList{indexPrivateVariableName}, new IdentifierAsType("int")),
+            ExpressionList({new IntegerExpression(0)})
     );
 
     list.push_back(new DeclarationStatement(*(new DeclarationList{indexDeclaration})));
@@ -143,8 +142,7 @@ BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *f
     auto condition = new BinaryExpression(
             BinaryExpression::Less,
             new IdentifierAsExpression(indexPrivateVariableName),
-            new CallableExpression(new IdentifierAsExpression("len"),
-                                   *(new ExpressionList{forRangeStmt->expressionValue->clone()}))
+            new CallableExpression(new IdentifierAsExpression("len"), ExpressionList{forRangeStmt->expressionValue->clone()})
     );
 
     if (forRangeStmt->initStatement.size() > 2) {
@@ -194,7 +192,7 @@ BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *f
                 elementVariableStatement = new DeclarationStatement(
                         new VariableDeclaration(
                                 new IdentifiersWithType(elementVariableIdentifier->identifier, nullptr),
-                                *(new ExpressionList({accessToElement}))
+                                ExpressionList({accessToElement})
                         )
                 );
             } else {

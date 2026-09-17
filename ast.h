@@ -144,7 +144,7 @@ public:
 /* -------------------------------- Expression -------------------------------- */
 class ExpressionAST : public NodeAST {
 public:
-    TypeEntity* typeExpression;
+    TypePtr typeExpression;
 
     void acceptVisitor(Visitor* visitor) noexcept override = 0;
     ExpressionAST* clone() const noexcept override = 0;
@@ -292,7 +292,7 @@ public:
     ExpressionAST *base;
     ExpressionList arguments;
 
-    CallableExpression(ExpressionAST *base, ExpressionList &args) : base(base), arguments(args) {};
+    CallableExpression(ExpressionAST *base, ExpressionList args) : base(base), arguments(args) {};
 
     void acceptVisitor(Visitor* visitor) noexcept override;
     CallableExpression* clone() const noexcept override;
@@ -545,8 +545,8 @@ public:
 class DeclarationStatement : public StatementAST {
 public:
     DeclarationList declarations;
-    explicit DeclarationStatement(DeclarationList& decls) : declarations(decls) {};
-    explicit DeclarationStatement(DeclarationAST* decl) : declarations(*(new DeclarationList{ decl })) {};
+    explicit DeclarationStatement(DeclarationList decls) : declarations(decls) {};
+    explicit DeclarationStatement(DeclarationAST* decl) : declarations(DeclarationList({ decl })) {};
 
     void acceptVisitor(Visitor* visitor) noexcept override;
     DeclarationStatement* clone() const noexcept override;
@@ -572,14 +572,14 @@ protected:
 
 class IdentifiersWithType : public NodeAST {
 public:
-    const IdentifiersList identifiers;
+    IdentifiersList identifiers;
     TypeAST* type;
 
     void acceptVisitor(Visitor* visitor) noexcept override;
     [[nodiscard]] std::string name() const noexcept override { return "TypedIds"; };
     IdentifiersWithType* clone() const noexcept override;
 
-    IdentifiersWithType(IdentifiersList& ids, TypeAST* type) : identifiers(ids), type(type) {};
+    IdentifiersWithType(IdentifiersList ids, TypeAST* type) : identifiers(ids), type(type) {};
     IdentifiersWithType(std::string id, TypeAST* type): identifiers( *(new IdentifiersList({ id })) ), type(type) {};
 };
 

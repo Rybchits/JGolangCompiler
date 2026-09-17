@@ -28,7 +28,7 @@ std::vector<char> Generator::generateFloating(float number) {
 }
 
 
-std::vector<char> Generator::generateNewArrayCommand(TypeEntity* elementType) {
+std::vector<char> Generator::generateNewArrayCommand(const TypePtr& elementType) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
@@ -73,7 +73,7 @@ std::vector<char> Generator::generateCloneArrayCommand(ExpressionAST* array) {
 	std::vector<char> codeBytes;
 
 	if (array->typeExpression->type == TypeEntity::Array 
-			&& !std::get<ArraySignatureEntity*>(array->typeExpression->value)->isSlice() 
+			&& !std::get<ArraySignatureEntity>(array->typeExpression->value).isSlice()
 			&& !dynamic_cast<CompositeLiteral*>(array)
 		) {
 
@@ -92,13 +92,13 @@ std::vector<char> Generator::generateCloneArrayCommand(ExpressionAST* array) {
 	return codeBytes;
 }
 
-std::vector<char> Generator::generateNewArray(ArraySignatureEntity* arrayType, ElementCompositeLiteralList elements) {
+std::vector<char> Generator::generateNewArray(const ArraySignatureEntity& arrayType, ElementCompositeLiteralList elements) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	codeBytes = generateInteger(arrayType->isSlice()? elements.size() : arrayType->dims);
+	codeBytes = generateInteger(arrayType.isSlice()? elements.size() : arrayType.dims);
 
-	buffer = generateNewArrayCommand(arrayType->elementType);
+	buffer = generateNewArrayCommand(arrayType.elementType);
 	codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
 	int index = 0;
@@ -113,19 +113,19 @@ std::vector<char> Generator::generateNewArray(ArraySignatureEntity* arrayType, E
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 	}
 
-	bool isObjectNeedToInitialize = arrayType->elementType->type == TypeEntity::Array || arrayType->elementType->type == TypeEntity::String;
-	for (; index < arrayType->dims && isObjectNeedToInitialize; index++)
+	bool isObjectNeedToInitialize = arrayType.elementType->type == TypeEntity::Array || arrayType.elementType->type == TypeEntity::String;
+	for (; index < arrayType.dims && isObjectNeedToInitialize; index++)
 	{
 		codeBytes.push_back((char)Command::dup);
 			
 		buffer = generateInteger(index);
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
-		if (arrayType->elementType->type == TypeEntity::Array) {
-			buffer = generateNewArray(std::get<ArraySignatureEntity*>(arrayType->elementType->value), ElementCompositeLiteralList({}));
+		if (arrayType.elementType->type == TypeEntity::Array) {
+			buffer = generateNewArray(std::get<ArraySignatureEntity>(arrayType.elementType->value), ElementCompositeLiteralList({}));
 			codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
-		} else if (arrayType->elementType->type == TypeEntity::String) {
+		} else if (arrayType.elementType->type == TypeEntity::String) {
 			codeBytes.push_back(char(Command::new_));
 
 			buffer = IntToBytes(constantPool.FindOrCreateClass("java/lang/String"));
@@ -159,12 +159,12 @@ void Generator::fillConstantPool(std::string_view className, ClassEntity* classE
     // Add name of name, name of types and N&T of fields
     for (auto & [fieldIdentifier, field] : classEntity->getFields()) {
         int index = constantPool.FindOrCreateFieldRef(className, fieldIdentifier, field->type->toByteCode());
-		context.add(fieldIdentifier, new RefConstant(index, false));
+		context.add(fieldIdentifier, RefConstant(index, false));
     }
 
     for (auto & [methodIdentifier, method] : classEntity->getMethods()) {
         int index = constantPool.FindOrCreateMethodRef(className, methodIdentifier, method->toTypeEntity()->toByteCode());
-		context.add(methodIdentifier, new RefConstant(index, false));
+		context.add(methodIdentifier, RefConstant(index, false));
     }
 
 	constantPool.FindOrCreateUtf8("<clinit>");
@@ -178,7 +178,7 @@ void Generator::generate() {
 
     for (auto & [className, classEntity] : classes) {
 		constantPool = ConstantPool();
-		context = Context<RefConstant*>();
+		context = Context<RefConstant>();
 		
 		fillConstantPool(className, classEntity);
 
@@ -220,7 +220,7 @@ void Generator::generate() {
 		
 		// fields info
 		for (auto & [fieldIdentifier, fieldEntity] : classEntity->getFields()) {
-			buffer = generateField(fieldIdentifier, fieldEntity);
+			buffer = generateField(fieldIdentifier, fieldEntity.get());
 			classFileTail.insert(classFileTail.end(), buffer.begin(), buffer.end());
 		}
 
@@ -245,7 +245,7 @@ void Generator::generate() {
 			buffer = generateMethod(methodIdentifier, methodEntity->toTypeEntity()->toByteCode()
 						 , methodEntity->getNumberLocalVariables(), uint16_t(AccessFlags::Public)
 																  | uint16_t(AccessFlags::Static)
-						 , generateMethodBodyCode(methodEntity));
+						 , generateMethodBodyCode(methodEntity.get()));
 
 			classFileTail.insert(classFileTail.end(), buffer.begin(), buffer.end());
 		}
@@ -394,7 +394,7 @@ std::vector<char> Generator::generateMethodBodyCode(MethodEntity* methodEntity) 
 	currentMethod = methodEntity;
 
 	for (auto &[name, _] : methodEntity->getArguments()) {
-		if (context.add(name, new RefConstant(indexCurrentLocalVariable, true))) {
+		if (context.add(name, RefConstant(indexCurrentLocalVariable, true))) {
 			indexCurrentLocalVariable++;
 		}
 	}
@@ -472,11 +472,11 @@ std::string Generator::createDescriptorBuiltInFunction(CallableExpression* expr)
 	int index = 0;
 	for (auto arg : expr->arguments) {
 		
-		TypeEntity* typeArgument = arg->typeExpression;
-		ArraySignatureEntity** arrayArgument = std::get_if<ArraySignatureEntity*>(&(typeArgument->value));
+		TypePtr typeArgument = arg->typeExpression;
+		const auto* arrayArgument = std::get_if<ArraySignatureEntity>(&typeArgument->value);
 
-		if (arrayArgument && ((*arrayArgument)->elementType->type == TypeEntity::String 
-			|| (*arrayArgument)->elementType->type == TypeEntity::Array)) {
+		if (arrayArgument && (arrayArgument->elementType->type == TypeEntity::String
+			|| arrayArgument->elementType->type == TypeEntity::Array)) {
 
 			descriptor += "[Ljava/lang/Object;";
 
@@ -501,8 +501,8 @@ std::string Generator::createDescriptorBuiltInFunction(CallableExpression* expr)
 		descriptor += "Ljava/lang/Object;";
 
 	} else if (returnType->type == TypeEntity::Array 
-				&& (std::get<ArraySignatureEntity*>(returnType->value)->elementType->type == TypeEntity::String
-				|| std::get<ArraySignatureEntity*>(returnType->value)->elementType->type == TypeEntity::Array)) {
+				&& (std::get<ArraySignatureEntity>(returnType->value).elementType->type == TypeEntity::String
+				|| std::get<ArraySignatureEntity>(returnType->value).elementType->type == TypeEntity::Array)) {
 
 		descriptor += "[Ljava/lang/Object;";
 		
@@ -763,7 +763,7 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 		
 		if (expr->lhs->typeExpression->type == TypeEntity::Array) {
 			auto arrayEntity = expr->lhs->typeExpression;
-			auto arrayElementType = std::get<ArraySignatureEntity*>(arrayEntity->value)->elementType;
+			auto arrayElementType = std::get<ArraySignatureEntity>(arrayEntity->value).elementType;
 
 			codeBytes.push_back((char)Command::invokestatic);
 			if (arrayElementType->isInteger()) {
@@ -1000,7 +1000,7 @@ std::vector<char> Generator::generate(CompositeLiteral* expr) {
 
 	if (expr->typeExpression->type == TypeEntity::Array) {
 
-		auto arraySignature = std::get<ArraySignatureEntity*>(expr->typeExpression->value);
+		const auto& arraySignature = std::get<ArraySignatureEntity>(expr->typeExpression->value);
 		codeBytes = generateNewArray(arraySignature, expr->elements);
 	}
 
@@ -1026,7 +1026,7 @@ std::vector<char> Generator::generate(ElementCompositeLiteral* expr) {
     } else if (std::holds_alternative<ElementCompositeLiteralList>(expr->value)) {
 
         auto elements = std::get<ElementCompositeLiteralList>(expr->value);
-		auto arrayType = std::get<ArraySignatureEntity*>(expr->typeExpression->value);
+		const auto& arrayType = std::get<ArraySignatureEntity>(expr->typeExpression->value);
 
 		codeBytes = generateNewArray(arrayType, elements);
 		codeBytes.push_back((char)Command::aastore);
@@ -1102,7 +1102,7 @@ std::vector<char> Generator::generate(DeclarationStatement* stmt) {
 			
 			for (auto id : varDecl->identifiersWithType->identifiers) {
 
-				if (context.add(id, new RefConstant(indexCurrentLocalVariable, true)))
+				if (context.add(id, RefConstant(indexCurrentLocalVariable, true)))
 					indexCurrentLocalVariable++;
 			}
 
@@ -1116,7 +1116,7 @@ std::vector<char> Generator::generate(DeclarationStatement* stmt) {
 
 std::vector<char> Generator::generate(ShortVarDeclarationStatement* stmt) {
 	for (auto id : stmt->identifiers) {
-		if (context.add(id, new RefConstant(indexCurrentLocalVariable, true))) {
+		if (context.add(id, RefConstant(indexCurrentLocalVariable, true))) {
 			indexCurrentLocalVariable++;
 		}
 	}

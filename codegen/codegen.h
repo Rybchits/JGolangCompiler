@@ -27,7 +27,7 @@ private:
     std::unordered_map<std::string, ClassEntity*> classes;
 
     ConstantPool constantPool;
-    Context<RefConstant*> context;
+    Context<RefConstant> context;
 
     MethodEntity* currentMethod;
     int indexCurrentLocalVariable = 0;
@@ -38,8 +38,8 @@ private:
     std::vector<char> generateInteger(int64_t number);
     std::vector<char> generateFloating(float number);
 
-    std::vector<char> generateNewArray(ArraySignatureEntity* arrayType, ElementCompositeLiteralList elements);
-    std::vector<char> generateNewArrayCommand(TypeEntity* elementType);
+    std::vector<char> generateNewArray(const ArraySignatureEntity& arrayType, ElementCompositeLiteralList elements);
+    std::vector<char> generateNewArrayCommand(const TypePtr& elementType);
 
     std::vector<char> generateField(std::string fieldName, FieldEntity* field);
     std::vector<char> generateMethod(std::string_view methodName, std::string_view descriptor

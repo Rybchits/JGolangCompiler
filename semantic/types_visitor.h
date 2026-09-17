@@ -10,13 +10,13 @@ class TypesVisitor;
 
 class VariableEntity{
 public:
-    TypeEntity* type;
+    TypePtr type;
     bool isConst;
     bool isArgument;
     int numberUsage = 0;
 
-    VariableEntity(TypeEntity* type, bool isConst = false, bool isArgument = false): 
-        type(type), isConst(isConst), isArgument(isArgument) {};
+    VariableEntity(TypePtr type, bool isConst = false, bool isArgument = false):
+        type(std::move(type)), isConst(isConst), isArgument(isArgument) {};
 
     void use() { numberUsage++; };
 };
@@ -44,7 +44,7 @@ private:
     std::vector<std::string> errors;
 
     void addError(const std::string& message) { errors.push_back(message); }
-    Context<VariableEntity*> scopesDeclarations;
+    Context<VariableEntity> scopesDeclarations;
 
     ConstExpressionVisitor constCheckVisitor = ConstExpressionVisitor(this);
 
@@ -54,7 +54,7 @@ private:
     // supporting 
     bool lastAddedScopeInFuncDecl = false;
 
-    TypeEntity* typeCurrentArray;
+    TypePtr typeCurrentArray;
     int indexCurrentAxisArray;
 
     void onStartVisit(CompositeLiteral* node);

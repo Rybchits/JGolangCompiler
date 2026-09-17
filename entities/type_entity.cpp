@@ -1,29 +1,30 @@
 #include "type_entity.h"
+#include "../ast.h"
 
-bool ArraySignatureEntity::equal(const ArraySignatureEntity* other) const {
-    return this->elementType->equal(other->elementType) && this->dims == other->dims;
+bool ArraySignatureEntity::equal(const ArraySignatureEntity& other) const {
+    return this->elementType->equal(other.elementType) && this->dims == other.dims;
 }
 
 bool ArraySignatureEntity::isSlice() const {
     return dims == -1;
 }
 
-bool FunctionSignatureEntity::equals(const FunctionSignatureEntity* other) const {
-    if (this->argsTypes.size() != other->argsTypes.size()) {
+bool FunctionSignatureEntity::equals(const FunctionSignatureEntity& other) const {
+    if (this->argsTypes.size() != other.argsTypes.size()) {
         return false;
     }
 
     bool argsEquals = false;
-    std::list<TypeEntity*>::const_iterator it1 = this->argsTypes.begin();
-    std::list<TypeEntity*>::const_iterator it2 = other->argsTypes.begin();
+    std::list<TypePtr>::const_iterator it1 = this->argsTypes.begin();
+    std::list<TypePtr>::const_iterator it2 = other.argsTypes.begin();
 
-    while(it1 != this->argsTypes.end() && it2 != other->argsTypes.end() && argsEquals) {
+    while(it1 != this->argsTypes.end() && it2 != other.argsTypes.end() && argsEquals) {
         argsEquals &= (*it1)->equal((*it2));
         it1++;
         it2++;
     }
 
-    return argsEquals && this->returnType->equal(other->returnType);
+    return argsEquals && this->returnType->equal(other.returnType);
 }
 
 std::list<std::string> TypeEntity::BuiltInTypes = {
@@ -43,11 +44,11 @@ bool TypeEntity::IsBuiltInType(std::string identifier) {
     return std::find(BuiltInTypes.begin(), BuiltInTypes.end(), identifier) != BuiltInTypes.end();
 }
 
-bool TypeEntity::isInteger() {
+bool TypeEntity::isInteger() const {
     return this->type == TypeEntityEnum::Int || this->type == TypeEntityEnum::UntypedInt;
 }
 
-bool TypeEntity::isFloat() {
+bool TypeEntity::isFloat() const {
     return this->type == TypeEntityEnum::Float || this->type == TypeEntityEnum::UntypedFloat;
 }
 
@@ -69,12 +70,12 @@ TypeEntity::TypeEntityEnum TypeEntity::builtInTypeFromString(std::string id) {
         return TypeEntityEnum::Invalid;
 }
 
-bool TypeEntity::equal(const TypeEntity* other) {
+bool TypeEntity::equal(const TypePtr& other) const {
     
     if (this->type == Array && other->type == Array) {
-        auto currentValue = std::get<ArraySignatureEntity*>(this->value);
-        auto otherValue = std::get<ArraySignatureEntity*>(other->value);
-        return currentValue->equal(otherValue);
+        const auto& currentValue = std::get<ArraySignatureEntity>(this->value);
+        const auto& otherValue = std::get<ArraySignatureEntity>(other->value);
+        return currentValue.equal(otherValue);
         
     } else if (this->type == UserType && other->type == UserType) {
         auto currentValue = std::get<std::string>(this->value);
@@ -102,36 +103,36 @@ bool TypeEntity::equal(const TypeEntity* other) {
     return false;
 }
 
-// Определение рузультирующего типа
-TypeEntity* TypeEntity::determinePriorityType(const TypeEntity* other) {
-
-    if (this->equal(other)) {
-        if ((type == UntypedInt && other->type == UntypedFloat) || (type == UntypedFloat && other->type == UntypedInt)) {
-            return new TypeEntity(UntypedFloat);
-            
-        } else if ((type == Int && other->type == UntypedInt) || (type == UntypedInt && other->type == Int)) {
-            return new TypeEntity(Int);
-            
-        } else if ((type == UntypedFloat && other->type == Float) || (type == Float && other->type == UntypedFloat)) {
-            return new TypeEntity(Float);
-            
-        } else if ((type == UntypedInt && other->type == Float) || (type == Float && other->type == UntypedInt)) {
-            return new TypeEntity(Float);
-            
-        } else {
-            return this;
-        }
-    } else {
-        return new TypeEntity();
+TypePtr determinePriorityType(const TypePtr& lhs, const TypePtr& rhs) {
+    if (!lhs->equal(rhs)) {
+        return std::make_shared<const TypeEntity>();
     }
+
+    const auto left = lhs->type;
+    const auto right = rhs->type;
+    if ((left == TypeEntity::UntypedInt && right == TypeEntity::UntypedFloat)
+        || (left == TypeEntity::UntypedFloat && right == TypeEntity::UntypedInt)) {
+        return std::make_shared<const TypeEntity>(TypeEntity::UntypedFloat);
+    }
+    if ((left == TypeEntity::Int && right == TypeEntity::UntypedInt)
+        || (left == TypeEntity::UntypedInt && right == TypeEntity::Int)) {
+        return std::make_shared<const TypeEntity>(TypeEntity::Int);
+    }
+    if ((left == TypeEntity::UntypedFloat && right == TypeEntity::Float)
+        || (left == TypeEntity::Float && right == TypeEntity::UntypedFloat)
+        || (left == TypeEntity::UntypedInt && right == TypeEntity::Float)
+        || (left == TypeEntity::Float && right == TypeEntity::UntypedInt)) {
+        return std::make_shared<const TypeEntity>(TypeEntity::Float);
+    }
+    return lhs;
 }
 
-TypeEntity::TypeEntity(TypeAST* node) {
-    if (auto array = dynamic_cast<ArraySignature*>(node)) {
+TypeEntity::TypeEntity(const TypeAST* node) {
+    if (auto array = dynamic_cast<const ArraySignature*>(node)) {
         type = TypeEntityEnum::Array;
-        this->value = new ArraySignatureEntity(array->dimensions, new TypeEntity(array->arrayElementType));
+        this->value = ArraySignatureEntity(array->dimensions, std::make_shared<const TypeEntity>(array->arrayElementType));
 
-    } else if (auto typeAsId = dynamic_cast<IdentifierAsType*>(node)) {
+    } else if (auto typeAsId = dynamic_cast<const IdentifierAsType*>(node)) {
         this->type = builtInTypeFromString(typeAsId->identifier);
         this->value = typeAsId->identifier;
         
@@ -140,13 +141,13 @@ TypeEntity::TypeEntity(TypeAST* node) {
     }
 };
 
-bool TypeEntity::isNumeric() {
+bool TypeEntity::isNumeric() const {
     return type == Int || type == Float || type == UntypedInt || type == UntypedFloat;
 }
 
 std::string TypeEntity::toByteCode() const {
     if (type == Array)
-        return "[" + std::get<ArraySignatureEntity*>(value)->elementType->toByteCode();
+        return "[" + std::get<ArraySignatureEntity>(value).elementType->toByteCode();
     
     else if (type == Int || type == UntypedInt)
         return "I";
@@ -175,13 +176,13 @@ std::string TypeEntity::toByteCode() const {
     else if (type == Function) {
         std::string code = "(";
 
-        auto func = std::get<FunctionSignatureEntity*>(value);
-        for (auto arg : func->argsTypes) {
+        const auto& func = std::get<FunctionSignatureEntity>(value);
+        for (auto arg : func.argsTypes) {
             code += arg->toByteCode();
         }
 
         code += ")";
-        code += func->returnType->toByteCode();
+        code += func.returnType->toByteCode();
 
         return code;
     }
@@ -190,18 +191,16 @@ std::string TypeEntity::toByteCode() const {
 }
 
 
-TypeEntity* ArraySignatureEntity::typeAxis(int indexAxis) {
-    auto currentElementType = new TypeEntity(this);
-
-    while (indexAxis != 0) {
-        indexAxis--;
-        if (std::holds_alternative<ArraySignatureEntity*>(currentElementType->value)) {
-            currentElementType = std::get<ArraySignatureEntity*>(currentElementType->value)->elementType;
-        } else {
-            return new TypeEntity();
-        }
+TypePtr typeAxis(TypePtr type, int indexAxis) {
+    if (indexAxis < 0) {
+        return std::make_shared<const TypeEntity>();
     }
-
-    return currentElementType;
+    while (indexAxis-- > 0) {
+        const auto* array = std::get_if<ArraySignatureEntity>(&type->value);
+        if (!array) {
+            return std::make_shared<const TypeEntity>();
+        }
+        type = array->elementType;
+    }
+    return type;
 }
-

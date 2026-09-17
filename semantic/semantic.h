@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <iostream>
 #include <string_view>
+#include <memory>
 
 class Semantic {
 private:
@@ -31,7 +32,7 @@ private:
 public:
     Semantic(PackageAST* package);
 
-    ClassEntity* packageClass;
+    std::unique_ptr<ClassEntity> packageClass;
 
     void addError(std::string message);
 

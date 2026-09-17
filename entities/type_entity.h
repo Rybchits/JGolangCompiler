@@ -3,32 +3,33 @@
 #include <string>
 #include <list>
 #include <variant>
-
-#include "../ast.h"
+#include <memory>
+#include <utility>
 
 class TypeAST;
 class TypeEntity;
 
+using TypePtr = std::shared_ptr<const TypeEntity>;
+
 class ArraySignatureEntity {
 public:
     int dims;
-    TypeEntity* elementType;
-    ArraySignatureEntity(int dims, TypeEntity* TypeEntity): dims(dims), elementType(TypeEntity) {};
-    ArraySignatureEntity(TypeEntity* TypeEntity): dims(-1), elementType(TypeEntity) {};
+    TypePtr elementType;
+    ArraySignatureEntity(int dims, TypePtr elementType): dims(dims), elementType(std::move(elementType)) {};
+    explicit ArraySignatureEntity(TypePtr elementType): dims(-1), elementType(std::move(elementType)) {};
     
-    bool equal(const ArraySignatureEntity* other) const;
+    bool equal(const ArraySignatureEntity& other) const;
     bool isSlice() const;
-    TypeEntity* typeAxis(int indexAxis);
 };
 
 
 class FunctionSignatureEntity {
 public:
-    TypeEntity* returnType;
-    std::list<TypeEntity*> argsTypes;
+    TypePtr returnType;
+    std::list<TypePtr> argsTypes;
 
-    FunctionSignatureEntity(std::list<TypeEntity*>& args, TypeEntity* returnType): argsTypes(args), returnType(returnType) {};
-    bool equals(const FunctionSignatureEntity* other) const;
+    FunctionSignatureEntity(std::list<TypePtr> args, TypePtr returnType): returnType(std::move(returnType)), argsTypes(std::move(args)) {};
+    bool equals(const FunctionSignatureEntity& other) const;
 };
 
 
@@ -50,21 +51,20 @@ public:
         Invalid
     } type;
 
-    std::variant<std::string, ArraySignatureEntity*, FunctionSignatureEntity*> value;
+    std::variant<std::string, ArraySignatureEntity, FunctionSignatureEntity> value;
     
     TypeEntity(): type(Invalid) {};
-    TypeEntity(TypeAST* node);
-    TypeEntity(ArraySignatureEntity* array): type(Array), value(array) {};
-    TypeEntity(FunctionSignatureEntity* function): type(Function), value(function) {};
+    explicit TypeEntity(const TypeAST* node);
+    explicit TypeEntity(ArraySignatureEntity array): type(Array), value(std::move(array)) {};
+    explicit TypeEntity(FunctionSignatureEntity function): type(Function), value(std::move(function)) {};
     TypeEntity(TypeEntityEnum type, std::string id = ""): type(type), value(id) {};
  
     std::string toByteCode() const;
-    bool isNumeric();
-    bool isInteger();
-    bool isFloat();
+    bool isNumeric() const;
+    bool isInteger() const;
+    bool isFloat() const;
 
-    bool equal(const TypeEntity* other);
-    TypeEntity* determinePriorityType(const TypeEntity* other);
+    bool equal(const TypePtr& other) const;
 
     static bool IsBuiltInType(std::string);
     static std::list<std::string> BuiltInTypes;
@@ -72,3 +72,6 @@ public:
 private:
     TypeEntityEnum builtInTypeFromString(std::string id);
 };
+
+TypePtr determinePriorityType(const TypePtr& lhs, const TypePtr& rhs);
+TypePtr typeAxis(TypePtr type, int indexAxis);
