@@ -85,7 +85,7 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
 
     } else {
         auto currentValue = node->values.begin();
-        for (auto id : node->identifiersWithType->identifiers) {
+        for (const auto& id : node->identifiersWithType->identifiers) {
             if (id != "_") numberLocalVariables++;
 
             if (scopesDeclarations.findAtLastScope(id) != nullptr) {
@@ -102,12 +102,12 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
             if (node->isConst && (*currentValue)->typeExpression->type == TypeEntity::Array) {
                 addError("Go does not support constant arrays, maps or slices");
 
-            } else if (node->isConst && !constCheckVisitor.isConstExpression(*currentValue)) {
+            } else if (node->isConst && !constCheckVisitor.isConstExpression(currentValue->get())) {
                 addError("Cannot assignment not const expression for " + id);
             }
             
             if (node->identifiersWithType->type != nullptr) {
-                auto generalType = std::make_shared<const TypeEntity>(node->identifiersWithType->type);
+                auto generalType = std::make_shared<const TypeEntity>(node->identifiersWithType->type.get());
 
                 // Compare types expressions with the declared type
                 if (node->values.size() != 0 ) {
@@ -147,7 +147,7 @@ void TypesVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
     } else {
         auto currentValue = node->values.begin();
 
-        for (auto id : node->identifiers) {
+        for (const auto& id : node->identifiers) {
             if (id != "_") numberLocalVariables++;
 
             if (TypeEntity::IsBuiltInType(id)) {
@@ -318,7 +318,7 @@ void TypesVisitor::onFinishVisit(CallableExpression* node) {
 
     if (baseType->type == TypeEntity::Function) {
 
-        std::list<ExpressionAST*>::const_iterator argExprType = node->arguments.begin();
+        ExpressionList::const_iterator argExprType = node->arguments.begin();
         const auto& signature = std::get<FunctionSignatureEntity>(baseType->value);
 
         if (signature.argsTypes.size() != node->arguments.size()) {
@@ -328,7 +328,7 @@ void TypesVisitor::onFinishVisit(CallableExpression* node) {
         }
 
         int index = 0;
-        for (auto argType : signature.argsTypes) {
+        for (const auto& argType : signature.argsTypes) {
             if (!argType->equal((*argExprType)->typeExpression)) {
                 node->typeExpression = std::make_shared<const TypeEntity>();
                 addError("Cannot use expression index " + std::to_string(index) + " in argument");
@@ -388,7 +388,7 @@ void TypesVisitor::onFinishVisit(AccessExpression* node) {
 void TypesVisitor::onStartVisit(CompositeLiteral* node) {
 
     // Если это массив, нам нужно записать его тип и запомнить id узла для проверки элементов
-    if (auto arrayType = dynamic_cast<ArraySignature*>(node->type)) {
+    if (auto arrayType = dynamic_cast<ArraySignature*>(node->type.get())) {
         node->typeExpression = std::make_shared<const TypeEntity>(arrayType);
         typeCurrentArray = node->typeExpression;
         indexCurrentAxisArray = 0;
@@ -402,7 +402,7 @@ void TypesVisitor::onStartVisit(ElementCompositeLiteral* node) {
 
 void TypesVisitor::onFinishVisit(CompositeLiteral* node) {
 
-    if (auto arrayType = dynamic_cast<ArraySignature*>(node->type)) {
+    if (auto arrayType = dynamic_cast<ArraySignature*>(node->type.get())) {
 
         if (arrayType->dimensions < node->elements.size()) {
             addError("Array has more elements than declarated");
@@ -414,7 +414,7 @@ void TypesVisitor::onFinishVisit(CompositeLiteral* node) {
         auto declaredElementType = std::get<ArraySignatureEntity>(node->typeExpression->value).elementType;
 
         int index = 0;
-        for (auto element : node->elements) {
+        for (const auto& element : node->elements) {
             if (!element->typeExpression->equal(declaredElementType)) {
                 addError("Array declarated type mismatch " + std::string("index ") + std::to_string(index));
 
@@ -434,8 +434,8 @@ void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
     TypePtr declaratedElementType =
         typeAxis(typeCurrentArray, indexCurrentAxisArray);
 
-    if (std::holds_alternative<ExpressionAST *>(node->value)) {
-        auto expression = std::get<ExpressionAST*>(node->value);
+    if (std::holds_alternative<ExpressionASTPtr>(node->value)) {
+        const auto& expression = std::get<ExpressionASTPtr>(node->value);
 
         if (declaratedElementType->equal(expression->typeExpression)) {
             expression->typeExpression = determinePriorityType(declaratedElementType, expression->typeExpression);
@@ -446,11 +446,11 @@ void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
             node->typeExpression = std::make_shared<const TypeEntity>();
         }
 
-    } else if (std::holds_alternative<std::list<ElementCompositeLiteral *>>(node->value)) {
+    } else if (std::holds_alternative<ElementCompositeLiteralList>(node->value)) {
 
         if (const auto* declaratedTypeAxis = std::get_if<ArraySignatureEntity>(&declaratedElementType->value)) {
 
-            if (declaratedTypeAxis->dims < std::get<std::list<ElementCompositeLiteral*>>(node->value).size() ) {
+            if (declaratedTypeAxis->dims < std::get<ElementCompositeLiteralList>(node->value).size() ) {
                 addError("Array at " + std::to_string(indexCurrentAxisArray) + " axis has many values");
                 node->typeExpression = std::make_shared<const TypeEntity>();
 
@@ -471,8 +471,8 @@ void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
 void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
     
     // Check const variables
-    for (auto var : node->lhs) {
-        if (auto idVariable = dynamic_cast<IdentifierAsExpression*>(var)) {
+    for (const auto& var : node->lhs) {
+        if (auto idVariable = dynamic_cast<IdentifierAsExpression*>(var.get())) {
                     
             VariableEntity* variable = scopesDeclarations.find(idVariable->identifier);
 
@@ -480,7 +480,7 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
                 addError("Cannot assign to const " + idVariable->identifier);
             }
             
-        } else if (dynamic_cast<AccessExpression*>(var) == nullptr) {
+        } else if (dynamic_cast<AccessExpression*>(var.get()) == nullptr) {
             addError("Cannot assign to " + var->name());
         }
     }
@@ -549,7 +549,7 @@ void TypesVisitor::onFinishVisit(ReturnStatement* node) {
         addError("Missing return value");
     }
 
-    for (auto value : node->returnValues) {
+    for (const auto& value : node->returnValues) {
         if (!currentMethodEntity->getReturnType()->equal(value->typeExpression)) {
             addError("Cannot use this value for return");
         }
@@ -559,14 +559,14 @@ void TypesVisitor::onFinishVisit(ReturnStatement* node) {
 
 void TypesVisitor::onStartVisit(ExpressionStatement* node) {
     // Increment and decrement can be statements
-    if (auto unaryExpression = dynamic_cast<UnaryExpression*>(node->expression)) {
+    if (auto unaryExpression = dynamic_cast<UnaryExpression*>(node->expression.get())) {
         if (unaryExpression->type == UnaryExpression::Decrement || unaryExpression->type == UnaryExpression::Increment) {
             return;
         }
         
-    } else if (auto functionCall = dynamic_cast<CallableExpression*>(node->expression)) {
+    } else if (auto functionCall = dynamic_cast<CallableExpression*>(node->expression.get())) {
         // With the exception of specific built-in functions and conversions, callable expressions can appear in statement context.
-        if ( auto identifiedBase = dynamic_cast<IdentifierAsExpression*>(functionCall->base)) {
+        if ( auto identifiedBase = dynamic_cast<IdentifierAsExpression*>(functionCall->base.get())) {
             if (identifiedBase->identifier != "append" && identifiedBase->identifier != "len" && !TypeEntity::IsBuiltInType(identifiedBase->identifier))
             return;
         }
@@ -591,7 +591,7 @@ void TypesVisitor::onFinishVisit(SwitchStatement* node) {
     TypePtr typeSwitchExpression = node->expression->typeExpression;
 
     int index = 0;
-    for (auto caseClause : node->clauseList) {
+    for (const auto& caseClause : node->clauseList) {
 
         if (caseClause->expressionCase) {
             TypePtr caseExpressionType = caseClause->expressionCase->typeExpression;
@@ -726,7 +726,7 @@ bool TypesVisitor::defineReadFunction(CallableExpression* function, TypeEntity::
 
 bool TypesVisitor::defineTypeBuiltInFunction(CallableExpression* function) {
     
-    if (auto idFunctionBase = dynamic_cast<IdentifierAsExpression*>(function->base)) {
+    if (auto idFunctionBase = dynamic_cast<IdentifierAsExpression*>(function->base.get())) {
 
         if (idFunctionBase->identifier == "len") {
             return defineLenFunction(function);

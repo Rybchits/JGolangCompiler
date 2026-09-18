@@ -130,7 +130,7 @@ TypePtr determinePriorityType(const TypePtr& lhs, const TypePtr& rhs) {
 TypeEntity::TypeEntity(const TypeAST* node) {
     if (auto array = dynamic_cast<const ArraySignature*>(node)) {
         type = TypeEntityEnum::Array;
-        this->value = ArraySignatureEntity(array->dimensions, std::make_shared<const TypeEntity>(array->arrayElementType));
+        this->value = ArraySignatureEntity(array->dimensions, std::make_shared<const TypeEntity>(array->arrayElementType.get()));
 
     } else if (auto typeAsId = dynamic_cast<const IdentifierAsType*>(node)) {
         this->type = builtInTypeFromString(typeAsId->identifier);
@@ -177,7 +177,7 @@ std::string TypeEntity::toByteCode() const {
         std::string code = "(";
 
         const auto& func = std::get<FunctionSignatureEntity>(value);
-        for (auto arg : func.argsTypes) {
+        for (const auto& arg : func.argsTypes) {
             code += arg->toByteCode();
         }
 

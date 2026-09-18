@@ -92,7 +92,7 @@ std::vector<char> Generator::generateCloneArrayCommand(ExpressionAST* array) {
 	return codeBytes;
 }
 
-std::vector<char> Generator::generateNewArray(const ArraySignatureEntity& arrayType, ElementCompositeLiteralList elements) {
+std::vector<char> Generator::generateNewArray(const ArraySignatureEntity& arrayType, const ElementCompositeLiteralList& elements) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
@@ -102,14 +102,14 @@ std::vector<char> Generator::generateNewArray(const ArraySignatureEntity& arrayT
 	codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
 	int index = 0;
-	for (auto element : elements) 
+	for (const auto& element : elements)
 	{
 		codeBytes.push_back((char)Command::dup);
 			
 		buffer = generateInteger(index++);
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
-		buffer = generate(element);
+		buffer = generate(element.get());
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 	}
 
@@ -122,7 +122,7 @@ std::vector<char> Generator::generateNewArray(const ArraySignatureEntity& arrayT
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
 		if (arrayType.elementType->type == TypeEntity::Array) {
-			buffer = generateNewArray(std::get<ArraySignatureEntity>(arrayType.elementType->value), ElementCompositeLiteralList({}));
+			buffer = generateNewArray(std::get<ArraySignatureEntity>(arrayType.elementType->value), ElementCompositeLiteralList{});
 			codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
 		} else if (arrayType.elementType->type == TypeEntity::String) {
@@ -416,8 +416,8 @@ std::vector<char> Generator::generate(BlockStatement* block) {
 
 	context.pushScope();
 
-	for (auto stmt : block->body) {
-		buffer = generate(stmt);
+	for (const auto& stmt : block->body) {
+		buffer = generate(stmt.get());
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 	}
 
@@ -433,9 +433,9 @@ std::vector<char> Generator::generate(IfStatement* stmt) {
 	constexpr auto gotoLength = 3;
 	constexpr auto ifeqLength = 3;
 
-    auto conditionBytes = generate(stmt->condition);
-    auto thenStmtBytes = generate(stmt->thenStatement);
-    auto elseStmtBytes = generate(stmt->elseStatement);
+    auto conditionBytes = generate(stmt->condition.get());
+    auto thenStmtBytes = generate(stmt->thenStatement.get());
+    auto elseStmtBytes = generate(stmt->elseStatement.get());
 
 	codeBytes.insert(codeBytes.end(), conditionBytes.begin(), conditionBytes.end());
 
@@ -461,16 +461,16 @@ std::vector<char> Generator::generate(IfStatement* stmt) {
 
 
 std::vector<char> Generator::generate(ExpressionStatement* stmt) {
-	return generate(stmt->expression);
+	return generate(stmt->expression.get());
 }
 
 std::string Generator::createDescriptorBuiltInFunction(CallableExpression* expr) {
-	std::string nameFunction = dynamic_cast<IdentifierAsExpression*>(expr->base)->identifier;
+	std::string nameFunction = dynamic_cast<IdentifierAsExpression*>(expr->base.get())->identifier;
 	
 	std::string descriptor = "(";
 
 	int index = 0;
-	for (auto arg : expr->arguments) {
+	for (const auto& arg : expr->arguments) {
 		
 		TypePtr typeArgument = arg->typeExpression;
 		const auto* arrayArgument = std::get_if<ArraySignatureEntity>(&typeArgument->value);
@@ -517,16 +517,16 @@ std::vector<char> Generator::generate(CallableExpression* expr) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	for (auto arg : expr->arguments) {
-		buffer = generate(arg);
+	for (const auto& arg : expr->arguments) {
+		buffer = generate(arg.get());
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
-		buffer = generateCloneArrayCommand(arg);
+		buffer = generateCloneArrayCommand(arg.get());
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 	}
 	
 
-	if (auto idExpression = dynamic_cast<IdentifierAsExpression*>(expr->base)) {
+	if (auto idExpression = dynamic_cast<IdentifierAsExpression*>(expr->base.get())) {
 		codeBytes.push_back((char)Command::invokestatic);
 
 		RefConstant* methodRef = context.find(idExpression->identifier);
@@ -634,7 +634,7 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 	switch (expr->type)
 	{
 	case UnaryExpression::UnaryMinus:
-		codeBytes = generate(expr->expression);
+		codeBytes = generate(expr->expression.get());
 
 		if (expr->typeExpression->isInteger()) {
 			codeBytes.push_back(char(Command::ineg));
@@ -647,11 +647,11 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 
 	case UnaryExpression::Decrement:
 	case UnaryExpression::Increment:
-		buffer = generate(expr->expression);
+		buffer = generate(expr->expression.get());
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
 		// dirty (duplicate array for loading and storing)
-		if (dynamic_cast<AccessExpression*>(expr->expression)) {
+		if (dynamic_cast<AccessExpression*>(expr->expression.get())) {
 			codeBytes.insert(codeBytes.end() - 1, (char)Command::dup2);
 		}
 
@@ -664,10 +664,10 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 			codeBytes.push_back(uint8_t(expr->type == UnaryExpression::Increment? Command::fadd : Command::fsub));
 		}
 		
-		if (auto identifierAsExpression = dynamic_cast<IdentifierAsExpression*>(expr->expression)) {
+		if (auto identifierAsExpression = dynamic_cast<IdentifierAsExpression*>(expr->expression.get())) {
 			buffer = generateStoreToVariableCommand(identifierAsExpression->identifier, identifierAsExpression->typeExpression->type);
 
-		} else if (auto accessExpression = dynamic_cast<AccessExpression*>(expr->expression)) {
+		} else if (auto accessExpression = dynamic_cast<AccessExpression*>(expr->expression.get())) {
 			buffer = generateStoreToArrayCommand(accessExpression->typeExpression->type);
 		}
 
@@ -679,7 +679,7 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 		constexpr auto gotoLength = 3;
 		constexpr auto iconstLength = 1;
 
-		codeBytes = generate(expr->expression);
+		codeBytes = generate(expr->expression.get());
 		codeBytes.push_back((char)Command::iconst_1);
 		codeBytes.push_back((char)Command::if_icmpeq);
 
@@ -698,7 +698,7 @@ std::vector<char> Generator::generate(UnaryExpression* expr) {
 	}
 
 	case UnaryExpression::UnaryPlus:
-		codeBytes = generate(expr->expression);
+		codeBytes = generate(expr->expression.get());
 		break;
 	
 	default:
@@ -717,8 +717,8 @@ std::vector<char> Generator::generate(BinaryExpression* expr) {
 	constexpr auto gotoLength = 3;
 	constexpr auto iconstLength = 1;
 
-	codeBytes 	   = generate(expr->lhs);
-	rightExprBytes = generate(expr->rhs);
+	codeBytes 	   = generate(expr->lhs.get());
+	rightExprBytes = generate(expr->rhs.get());
 
 	if (expr->isLogical()) {
 
@@ -980,10 +980,10 @@ std::vector<char> Generator::generate(AccessExpression* expr) {
 
 	if (expr->type == AccessExpression::Indexing) {
 
-		buffer = generate(expr->base);
+		buffer = generate(expr->base.get());
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
-		buffer = generate(expr->accessor);
+		buffer = generate(expr->accessor.get());
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
 		buffer = generateLoadFromArrayCommand(expr->typeExpression->type);
@@ -1012,12 +1012,12 @@ std::vector<char> Generator::generate(ElementCompositeLiteral* expr) {
 	std::vector<char> codeBytes;
 	std::vector<char> buffer;
 
-	if (std::holds_alternative<ExpressionAST *>(expr->value)) {
+	if (std::holds_alternative<ExpressionASTPtr>(expr->value)) {
 
-		auto value = std::get<ExpressionAST *>(expr->value);
-        codeBytes = generate(value);
+		const auto& value = std::get<ExpressionASTPtr>(expr->value);
+        codeBytes = generate(value.get());
 
-		buffer = generateCloneArrayCommand(value);;
+		buffer = generateCloneArrayCommand(value.get());;
 		codeBytes.insert(codeBytes.end(), buffer.begin(), buffer.end());
 
 		buffer = generateStoreToArrayCommand(value->typeExpression->type);
@@ -1025,7 +1025,7 @@ std::vector<char> Generator::generate(ElementCompositeLiteral* expr) {
 
     } else if (std::holds_alternative<ElementCompositeLiteralList>(expr->value)) {
 
-        auto elements = std::get<ElementCompositeLiteralList>(expr->value);
+        const auto& elements = std::get<ElementCompositeLiteralList>(expr->value);
 		const auto& arrayType = std::get<ArraySignatureEntity>(expr->typeExpression->value);
 
 		codeBytes = generateNewArray(arrayType, elements);
@@ -1038,11 +1038,11 @@ std::vector<char> Generator::generate(ElementCompositeLiteral* expr) {
 std::vector<char> Generator::generate(ReturnStatement* expr) {
 	std::vector<char> bytes;
 
-	for (auto expression : expr->returnValues) {
-		auto buffer = generate(expression);
+	for (const auto& expression : expr->returnValues) {
+		auto buffer = generate(expression.get());
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
-		buffer = generateCloneArrayCommand(expression);;
+		buffer = generateCloneArrayCommand(expression.get());;
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 	}
 
@@ -1072,10 +1072,10 @@ std::vector<char> Generator::initializeLocalVariables(const IdentifiersList& ide
 
 	while (idIter != identifiers.end() && valueIter != values.end()) {
 			
-		buffer = generate((*valueIter));
+		buffer = generate(valueIter->get());
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
-		buffer = generateCloneArrayCommand(*valueIter);
+		buffer = generateCloneArrayCommand(valueIter->get());
 		bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 		
 		if ((*idIter) == "_") {
@@ -1097,10 +1097,10 @@ std::vector<char> Generator::generate(DeclarationStatement* stmt) {
 	std::vector<char> bytes;
 	std::vector<char> buffer;
 
-	for (auto decl : stmt->declarations) {
-		if (auto varDecl = dynamic_cast<VariableDeclaration*>(decl)) {
+	for (const auto& decl : stmt->declarations) {
+		if (auto varDecl = dynamic_cast<VariableDeclaration*>(decl.get())) {
 			
-			for (auto id : varDecl->identifiersWithType->identifiers) {
+			for (const auto& id : varDecl->identifiersWithType->identifiers) {
 
 				if (context.add(id, RefConstant(indexCurrentLocalVariable, true)))
 					indexCurrentLocalVariable++;
@@ -1115,7 +1115,7 @@ std::vector<char> Generator::generate(DeclarationStatement* stmt) {
 }
 
 std::vector<char> Generator::generate(ShortVarDeclarationStatement* stmt) {
-	for (auto id : stmt->identifiers) {
+	for (const auto& id : stmt->identifiers) {
 		if (context.add(id, RefConstant(indexCurrentLocalVariable, true))) {
 			indexCurrentLocalVariable++;
 		}
@@ -1140,19 +1140,19 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 			// if lhs expression has index (i.e. array)
 			if (*indexRIterator) {
 				// generate access array expression
-				buffer = generate(*leftRIterator);
+				buffer = generate(leftRIterator->get());
 				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
 				// generate index expression
-				buffer = generate(*indexRIterator);
+				buffer = generate(indexRIterator->get());
 				bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 			}
 
 			// generate value expression
-			buffer = generate(*rightRIterator);
+			buffer = generate(rightRIterator->get());
 			bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
-			buffer = generateCloneArrayCommand(*rightRIterator);
+			buffer = generateCloneArrayCommand(rightRIterator->get());
 			bytes.insert(bytes.end(), buffer.begin(), buffer.end());
 
 			indexRIterator++;
@@ -1167,7 +1167,7 @@ std::vector<char> Generator::generate(AssignmentStatement* stmt) {
 		while (indexIterator != stmt->indexes.end() && leftIterator != stmt->lhs.end() 
 													&& rightIterator != stmt->rhs.end()) {
 
-			auto identifierAsExpression = dynamic_cast<IdentifierAsExpression*>(*leftIterator);
+			auto identifierAsExpression = dynamic_cast<IdentifierAsExpression*>(leftIterator->get());
 
 			if (*indexIterator) {
 				buffer = generateStoreToArrayCommand((*rightIterator)->typeExpression->type);
@@ -1206,18 +1206,18 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 	std::vector<std::vector<char>> clausesConditionsToJump;
 	std::vector<size_t> conditionsOffsets = {0};
 
-	for (const auto clause : stmt->clauseList) {
+	for (const auto& clause : stmt->clauseList) {
 		std::vector<char> clauseConditionToJump;
 
 		if (clause->expressionCase == nullptr) {
-			defaultClause = clause;
+			defaultClause = clause.get();
 			continue;
 		}
 
 		// Сравниваем switch expression и case expression
 		auto conditionBytes = generate(
 			std::make_unique<BinaryExpression>(
-				BinaryExpression(BinaryExpression::Equal, stmt->expression, clause->expressionCase)
+				BinaryExpression::Equal, stmt->expression->clone(), clause->expressionCase->clone()
 			).get()
 		);
 
@@ -1256,9 +1256,9 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 	std::vector<size_t> blocksOffsets = {0};
 
 	// Тела кейсов, заданных пользователем
-	for (const auto clause : stmt->clauseList) {
+	for (const auto& clause : stmt->clauseList) {
 
-		buffer = generate(clause->block);
+		buffer = generate(clause->block.get());
 
 		// Если стоит фолтру, проваливаемся к телу следующего кейса
 		// Если не стоит - прыгаем в конец switch statement (пока не знаем, запишем филлеры)
@@ -1277,7 +1277,8 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 		// Вычисляем позицию дефолт кейса в списке
 		size_t defaultClauseI = 
 			std::distance(stmt->clauseList.begin()
-						, std::find(stmt->clauseList.begin(), stmt->clauseList.end(), defaultClause));
+						, std::find_if(stmt->clauseList.begin(), stmt->clauseList.end(),
+                                    [defaultClause](const auto& clause) { return clause.get() == defaultClause; }));
 
 		// Перемещаем сдвиг для него в конец списка сдвигов, т.к. default condition стоит в конце
 		// Ставим его вместо сдвига, который указывает на nop
@@ -1316,8 +1317,8 @@ std::vector<char> Generator::generate(WhileStatement* stmt) {
 	std::vector<char> bytes;
 	std::vector<char> buffer;
 
-	const auto conditionBytes = generate(stmt->conditionExpression);
-    const auto bodyBytes = generate(stmt->block);
+	const auto conditionBytes = generate(stmt->conditionExpression.get());
+    const auto bodyBytes = generate(stmt->block.get());
 
     constexpr auto ifeqCommandLength = 3;
     constexpr auto gotoCommandLength = 3;

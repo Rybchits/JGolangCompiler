@@ -32,13 +32,13 @@ private:
     MethodEntity* currentMethod;
     int indexCurrentLocalVariable = 0;
 
-    const int8_t BREAK_FILLER = 0xFB;
-    const int8_t CONTINUE_FILLER = 0xFC;
+    const char BREAK_FILLER = static_cast<char>(0xFB);
+    const char CONTINUE_FILLER = static_cast<char>(0xFC);
 
     std::vector<char> generateInteger(int64_t number);
     std::vector<char> generateFloating(float number);
 
-    std::vector<char> generateNewArray(const ArraySignatureEntity& arrayType, ElementCompositeLiteralList elements);
+    std::vector<char> generateNewArray(const ArraySignatureEntity& arrayType, const ElementCompositeLiteralList& elements);
     std::vector<char> generateNewArrayCommand(const TypePtr& elementType);
 
     std::vector<char> generateField(std::string fieldName, FieldEntity* field);

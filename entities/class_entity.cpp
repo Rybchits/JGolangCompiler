@@ -11,12 +11,12 @@ TypePtr MethodEntity::toTypeEntity() const {
 }
 
 
-MethodEntity::MethodEntity(FunctionDeclaration* node) : block(node->block) {
+MethodEntity::MethodEntity(FunctionDeclaration* node) : block(node->block.get()) {
     // fill with args
-    for (auto identifiersWithType : node->signature->idsAndTypesArgs) {
-        auto type = std::make_shared<const TypeEntity>(identifiersWithType->type);
+    for (const auto& identifiersWithType : node->signature->idsAndTypesArgs) {
+        auto type = std::make_shared<const TypeEntity>(identifiersWithType->type.get());
         
-        for (auto identifier : identifiersWithType->identifiers) {
+        for (const auto& identifier : identifiersWithType->identifiers) {
             arguments.emplace_back(identifier, type);
         }
     }
@@ -25,8 +25,8 @@ MethodEntity::MethodEntity(FunctionDeclaration* node) : block(node->block) {
         returnType = std::make_shared<const TypeEntity>(TypeEntity::Void);
     } else {
         // fill with return values
-        for (auto identifiersWithType : node->signature->idsAndTypesResults) {
-            auto type = std::make_shared<const TypeEntity>(identifiersWithType->type);
+        for (const auto& identifiersWithType : node->signature->idsAndTypesResults) {
+            auto type = std::make_shared<const TypeEntity>(identifiersWithType->type.get());
             returnType = type;
         }
     }

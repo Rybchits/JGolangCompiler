@@ -5,13 +5,11 @@
 
 class PrecalculateVisitor : public Visitor {
 private:
-    Semantic* semantic;
+    ExpressionASTPtr transformExpression(ExpressionASTPtr expr);
+    void transformExpressionList(ExpressionList& list);
 
-    ExpressionAST* transformExpression(ExpressionAST* expr);
-    ExpressionList transformExpressionList(ExpressionList& list);
-
-    ExpressionAST* transformUnaryExpression(UnaryExpression* expr);
-    ExpressionAST* transformBinaryExpression(BinaryExpression* expr);
+    ExpressionASTPtr transformUnaryExpression(UnaryExpression* expr);
+    ExpressionASTPtr transformBinaryExpression(BinaryExpression* expr);
 
     void onFinishVisit(VariableDeclaration* node) override;
     void onFinishVisit(UnaryExpression* node) override;
@@ -31,7 +29,6 @@ private:
 
 public:
     void transform(PackageAST* packageAst);
-    explicit PrecalculateVisitor(Semantic* semantic): semantic(semantic) {};
     ~PrecalculateVisitor() override = default;
 };
 

@@ -32,7 +32,7 @@ void DotConvertVisitor::convert(NodeAST *node) {
 
 void DotConvertVisitor::onStartVisit(PackageAST *node) {
     out << MakeNode(node->nodeId, node->name() + " " + node->packageName);
-    for (auto decl: node->topDeclarations) {
+    for (const auto& decl : node->topDeclarations) {
         out << MakeConnection(node->nodeId, decl->nodeId);
     }
 }
@@ -113,7 +113,7 @@ void DotConvertVisitor::onStartVisit(CallableExpression *node) {
     out << MakeConnection(node->nodeId, node->base->nodeId, "base");
 
     int index = 0;
-    for (auto arg: node->arguments) {
+    for (const auto& arg : node->arguments) {
         out << MakeConnection(node->nodeId, arg->nodeId, std::to_string(index++));
     }
 }
@@ -128,7 +128,7 @@ void DotConvertVisitor::onStartVisit(BlockStatement *node) {
     out << MakeNode(node->nodeId, node->name());
 
     int index = 0;
-    for (auto stmt: node->body) {
+    for (const auto& stmt : node->body) {
         out << MakeConnection(node->nodeId, stmt->nodeId, std::to_string(index++));
     }
 }
@@ -147,7 +147,7 @@ void DotConvertVisitor::onStartVisit(AssignmentStatement *node) {
 
     int index = 0;
     auto indexIterator = node->indexes.begin();
-    for (auto leftExpr: node->lhs) {
+    for (const auto& leftExpr : node->lhs) {
         out << MakeConnection(node->nodeId, leftExpr->nodeId, "l" + std::to_string(index));
 
         if (*indexIterator != nullptr)
@@ -158,7 +158,7 @@ void DotConvertVisitor::onStartVisit(AssignmentStatement *node) {
     }
 
     index = 0;
-    for (auto rightExpr: node->rhs) {
+    for (const auto& rightExpr : node->rhs) {
         out << MakeConnection(node->nodeId, rightExpr->nodeId, "r" + std::to_string(index++));
     }
 }
@@ -191,7 +191,7 @@ void DotConvertVisitor::onStartVisit(ForRangeStatement *node) {
     out << MakeNode(node->nodeId, node->name() + (node->hasShortDeclaration ? " with := " : ""));
 
     int index = 0;
-    for (auto initStmt: node->initStatement) {
+    for (const auto& initStmt : node->initStatement) {
         out << MakeConnection(node->nodeId, initStmt->nodeId, std::to_string(index));
     }
     out << MakeConnection(node->nodeId, node->expressionValue->nodeId);
@@ -202,7 +202,7 @@ void DotConvertVisitor::onStartVisit(ReturnStatement *node) {
     out << MakeNode(node->nodeId, node->name());
 
     int index = 0;
-    for (auto expr: node->returnValues) {
+    for (const auto& expr : node->returnValues) {
         out << MakeConnection(node->nodeId, expr->nodeId, std::to_string(index++));
     }
 }
@@ -243,7 +243,7 @@ void DotConvertVisitor::onStartVisit(SwitchStatement *node) {
     }
 
     int index = 0;
-    for (auto caseClause: node->clauseList) {
+    for (const auto& caseClause : node->clauseList) {
 
         out << MakeConnection(node->nodeId, caseClause->nodeId, 
             caseClause->expressionCase? "case " : "default " + std::to_string(index++));
@@ -253,7 +253,7 @@ void DotConvertVisitor::onStartVisit(SwitchStatement *node) {
 void DotConvertVisitor::onStartVisit(DeclarationStatement *node) {
     out << MakeNode(node->nodeId, node->name());
 
-    for (auto decl: node->declarations) {
+    for (const auto& decl : node->declarations) {
         out << MakeConnection(node->nodeId, decl->nodeId);
     }
 }
@@ -276,12 +276,12 @@ void DotConvertVisitor::onStartVisit(FunctionSignature *node) {
     out << MakeNode(node->nodeId, node->name());
 
     int index = 0;
-    for (auto arg: node->idsAndTypesArgs) {
+    for (const auto& arg : node->idsAndTypesArgs) {
         out << MakeConnection(node->nodeId, arg->nodeId, "arg" + std::to_string(index++));
     }
 
     index = 0;
-    for (auto res: node->idsAndTypesResults) {
+    for (const auto& res : node->idsAndTypesResults) {
         out << MakeConnection(node->nodeId, res->nodeId, "res" + std::to_string(index++));
     }
 }
@@ -295,7 +295,7 @@ void DotConvertVisitor::onStartVisit(ArraySignature *node) {
 
 void DotConvertVisitor::onStartVisit(StructSignature *node) {
     out << MakeNode(node->nodeId, node->name());
-    for (auto member: node->structMembers) {
+    for (const auto& member : node->structMembers) {
         std::string connection;
         if (member->identifiers.size() == 1 && member->identifiers.front().empty()) {
             connection = "composition";
@@ -322,7 +322,7 @@ void DotConvertVisitor::onStartVisit(NodeAST *node) {}
 void DotConvertVisitor::onStartVisit(InterfaceType *node) {
     out << MakeNode(node->nodeId, node->name());
 
-    for (auto func: node->functions) {
+    for (const auto& func : node->functions) {
         out << MakeConnection(node->nodeId, func->nodeId);
     }
 }
@@ -333,7 +333,7 @@ void DotConvertVisitor::onStartVisit(CompositeLiteral *node) {
     out << MakeConnection(node->nodeId, node->type->nodeId);
 
     int index = 0;
-    for (auto element : node->elements) {
+    for (const auto& element : node->elements) {
         out << MakeConnection(node->nodeId, element->nodeId, std::to_string(index++));
     }
 }
@@ -345,12 +345,12 @@ void DotConvertVisitor::onStartVisit(ElementCompositeLiteral *node) {
         out << MakeConnection(node->nodeId, node->key->nodeId, "Key");
     }
 
-    if (std::holds_alternative<ExpressionAST *>(node->value)) {
-        auto temp = std::get<ExpressionAST *>(node->value);
+    if (std::holds_alternative<ExpressionASTPtr>(node->value)) {
+        const auto& temp = std::get<ExpressionASTPtr>(node->value);
         out << MakeConnection(node->nodeId, temp->nodeId);
     } else if (std::holds_alternative<ElementCompositeLiteralList>(node->value)) {
         int index = 0;
-        for (auto insideElement : std::get<ElementCompositeLiteralList>(node->value)) {
+        for (const auto& insideElement : std::get<ElementCompositeLiteralList>(node->value)) {
             out << MakeConnection(node->nodeId, insideElement->nodeId, std::to_string(index++));
         }
     }

@@ -39,12 +39,14 @@ bool Semantic::analyze() {
 }
 
 void Semantic::transformStatements() {
-    auto visitor = StatementsVisitor(this);
+    StatementsVisitor visitor;
     visitor.transform(root);
+    const auto& statementErrors = visitor.getErrors();
+    errors.insert(errors.end(), statementErrors.begin(), statementErrors.end());
 }
 
 void Semantic::precalculateExpressions() {
-    auto visitor = PrecalculateVisitor(this);
+    auto visitor = PrecalculateVisitor();
     visitor.transform(root);
 }
 
@@ -53,11 +55,11 @@ void Semantic::createPackageClass() {
     auto idsConstants = std::vector<std::string>();
 
     // Add package functions
-    for (auto function : packageFunctions) {
+    for (const auto& function : packageFunctions) {
         auto method = std::make_unique<MethodEntity>(function);
 
         if (!packageClass->addMethod(function->identifier, std::move(method))) {
-            addError(function->identifier + "redclared in block");
+            errors.push_back(function->identifier + "redclared in block");
         }
     }
 
@@ -71,7 +73,7 @@ void Semantic::createPackageClass() {
 
             ExpressionAST* expressionNode = nullptr;
             if (expressionsIter != variable->values.end()) {
-                expressionNode = (*expressionsIter);
+                expressionNode = expressionsIter->get();
                 expressionsIter++;
             }
             
@@ -84,14 +86,14 @@ void Semantic::createPackageClass() {
                 field = std::make_unique<FieldEntity>(std::make_shared<const TypeEntity>(TypeEntity::Any), expressionNode);
 
             } else {
-                field = std::make_unique<FieldEntity>(std::make_shared<const TypeEntity>(variable->identifiersWithType->type), expressionNode);
+                field = std::make_unique<FieldEntity>(std::make_shared<const TypeEntity>(variable->identifiersWithType->type.get()), expressionNode);
             }
 
             if (variable->isConst)
                 idsConstants.push_back(identifier);
 
             if (!packageClass->addField(identifier, std::move(field))) {
-                addError(identifier + "already redclared in package");
+                errors.push_back(identifier + "already redclared in package");
             }
         }
     }
@@ -105,18 +107,18 @@ void Semantic::createPackageClass() {
 void Semantic::analyzePackageScope() {
     bool findMain = false;
 
-    for (auto decl : root->topDeclarations) {
+    for (const auto& decl : root->topDeclarations) {
 
         // add method package class
-        if (auto functionDeclaration = dynamic_cast<FunctionDeclaration*>(decl)) {
+        if (auto functionDeclaration = dynamic_cast<FunctionDeclaration*>(decl.get())) {
             if (functionDeclaration->identifier == "main") {
 
                 if (!functionDeclaration->signature->idsAndTypesArgs.empty() || !functionDeclaration->signature->idsAndTypesResults.empty()) {
-                    addError("Function main must have no arguments and no return values");
+                    errors.push_back("Function main must have no arguments and no return values");
                 }
 
                 functionDeclaration->signature->idsAndTypesArgs.push_back(
-                    new IdentifiersWithType(IdentifiersList({"$args"}), new ArraySignature(new IdentifierAsType("string")))
+                    std::make_unique<IdentifiersWithType>(IdentifiersList({"$args"}), std::make_unique<ArraySignature>(std::make_unique<IdentifierAsType>("string")))
                 );
                 
                 findMain = true;
@@ -125,22 +127,18 @@ void Semantic::analyzePackageScope() {
             packageFunctions.push_back(functionDeclaration);
         
         // add field package class
-        } else if (auto variableDeclaration = dynamic_cast<VariableDeclaration*>(decl)) {
+        } else if (auto variableDeclaration = dynamic_cast<VariableDeclaration*>(decl.get())) {
             packageVariables.push_back(variableDeclaration);
         }
     }
 
     if (!findMain) {
-        addError("Does not contain the 'main' function");
+        errors.push_back("Does not contain the 'main' function");
     }
 }
 
-void Semantic::addError(std::string message) {
-    errors.push_back(message);
-}
-
 void Semantic::printErrors() {
-    for (auto err : errors) {
+    for (const auto& err : errors) {
         std::cout << "Error: " << err << std::endl;
     }
 }

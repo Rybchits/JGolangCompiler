@@ -2,110 +2,72 @@
 
 const std::string StatementsVisitor::indexPrivateVariableName = "$index";
 
-AssignmentStatement* StatementsVisitor::transformAssignment(AssignmentStatement* assigmnent) {
-    if (assigmnent->type != AssignmentStatement::SimpleAssign) {
-        auto leftValueExpression = assigmnent->lhs.front();
-        auto rightValueExpression = assigmnent->rhs.front();
+void StatementsVisitor::transformAssignment(AssignmentStatement* assignment) {
+    if (assignment->type == AssignmentStatement::SimpleAssign) return;
 
-        switch (assigmnent->type)
-        {
-        case AssignmentStatement::MinusAssign:
-            assigmnent->rhs = ExpressionList({new BinaryExpression(
-                BinaryExpression::Subtraction, leftValueExpression->clone(), rightValueExpression)});
-            break;
-
-        case AssignmentStatement::PlusAssign:
-            assigmnent->rhs = ExpressionList({new BinaryExpression(
-                BinaryExpression::Addition, leftValueExpression->clone(), rightValueExpression)});
-            break;
-
-        case AssignmentStatement::MulAssign:
-            assigmnent->rhs = ExpressionList({new BinaryExpression(
-                BinaryExpression::Multiplication, leftValueExpression->clone(), rightValueExpression)});
-            break;
-
-        case AssignmentStatement::DivAssign:
-            assigmnent->rhs = ExpressionList({new BinaryExpression(
-                BinaryExpression::Division, leftValueExpression->clone(), rightValueExpression)});
-            break;
-
-        case AssignmentStatement::ModAssign:
-            assigmnent->rhs = ExpressionList({new BinaryExpression(
-                BinaryExpression::Mod, leftValueExpression->clone(), rightValueExpression)});
-            break;
-        
-        default:
-            break;
-        }
+    BinaryExpression::BinaryExpressionEnum operation;
+    switch (assignment->type) {
+        case AssignmentStatement::MinusAssign: operation = BinaryExpression::Subtraction; break;
+        case AssignmentStatement::PlusAssign: operation = BinaryExpression::Addition; break;
+        case AssignmentStatement::MulAssign: operation = BinaryExpression::Multiplication; break;
+        case AssignmentStatement::DivAssign: operation = BinaryExpression::Division; break;
+        case AssignmentStatement::ModAssign: operation = BinaryExpression::Mod; break;
+        default: return;
     }
-    
-    assigmnent->type = AssignmentStatement::SimpleAssign;
-    return assigmnent;
+    auto leftValue = assignment->lhs.front()->clone();
+    if (auto* identifier = dynamic_cast<IdentifierAsExpression*>(leftValue.get())) {
+        identifier->isDestination = false;
+    }
+    assignment->rhs.front() = std::make_unique<BinaryExpression>(
+        operation, std::move(leftValue), std::move(assignment->rhs.front()));
+    assignment->type = AssignmentStatement::SimpleAssign;
 }
 
-BlockStatement* StatementsVisitor::transformForToWhile(ForStatement *forStmt) {
+BlockStatementPtr StatementsVisitor::transformForToWhile(ForStatement* forStmt) {
     StatementList list;
+    if (forStmt->initStatement) list.push_back(std::move(forStmt->initStatement));
 
-    if (forStmt->initStatement != nullptr)
-        list.push_back(forStmt->initStatement);
-
-    auto whileLoop = new WhileStatement(
-            forStmt->conditionExpression == nullptr ? new BooleanExpression(true) : forStmt->conditionExpression,
-            forStmt->block
-    );
-
-    if (forStmt->iterationStatement != nullptr)
-        whileLoop->block->body.push_back(forStmt->iterationStatement);
-
-    list.push_back(whileLoop);
-
-    return new BlockStatement(list);
-}
-
-StatementAST* StatementsVisitor::transformIfStatement(IfStatement* ifStmt) {
-    if (ifStmt->preStatement) {
-        StatementList newStatement;
-
-        newStatement.push_back(ifStmt->preStatement);
-        ifStmt->preStatement = nullptr;
-        newStatement.push_back(ifStmt);
-
-        return new BlockStatement(newStatement);
-
-    } else {
-        return ifStmt;
+    auto whileLoop = std::make_unique<WhileStatement>(
+        forStmt->conditionExpression ? std::move(forStmt->conditionExpression) : std::make_unique<BooleanExpression>(true),
+        std::move(forStmt->block));
+    if (forStmt->iterationStatement) {
+        whileLoop->block->body.push_back(std::move(forStmt->iterationStatement));
     }
+    list.push_back(std::move(whileLoop));
+    return std::make_unique<BlockStatement>(std::move(list));
 }
 
-StatementAST* StatementsVisitor::transformSwitchStatement(SwitchStatement *switchStmt) {
-    if (switchStmt->statement) {
-        StatementList newStatement;
-
-        newStatement.push_back(switchStmt->statement);
-        switchStmt->statement = nullptr;
-        newStatement.push_back(switchStmt);
-        
-        return new BlockStatement(newStatement);
-
-    } else {
-        return switchStmt;
-    }
+StatementASTPtr StatementsVisitor::transformIfStatement(StatementASTPtr stmt) {
+    auto* ifStmt = static_cast<IfStatement*>(stmt.get());
+    if (!ifStmt->preStatement) return stmt;
+    StatementList body;
+    body.push_back(std::move(ifStmt->preStatement));
+    body.push_back(std::move(stmt));
+    return std::make_unique<BlockStatement>(std::move(body));
 }
 
+StatementASTPtr StatementsVisitor::transformSwitchStatement(StatementASTPtr stmt) {
+    auto* switchStmt = static_cast<SwitchStatement*>(stmt.get());
+    if (!switchStmt->statement) return stmt;
+    StatementList body;
+    body.push_back(std::move(switchStmt->statement));
+    body.push_back(std::move(stmt));
+    return std::make_unique<BlockStatement>(std::move(body));
+}
 
 // Перед каждым Continue добавить statement перехода
 StatementList StatementsVisitor::transformKeywordStatements(StatementList body) {
     StatementList newBody;
 
-    for (auto stmt: body) {
-        auto keyword = dynamic_cast<KeywordStatement *>(stmt);
+    for (auto& stmt: body) {
+        auto keyword = dynamic_cast<KeywordStatement *>(stmt.get());
 
         if (keyword) {
             switch (keyword->type)
             {
                 case KeywordStatement::Continue:
                     if (nextIterationsLoops.empty()) {
-                        semantic->addError("Continue keyword out of loop");
+                        addError("Continue keyword out of loop");
                         
                     } else if (nextIterationsLoops.top() != nullptr) {
                         newBody.push_back(nextIterationsLoops.top()->clone());
@@ -114,154 +76,142 @@ StatementList StatementsVisitor::transformKeywordStatements(StatementList body) 
 
                 case KeywordStatement::Break:
                     if (nextIterationsLoops.empty() && !insideSwitchCaseClause) {
-                        semantic->addError("Break keyword out of loop and switch case clause");
+                        addError("Break keyword out of loop and switch case clause");
                     }
                     break;
 
                 case KeywordStatement::Fallthrough:
-                    semantic->addError("Fallthrough keyword out of maswitch case clause");
+                    addError("Fallthrough keyword out of maswitch case clause");
                     break;
             }
         }
 
-        newBody.push_back(stmt);
+        newBody.push_back(std::move(stmt));
     }
     return newBody;
 }
 
-BlockStatement* StatementsVisitor::transformForRangeToWhile(ForRangeStatement *forRangeStmt) {
+BlockStatementPtr StatementsVisitor::transformForRangeToWhile(ForRangeStatement *forRangeStmt) {
     StatementList list;
 
-    auto indexDeclaration = new VariableDeclaration(
-            new IdentifiersWithType(IdentifiersList{indexPrivateVariableName}, new IdentifierAsType("int")),
-            ExpressionList({new IntegerExpression(0)})
+    auto indexDeclaration = std::make_unique<VariableDeclaration>(
+            std::make_unique<IdentifiersWithType>(IdentifiersList{indexPrivateVariableName}, std::make_unique<IdentifierAsType>("int")),
+            MakeList<ExpressionList>(std::make_unique<IntegerExpression>(0))
     );
 
-    list.push_back(new DeclarationStatement(*(new DeclarationList{indexDeclaration})));
+    list.push_back(std::make_unique<DeclarationStatement>(MakeList<DeclarationList>(std::move(indexDeclaration))));
 
-    auto condition = new BinaryExpression(
+    auto condition = std::make_unique<BinaryExpression>(
             BinaryExpression::Less,
-            new IdentifierAsExpression(indexPrivateVariableName),
-            new CallableExpression(new IdentifierAsExpression("len"), ExpressionList{forRangeStmt->expressionValue->clone()})
+            std::make_unique<IdentifierAsExpression>(indexPrivateVariableName),
+            std::make_unique<CallableExpression>(std::make_unique<IdentifierAsExpression>("len"), MakeList<ExpressionList>(forRangeStmt->expressionValue->clone()))
     );
 
     if (forRangeStmt->initStatement.size() > 2) {
-        semantic->addError("Many variables in initialization ForRange loop");
+        addError("Many variables in initialization ForRange loop");
     }
 
     auto variableForRange = forRangeStmt->initStatement.begin();
 
     // Index variable
     if (forRangeStmt->initStatement.size() >= 1) {
-        StatementAST *indexVariableStatement;
+        StatementASTPtr indexVariableStatement;
 
         if (forRangeStmt->hasShortDeclaration) {
-            if (auto indexVariableIdentifier = dynamic_cast<IdentifierAsExpression *>(*variableForRange)) {
-                indexVariableStatement = new DeclarationStatement(
-                        new VariableDeclaration(
-                                new IdentifiersWithType(indexVariableIdentifier->identifier, nullptr),
-                                ExpressionList({new IdentifierAsExpression(indexPrivateVariableName)})
+            if (auto indexVariableIdentifier = dynamic_cast<IdentifierAsExpression *>(variableForRange->get())) {
+                indexVariableStatement = std::make_unique<DeclarationStatement>(
+                        std::make_unique<VariableDeclaration>(
+                                std::make_unique<IdentifiersWithType>(indexVariableIdentifier->identifier, nullptr),
+                                MakeList<ExpressionList>(std::make_unique<IdentifierAsExpression>(indexPrivateVariableName))
                         )
                 );
             } else {
-                semantic->addError("Undefined expression (1) in initialization ForRange loop");
+                addError("Undefined expression (1) in initialization ForRange loop");
             }
         } else {
-            indexVariableStatement = new AssignmentStatement(
+            indexVariableStatement = std::make_unique<AssignmentStatement>(
                     AssignmentStatement::SimpleAssign,
-                    *variableForRange,
-                    new IdentifierAsExpression(indexPrivateVariableName));
+                    std::move(*variableForRange),
+                    std::make_unique<IdentifierAsExpression>(indexPrivateVariableName));
         }
 
-        forRangeStmt->block->body.insert(forRangeStmt->block->body.begin(), indexVariableStatement);
+        if (indexVariableStatement) forRangeStmt->block->body.push_front(std::move(indexVariableStatement));
     }
 
     // Element variable
     if (forRangeStmt->initStatement.size() >= 2) {
-        StatementAST *elementVariableStatement;
+        StatementASTPtr elementVariableStatement;
         variableForRange++;
 
-        ExpressionAST *accessToElement = new AccessExpression(
+        auto accessToElement = std::make_unique<AccessExpression>(
                 AccessExpression::Indexing,
-                forRangeStmt->expressionValue,
-                new IdentifierAsExpression(indexPrivateVariableName)
+                std::move(forRangeStmt->expressionValue),
+                std::make_unique<IdentifierAsExpression>(indexPrivateVariableName)
         );
 
         if (forRangeStmt->hasShortDeclaration) {
-            if (auto elementVariableIdentifier = dynamic_cast<IdentifierAsExpression *>(*variableForRange)) {
-                elementVariableStatement = new DeclarationStatement(
-                        new VariableDeclaration(
-                                new IdentifiersWithType(elementVariableIdentifier->identifier, nullptr),
-                                ExpressionList({accessToElement})
+            if (auto elementVariableIdentifier = dynamic_cast<IdentifierAsExpression *>(variableForRange->get())) {
+                elementVariableStatement = std::make_unique<DeclarationStatement>(
+                        std::make_unique<VariableDeclaration>(
+                                std::make_unique<IdentifiersWithType>(elementVariableIdentifier->identifier, nullptr),
+                                MakeList<ExpressionList>(std::move(accessToElement))
                         )
                 );
             } else {
-                semantic->addError("Undefined expression (2) in initialization ForRange loop");
+                addError("Undefined expression (2) in initialization ForRange loop");
             }
         } else {
-            elementVariableStatement = new AssignmentStatement(
+            elementVariableStatement = std::make_unique<AssignmentStatement>(
                     AssignmentStatement::SimpleAssign,
-                    *variableForRange,
-                    accessToElement);
+                    std::move(*variableForRange),
+                    std::move(accessToElement));
         }
 
-        forRangeStmt->block->body.insert(forRangeStmt->block->body.begin(), elementVariableStatement);
+        if (elementVariableStatement) forRangeStmt->block->body.push_front(std::move(elementVariableStatement));
     }
 
-    forRangeStmt->block->body.insert(forRangeStmt->block->body.end(), new ExpressionStatement(
-            new UnaryExpression(
+    forRangeStmt->block->body.insert(forRangeStmt->block->body.end(), std::make_unique<ExpressionStatement>(
+            std::make_unique<UnaryExpression>(
                     UnaryExpression::Increment,
-                    new IdentifierAsExpression(indexPrivateVariableName))));
+                    std::make_unique<IdentifierAsExpression>(indexPrivateVariableName))));
 
-    list.push_back(new WhileStatement(condition, forRangeStmt->block));
-    return new BlockStatement(list);
+    list.push_back(std::make_unique<WhileStatement>(std::move(condition), std::move(forRangeStmt->block)));
+    return std::make_unique<BlockStatement>(std::move(list));
 }
 
-StatementList StatementsVisitor::transformStatements(StatementList& list) {
-    StatementList newBody;
-
-    for (auto stmt : list) {
-
-        if (auto forLoop = dynamic_cast<ForStatement *>(stmt)) {
-            BlockStatement* transformedLoop = transformForToWhile(forLoop);
-            newBody.push_back(transformedLoop);
-
-        } else if (auto forRangeLoop = dynamic_cast<ForRangeStatement *>(stmt)) {
-            BlockStatement* transformedLoop = transformForRangeToWhile(forRangeLoop);
-            newBody.push_back(transformedLoop);
-
-        } else if (auto ifStatement = dynamic_cast<IfStatement*>(stmt)) {
-            newBody.push_back(transformIfStatement(ifStatement));
-
-        } else if (auto switchStatement = dynamic_cast<SwitchStatement*>(stmt)) {
-            newBody.push_back(transformSwitchStatement(switchStatement));
-
-        } else if (auto assignmentStmt = dynamic_cast<AssignmentStatement*>(stmt)) {
-            newBody.push_back(transformAssignment(assignmentStmt));
-
-        } else {
-            newBody.push_back(stmt);
+StatementList StatementsVisitor::transformStatements(StatementList list) {
+    for (auto& stmt : list) {
+        if (auto* forLoop = dynamic_cast<ForStatement*>(stmt.get())) {
+            stmt = transformForToWhile(forLoop);
+        } else if (auto* rangeLoop = dynamic_cast<ForRangeStatement*>(stmt.get())) {
+            stmt = transformForRangeToWhile(rangeLoop);
+        } else if (dynamic_cast<IfStatement*>(stmt.get())) {
+            stmt = transformIfStatement(std::move(stmt));
+        } else if (dynamic_cast<SwitchStatement*>(stmt.get())) {
+            stmt = transformSwitchStatement(std::move(stmt));
+        } else if (auto* assignment = dynamic_cast<AssignmentStatement*>(stmt.get())) {
+            transformAssignment(assignment);
         }
     }
-    return newBody;
+    return list;
 }
 
 void StatementsVisitor::onFinishVisit(BlockStatement *node) {
-    node->body = transformStatements(node->body);
+    node->body = transformStatements(std::move(node->body));
 }
 
 void StatementsVisitor::onFinishVisit(IfStatement* node) {
-    if (auto ifStatement = dynamic_cast<IfStatement*>(node->elseStatement)) {
-        node->elseStatement = transformIfStatement(ifStatement);
+    if (auto ifStatement = dynamic_cast<IfStatement*>(node->elseStatement.get())) {
+        node->elseStatement = transformIfStatement(std::move(node->elseStatement));
     }
 }
 
 void StatementsVisitor::onStartVisit(BlockStatement *node) {
-    node->body = transformKeywordStatements(node->body);
+    node->body = transformKeywordStatements(std::move(node->body));
 }
 
 void StatementsVisitor::onStartVisit(ForStatement* node) {
-    nextIterationsLoops.push(node->iterationStatement);
+    nextIterationsLoops.push(node->iterationStatement ? node->iterationStatement->clone() : nullptr);
 }
 
 void StatementsVisitor::onFinishVisit(ForStatement* node) {
@@ -277,12 +227,12 @@ void StatementsVisitor::onFinishVisit(WhileStatement* node) {
 }
 
 void StatementsVisitor::onStartVisit(ForRangeStatement* node) {
-    StatementAST* nextIteration = new ExpressionStatement(
-        new UnaryExpression(
+    auto nextIteration = std::make_unique<ExpressionStatement>(
+        std::make_unique<UnaryExpression>(
             UnaryExpression::Increment,
-            new IdentifierAsExpression(indexPrivateVariableName))
+            std::make_unique<IdentifierAsExpression>(indexPrivateVariableName))
         );
-    nextIterationsLoops.push(nextIteration);
+    nextIterationsLoops.push(std::move(nextIteration));
 }
 
 void StatementsVisitor::onFinishVisit(ForRangeStatement* node) {
@@ -313,17 +263,17 @@ bool StatementsVisitor::checkReturnStatements(StatementAST* stmt) {
 
 bool StatementsVisitor::checkReturnStatements(BlockStatement* block) {
     if (block->body.size() != 0) {
-        return checkReturnStatements(*(--block->body.end()));
+        return checkReturnStatements(block->body.back().get());
     }
     return false;
 }
 
 bool StatementsVisitor::checkReturnStatements(IfStatement* ifStatement) {
     bool hasReturnInThenBlock = ifStatement->thenStatement->body.size() != 0? 
-            checkReturnStatements(*(--ifStatement->thenStatement->body.end())) : false;
+            checkReturnStatements(ifStatement->thenStatement->body.back().get()) : false;
 
     if (ifStatement->elseStatement != nullptr) {
-        return hasReturnInThenBlock && checkReturnStatements(ifStatement->elseStatement);
+        return hasReturnInThenBlock && checkReturnStatements(ifStatement->elseStatement.get());
     }
 
     return false;
@@ -333,20 +283,20 @@ bool StatementsVisitor::checkReturnStatements(SwitchStatement* switchStmt) {
     bool casesHaveReturn = true;
     bool hasDefault = false;
 
-    for (auto caseClause : switchStmt->clauseList) {
+    for (const auto& caseClause : switchStmt->clauseList) {
         if (caseClause->expressionCase == nullptr) {
             hasDefault = true;
         }
-        casesHaveReturn &= checkReturnStatements(caseClause->block);
+        casesHaveReturn &= checkReturnStatements(caseClause->block.get());
     }
 
     return casesHaveReturn && hasDefault;
 }
 
 void StatementsVisitor::onFinishVisit(FunctionDeclaration* node) {
-    if (node->signature->idsAndTypesResults.size() != 0 && !checkReturnStatements(node->block)) {
+    if (node->signature->idsAndTypesResults.size() != 0 && !checkReturnStatements(node->block.get())) {
 
-        semantic->addError("Missing the 'return' statement at the end of the function");
+        addError("Missing the 'return' statement at the end of the function");
     }
 }
 
@@ -354,7 +304,7 @@ void StatementsVisitor::onStartVisit(SwitchCaseClause* node) {
     insideSwitchCaseClause = true;
 
     if (node->block->body.size() != 0) {
-        auto keyword = dynamic_cast<KeywordStatement*>(node->block->body.back());
+        auto keyword = dynamic_cast<KeywordStatement*>(node->block->body.back().get());
 
         if (keyword && keyword->type == KeywordStatement::Fallthrough) {
             node->fallthrowEnds = true;
@@ -367,14 +317,14 @@ void StatementsVisitor::onFinishVisit(SwitchStatement* node) {
     bool hasDefault = false;
 
     int index = 0;
-    for (auto caseClause : node->clauseList) {
+    for (const auto& caseClause : node->clauseList) {
 
         if (hasDefault && caseClause->expressionCase == nullptr) {
-            semantic->addError("Switch has multiple defaults");
+            addError("Switch has multiple defaults");
         }
 
         if (index == node->clauseList.size() - 1 && caseClause->fallthrowEnds) {
-            semantic->addError("Last case can't end with fallthrough");
+            addError("Last case can't end with fallthrough");
         }
 
         hasDefault |= caseClause->expressionCase == nullptr;

@@ -1,47 +1,30 @@
 #include "ast.h"
 
-/* -------------------------------- Types -------------------------------- */
-TypeList* ListIdentifiersToListTypes(IdentifiersList& identifiers) {
-    auto listTypes = new std::list<TypeAST *>;
-
-    if (identifiers.empty()) { return listTypes; }
-
-    for (const auto& id: identifiers) {
-        listTypes->push_back(new IdentifierAsType(id));
+TypeList ListIdentifiersToListTypes(const IdentifiersList& identifiers) {
+    TypeList types;
+    for (const auto& id : identifiers) {
+        types.push_back(std::make_unique<IdentifierAsType>(id));
     }
-
-    return listTypes;
+    return types;
 }
 
-
-std::list<IdentifiersWithType *> *AttachIdentifiersToListTypes(TypeList& listTypes) {
-    auto listIdentifiersWithType = new std::list<IdentifiersWithType *>;
-
-    if (listTypes.empty()) { return listIdentifiersWithType; }
-
-    for (auto type: listTypes) {
-        auto ids = new IdentifiersList();
-        ids->push_back("_");
-        listIdentifiersWithType->push_back(new IdentifiersWithType(*ids, type));
+IdentifiersWithTypeList AttachIdentifiersToListTypes(TypeList listTypes) {
+    IdentifiersWithTypeList result;
+    for (auto& type : listTypes) {
+        result.push_back(std::make_unique<IdentifiersWithType>("_", std::move(type)));
     }
-
-    return listIdentifiersWithType;
+    return result;
 }
 
-IdentifiersList* IdentifiersListFromExpressions(ExpressionList& expressions) {
-    auto identifiers = new IdentifiersList();
-
-    for (auto expr : expressions) {
-        if (auto expressionAsIdentifier = dynamic_cast<IdentifierAsExpression*>(expr)) {
-            identifiers->push_back(expressionAsIdentifier->identifier);
-        } else {
-            return nullptr;
-        }
+std::optional<IdentifiersList> IdentifiersListFromExpressions(const ExpressionList& expressions) {
+    IdentifiersList identifiers;
+    for (const auto& expression : expressions) {
+        auto* identifier = dynamic_cast<IdentifierAsExpression*>(expression.get());
+        if (!identifier) return std::nullopt;
+        identifiers.push_back(identifier->identifier);
     }
-
     return identifiers;
 }
-
 
 std::string UnaryExpression::name() const noexcept {
     switch (this->type) {
@@ -142,74 +125,51 @@ bool BinaryExpression::isComparison() {
     return type == Equal || type == Greater || type == Less || type == NotEqual || type == LessOrEqual || type == GreatOrEqual;
 }
 
-// If there is an indexing, we decompose the left part of the assignment
-AssignmentStatement::AssignmentStatement(AssignmentEnum type, ExpressionAST* lExp, ExpressionAST* rExp) {
-    this->type = type;
-    
-    AccessExpression* leftIndexingElement = dynamic_cast<AccessExpression*>(lExp);
+AssignmentStatement::AssignmentStatement(AssignmentEnum type, ExpressionASTPtr left, ExpressionASTPtr right)
+    : AssignmentStatement(type, MakeList<ExpressionList>(std::move(left)),
+                          MakeList<ExpressionList>(std::move(right))) {}
 
-    if (leftIndexingElement != nullptr && leftIndexingElement->type == AccessExpression::Indexing) {
-        indexes.push_back(leftIndexingElement->accessor);
-        lhs.push_back(leftIndexingElement->base);
-
-    } else {
-        indexes.push_back(nullptr);
-        lhs.push_back(lExp);
-    }
-    
-    rhs.push_back(rExp);
-}
-
-
-AssignmentStatement::AssignmentStatement(AssignmentEnum type, ExpressionList& lExpList, ExpressionList& rExpList) {
-    this->type = type;
-
-    for (auto left : lExpList) {
-        auto leftIndexingElement = dynamic_cast<AccessExpression*>(left);
-
-        if (leftIndexingElement && leftIndexingElement->type == AccessExpression::Indexing) {
-            indexes.push_back(leftIndexingElement->accessor);
-            lhs.push_back(leftIndexingElement->base);
-
+AssignmentStatement::AssignmentStatement(AssignmentEnum type, ExpressionList left, ExpressionList right)
+    : type(type), rhs(std::move(right)) {
+    for (auto& expression : left) {
+        if (auto* access = dynamic_cast<AccessExpression*>(expression.get());
+            access && access->type == AccessExpression::Indexing) {
+            indexes.push_back(std::move(access->accessor));
+            lhs.push_back(std::move(access->base));
         } else {
-            
-            if (auto leftIdentifierExpression = dynamic_cast<IdentifierAsExpression*>(left)) {
-                leftIdentifierExpression->isDestination = true;
+            if (auto* identifier = dynamic_cast<IdentifierAsExpression*>(expression.get())) {
+                identifier->isDestination = true;
             }
-
             indexes.push_back(nullptr);
-            lhs.push_back(left);
+            lhs.push_back(std::move(expression));
         }
     }
-
-    rhs = rExpList;
 }
 
-
 /* -------------------------------- Visitors -------------------------------- */
-void PackageAST::acceptVisitor(Visitor* visitor) noexcept {
+void PackageAST::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
-    for (auto* decl : topDeclarations) {
+    for (const auto& decl : topDeclarations) {
         decl->acceptVisitor(visitor);
     }
 
     visitor->onFinishVisit(this);
 }
 
-void VariableDeclaration::acceptVisitor(Visitor* visitor) noexcept {
+void VariableDeclaration::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     identifiersWithType->acceptVisitor(visitor);
 
-    for (auto* expr : values ) {
+    for (const auto& expr : values ) {
         expr->acceptVisitor(visitor);
     }
 
     visitor->onFinishVisit(this);
 }
 
-void TypeDeclaration::acceptVisitor(Visitor* visitor) noexcept {
+void TypeDeclaration::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     declType->acceptVisitor(visitor);
@@ -217,7 +177,7 @@ void TypeDeclaration::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void FunctionDeclaration::acceptVisitor(Visitor* visitor) noexcept {
+void FunctionDeclaration::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     if (block != nullptr) {
@@ -229,7 +189,7 @@ void FunctionDeclaration::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void MethodDeclaration::acceptVisitor(Visitor* visitor) noexcept {
+void MethodDeclaration::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     signature->acceptVisitor(visitor);
@@ -245,37 +205,37 @@ void MethodDeclaration::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void IdentifierAsExpression::acceptVisitor(Visitor* visitor) noexcept {
+void IdentifierAsExpression::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
     visitor->onFinishVisit(this);
 }
 
-void IntegerExpression::acceptVisitor(Visitor* visitor) noexcept {
+void IntegerExpression::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
     visitor->onFinishVisit(this);
 }
 
-void BooleanExpression::acceptVisitor(Visitor* visitor) noexcept {
+void BooleanExpression::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
     visitor->onFinishVisit(this);
 }
 
-void FloatExpression::acceptVisitor(Visitor* visitor) noexcept {
+void FloatExpression::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
     visitor->onFinishVisit(this);
 }
 
-void StringExpression::acceptVisitor(Visitor* visitor) noexcept {
+void StringExpression::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
     visitor->onFinishVisit(this);
 }
 
-void NilExpression::acceptVisitor(Visitor* visitor) noexcept {
+void NilExpression::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
     visitor->onFinishVisit(this);
 }
 
-void FunctionLitExpression::acceptVisitor(Visitor* visitor) noexcept {
+void FunctionLitExpression::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     signature->acceptVisitor(visitor);
@@ -284,7 +244,7 @@ void FunctionLitExpression::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void UnaryExpression::acceptVisitor(Visitor* visitor) noexcept {
+void UnaryExpression::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     expression->acceptVisitor(visitor);
@@ -292,7 +252,7 @@ void UnaryExpression::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void BinaryExpression::acceptVisitor(Visitor* visitor) noexcept {
+void BinaryExpression::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     lhs->acceptVisitor(visitor);
@@ -301,19 +261,19 @@ void BinaryExpression::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void CallableExpression::acceptVisitor(Visitor* visitor) noexcept {
+void CallableExpression::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     base->acceptVisitor(visitor);
 
-    for (auto* arg : arguments ) {
+    for (const auto& arg : arguments ) {
         arg->acceptVisitor(visitor);
     }
 
     visitor->onFinishVisit(this);
 }
 
-void AccessExpression::acceptVisitor(Visitor* visitor) noexcept {
+void AccessExpression::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     base->acceptVisitor(visitor);
@@ -322,18 +282,18 @@ void AccessExpression::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void ElementCompositeLiteral::acceptVisitor(Visitor* visitor) noexcept {
+void ElementCompositeLiteral::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     if (key != nullptr) {
         key->acceptVisitor(visitor);
     }
 
-    if (std::holds_alternative<ExpressionAST *>(value)) {
-        std::get<ExpressionAST *>(value)->acceptVisitor(visitor);
+    if (std::holds_alternative<ExpressionASTPtr>(value)) {
+        std::get<ExpressionASTPtr>(value)->acceptVisitor(visitor);
 
-    } else if (std::holds_alternative<std::list<ElementCompositeLiteral *>>(value)) {
-        for (auto el : std::get<std::list<ElementCompositeLiteral *>>(value)) {
+    } else if (std::holds_alternative<ElementCompositeLiteralList>(value)) {
+        for (const auto& el : std::get<ElementCompositeLiteralList>(value)) {
             el->acceptVisitor(visitor);
         }
     }
@@ -341,36 +301,36 @@ void ElementCompositeLiteral::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void CompositeLiteral::acceptVisitor(Visitor* visitor) noexcept {
+void CompositeLiteral::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     if (type != nullptr) {
         type->acceptVisitor(visitor);
     }
 
-    for (auto el : elements) {
+    for (const auto& el : elements) {
         el->acceptVisitor(visitor);
     }
 
     visitor->onFinishVisit(this);
 }
 
-void BlockStatement::acceptVisitor(Visitor* visitor) noexcept {
+void BlockStatement::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
-    for (auto stmt : body) {
+    for (const auto& stmt : body) {
         stmt->acceptVisitor(visitor);
     }
 
     visitor->onFinishVisit(this);
 }
 
-void KeywordStatement::acceptVisitor(Visitor* visitor) noexcept {
+void KeywordStatement::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
     visitor->onFinishVisit(this);
 }
 
-void ExpressionStatement::acceptVisitor(Visitor* visitor) noexcept {
+void ExpressionStatement::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     expression->acceptVisitor(visitor);
@@ -378,18 +338,18 @@ void ExpressionStatement::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void AssignmentStatement::acceptVisitor(Visitor* visitor) noexcept {
+void AssignmentStatement::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
-    for (auto expr : lhs) {
+    for (const auto& expr : lhs) {
         expr->acceptVisitor(visitor);
     }
 
-    for (auto expr : rhs) {
+    for (const auto& expr : rhs) {
         expr->acceptVisitor(visitor);
     }
 
-    for (auto expr : indexes) {
+    for (const auto& expr : indexes) {
         if (expr != nullptr) {
             expr->acceptVisitor(visitor);
         }
@@ -399,7 +359,7 @@ void AssignmentStatement::acceptVisitor(Visitor* visitor) noexcept {
 }
 
 
-void ForStatement::acceptVisitor(Visitor* visitor) noexcept {
+void ForStatement::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     if (initStatement != nullptr) {
@@ -419,7 +379,7 @@ void ForStatement::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void WhileStatement::acceptVisitor(Visitor* visitor) noexcept {
+void WhileStatement::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     conditionExpression->acceptVisitor(visitor);
@@ -428,30 +388,30 @@ void WhileStatement::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void ForRangeStatement::acceptVisitor(Visitor* visitor) noexcept {
+void ForRangeStatement::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     expressionValue->acceptVisitor(visitor);
     block->acceptVisitor(visitor);
 
-    for (auto expr : initStatement) {
+    for (const auto& expr : initStatement) {
         expr->acceptVisitor(visitor);
     }
 
     visitor->onFinishVisit(this);
 }
 
-void ReturnStatement::acceptVisitor(Visitor* visitor) noexcept {
+void ReturnStatement::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
-    for (auto expr : returnValues) {
+    for (const auto& expr : returnValues) {
         expr->acceptVisitor(visitor);
     }
 
     visitor->onFinishVisit(this);
 }
 
-void IfStatement::acceptVisitor(Visitor* visitor) noexcept {
+void IfStatement::acceptVisitor(Visitor* visitor) {
     
     visitor->onStartVisit(this);
 
@@ -469,7 +429,7 @@ void IfStatement::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void SwitchCaseClause::acceptVisitor(Visitor* visitor) noexcept {
+void SwitchCaseClause::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     if (expressionCase != nullptr) {
@@ -481,7 +441,7 @@ void SwitchCaseClause::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void SwitchStatement::acceptVisitor(Visitor* visitor) noexcept {
+void SwitchStatement::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     if (statement != nullptr) {
@@ -490,24 +450,24 @@ void SwitchStatement::acceptVisitor(Visitor* visitor) noexcept {
 
     expression->acceptVisitor(visitor);
 
-    for (auto caseClause : clauseList) {
+    for (const auto& caseClause : clauseList) {
         caseClause->acceptVisitor(visitor);
     }
 
     visitor->onFinishVisit(this);
 }
 
-void DeclarationStatement::acceptVisitor(Visitor* visitor) noexcept {
+void DeclarationStatement::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
-    for (auto decl : declarations) {
+    for (const auto& decl : declarations) {
         decl->acceptVisitor(visitor);
     }
 
     visitor->onFinishVisit(this);
 }
 
-void IdentifiersWithType::acceptVisitor(Visitor* visitor) noexcept {
+void IdentifiersWithType::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     if (type != nullptr) {
@@ -517,21 +477,21 @@ void IdentifiersWithType::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void FunctionSignature::acceptVisitor(Visitor* visitor) noexcept {
+void FunctionSignature::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
-    for (auto arg : idsAndTypesArgs) {
+    for (const auto& arg : idsAndTypesArgs) {
         arg->acceptVisitor(visitor);
     }
 
-    for (auto result : idsAndTypesResults) {
+    for (const auto& result : idsAndTypesResults) {
         result->acceptVisitor(visitor);
     }
 
     visitor->onFinishVisit(this);
 }
 
-void ArraySignature::acceptVisitor(Visitor* visitor) noexcept {
+void ArraySignature::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
     arrayElementType->acceptVisitor(visitor);
@@ -539,25 +499,25 @@ void ArraySignature::acceptVisitor(Visitor* visitor) noexcept {
     visitor->onFinishVisit(this);
 }
 
-void StructSignature::acceptVisitor(Visitor* visitor) noexcept {
+void StructSignature::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
-    for (auto member : structMembers) {
+    for (const auto& member : structMembers) {
         member->acceptVisitor(visitor);
     }
 
     visitor->onFinishVisit(this);
 }
 
-void IdentifierAsType::acceptVisitor(Visitor* visitor) noexcept {
+void IdentifierAsType::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
     visitor->onFinishVisit(this);
 }
 
-void InterfaceType::acceptVisitor(Visitor* visitor) noexcept {
+void InterfaceType::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
-    for (auto fn : this->functions) {
+    for (const auto& fn : this->functions) {
         fn->acceptVisitor(visitor);
     }
 
@@ -567,341 +527,351 @@ void InterfaceType::acceptVisitor(Visitor* visitor) noexcept {
 
 /* -------------------------------- Clone -------------------------------- */
 
-PackageAST* PackageAST::clone() const noexcept {
+NodeASTPtr PackageAST::cloneImpl() const {
     DeclarationList cloneDeclList;
 
-    for (auto decl : topDeclarations) {
+    for (const auto& decl : topDeclarations) {
         cloneDeclList.push_back(decl->clone());
     }
 
-    return new PackageAST(packageName, cloneDeclList);
+    return std::make_unique<PackageAST>(packageName, std::move(cloneDeclList));
 }
 
-VariableDeclaration* VariableDeclaration::clone() const noexcept {
+NodeASTPtr VariableDeclaration::cloneImpl() const {
     ExpressionList cloneValues;
     
-    for (auto value : this->values) {
+    for (const auto& value : this->values) {
         cloneValues.push_back(value->clone());
     }
 
-    IdentifiersWithType* cloneTypedIds = this->identifiersWithType? this->identifiersWithType->clone() : nullptr;
-    return new VariableDeclaration(cloneTypedIds, cloneValues, this->isConst);
+    IdentifiersWithTypePtr cloneTypedIds = this->identifiersWithType? this->identifiersWithType->clone() : nullptr;
+    return std::make_unique<VariableDeclaration>(std::move(cloneTypedIds), std::move(cloneValues), this->isConst);
 }
 
-TypeDeclaration* TypeDeclaration::clone() const noexcept {
-    TypeAST* cloneType = this->declType? this->declType->clone() : nullptr;
-    return new TypeDeclaration(this->alias, cloneType);
+NodeASTPtr TypeDeclaration::cloneImpl() const {
+    TypeASTPtr cloneType = this->declType? this->declType->clone() : nullptr;
+    return std::make_unique<TypeDeclaration>(this->alias, std::move(cloneType));
 }
 
-FunctionDeclaration* FunctionDeclaration::clone() const noexcept {
-    FunctionSignature* cloneSignature = this->signature? this->signature->clone() : nullptr;
-    BlockStatement* cloneBlock = this->block? this->block->clone() : nullptr;
+NodeASTPtr FunctionDeclaration::cloneImpl() const {
+    FunctionSignaturePtr cloneSignature = this->signature? this->signature->clone() : nullptr;
+    BlockStatementPtr cloneBlock = this->block? this->block->clone() : nullptr;
 
-    return new FunctionDeclaration(this->identifier, cloneSignature, cloneBlock);
+    return std::make_unique<FunctionDeclaration>(this->identifier, std::move(cloneSignature), std::move(cloneBlock));
 }
 
-MethodDeclaration* MethodDeclaration::clone() const noexcept {
-    FunctionSignature* cloneSignature = this->signature? this->signature->clone() : nullptr;
-    BlockStatement* cloneBlock = this->block? this->block->clone() : nullptr;
-    IdentifierAsType* cloneReceiverType = this->receiverType? this->receiverType->clone() : nullptr;
+NodeASTPtr MethodDeclaration::cloneImpl() const {
+    FunctionSignaturePtr cloneSignature = this->signature? this->signature->clone() : nullptr;
+    BlockStatementPtr cloneBlock = this->block? this->block->clone() : nullptr;
+    IdentifierAsTypePtr cloneReceiverType = this->receiverType? this->receiverType->clone() : nullptr;
 
-    return new MethodDeclaration(this->identifier, this->receiverIdentifier, cloneReceiverType, cloneSignature, cloneBlock);
+    return std::make_unique<MethodDeclaration>(this->identifier, this->receiverIdentifier, std::move(cloneReceiverType), std::move(cloneSignature), std::move(cloneBlock));
 }
 
-IdentifierAsExpression* IdentifierAsExpression::clone() const noexcept {
-    return new IdentifierAsExpression(this->identifier);
+NodeASTPtr IdentifierAsExpression::cloneImpl() const {
+    auto copy = std::make_unique<IdentifierAsExpression>(this->identifier);
+    copy->isDestination = isDestination;
+    return copy;
 }
 
-IntegerExpression* IntegerExpression::clone() const noexcept {
-    return new IntegerExpression(this->intLit);
+NodeASTPtr IntegerExpression::cloneImpl() const {
+    return std::make_unique<IntegerExpression>(this->intLit);
 }
 
-BooleanExpression* BooleanExpression::clone() const noexcept {
-    return new BooleanExpression(this->boolLit);
+NodeASTPtr BooleanExpression::cloneImpl() const {
+    return std::make_unique<BooleanExpression>(this->boolLit);
 }
 
-FloatExpression* FloatExpression::clone() const noexcept {
-    return new FloatExpression(this->floatLit);
+NodeASTPtr FloatExpression::cloneImpl() const {
+    return std::make_unique<FloatExpression>(this->floatLit);
 }
 
-StringExpression* StringExpression::clone() const noexcept {
-    return new StringExpression(this->stringLit);
+NodeASTPtr StringExpression::cloneImpl() const {
+    return std::make_unique<StringExpression>(this->stringLit);
 }
 
-NilExpression* NilExpression::clone() const noexcept {
-    return new NilExpression();
+NodeASTPtr NilExpression::cloneImpl() const {
+    return std::make_unique<NilExpression>();
 }
 
-FunctionLitExpression* FunctionLitExpression::clone() const noexcept {
-    FunctionSignature* cloneSignature = this->signature? this->signature->clone() : nullptr;
-    BlockStatement* cloneBlock = this->block? this->block->clone() : nullptr;
+NodeASTPtr FunctionLitExpression::cloneImpl() const {
+    FunctionSignaturePtr cloneSignature = this->signature? this->signature->clone() : nullptr;
+    BlockStatementPtr cloneBlock = this->block? this->block->clone() : nullptr;
 
-    return new FunctionLitExpression(cloneSignature, cloneBlock);
+    return std::make_unique<FunctionLitExpression>(std::move(cloneSignature), std::move(cloneBlock));
 }
 
-UnaryExpression* UnaryExpression::clone() const noexcept {
-    ExpressionAST* cloneExpression = this->expression? this->expression->clone() : nullptr;
-    return new UnaryExpression(this->type, cloneExpression);
+NodeASTPtr UnaryExpression::cloneImpl() const {
+    ExpressionASTPtr cloneExpression = this->expression? this->expression->clone() : nullptr;
+    return std::make_unique<UnaryExpression>(this->type, std::move(cloneExpression));
 }
 
-BinaryExpression* BinaryExpression::clone() const noexcept {
-    ExpressionAST* cloneLhs = this->lhs? this->lhs->clone() : nullptr;
-    ExpressionAST* cloneRhs = this->rhs? this->rhs->clone() : nullptr;
+NodeASTPtr BinaryExpression::cloneImpl() const {
+    ExpressionASTPtr cloneLhs = this->lhs? this->lhs->clone() : nullptr;
+    ExpressionASTPtr cloneRhs = this->rhs? this->rhs->clone() : nullptr;
 
-    return new BinaryExpression(this->type, cloneLhs, cloneRhs);
+    return std::make_unique<BinaryExpression>(this->type, std::move(cloneLhs), std::move(cloneRhs));
 }
 
-CallableExpression* CallableExpression::clone() const noexcept {
+NodeASTPtr CallableExpression::cloneImpl() const {
     ExpressionList cloneArguments;
     
-    for (auto arg : this->arguments) {
+    for (const auto& arg : this->arguments) {
         cloneArguments.push_back(arg->clone());
     }
     
-    ExpressionAST* cloneBase = this->base? this->base->clone() : nullptr;
+    ExpressionASTPtr cloneBase = this->base? this->base->clone() : nullptr;
 
-    return new CallableExpression(cloneBase, cloneArguments);
+    return std::make_unique<CallableExpression>(std::move(cloneBase), std::move(cloneArguments));
 }
 
-AccessExpression* AccessExpression::clone() const noexcept {
-    ExpressionAST* cloneBase = this->base? this->base->clone() : nullptr;
-    ExpressionAST* cloneAccessor = this->accessor? this->accessor->clone() : nullptr;
+NodeASTPtr AccessExpression::cloneImpl() const {
+    ExpressionASTPtr cloneBase = this->base? this->base->clone() : nullptr;
+    ExpressionASTPtr cloneAccessor = this->accessor? this->accessor->clone() : nullptr;
 
-    return new AccessExpression(this->type, cloneBase, cloneAccessor);
+    return std::make_unique<AccessExpression>(this->type, std::move(cloneBase), std::move(cloneAccessor));
 }
 
-ElementCompositeLiteral* ElementCompositeLiteral::clone() const noexcept {
-    ExpressionAST* cloneKey = this->key? this->key->clone() : nullptr;
+NodeASTPtr ElementCompositeLiteral::cloneImpl() const {
+    ExpressionASTPtr cloneKey = this->key? this->key->clone() : nullptr;
 
-    if (std::holds_alternative<ExpressionAST *>(value)) {
-        return new ElementCompositeLiteral(cloneKey, std::get<ExpressionAST *>(this->value)->clone());
+    if (std::holds_alternative<ExpressionASTPtr>(value)) {
+        return std::make_unique<ElementCompositeLiteral>(std::move(cloneKey), std::get<ExpressionASTPtr>(this->value)->clone());
 
-    } else if (std::holds_alternative<std::list<ElementCompositeLiteral *>>(value)) {
-        std::list<ElementCompositeLiteral *> cloneElements;
+    } else if (std::holds_alternative<ElementCompositeLiteralList>(value)) {
+        ElementCompositeLiteralList cloneElements;
 
-        for (auto el : std::get<std::list<ElementCompositeLiteral *>>(value)) {
+        for (const auto& el : std::get<ElementCompositeLiteralList>(value)) {
             cloneElements.push_back(el->clone());
         }
 
 
-        return new ElementCompositeLiteral(cloneKey, cloneElements);
+        return std::make_unique<ElementCompositeLiteral>(std::move(cloneKey), std::move(cloneElements));
     }
 
     return nullptr;
 }
 
-CompositeLiteral* CompositeLiteral::clone() const noexcept {
+NodeASTPtr CompositeLiteral::cloneImpl() const {
     ElementCompositeLiteralList cloneElements;
 
-    for (auto decl : this->elements) {
+    for (const auto& decl : this->elements) {
         cloneElements.push_back(decl->clone());
     }
 
-    TypeAST* cloneType = this->type? this->type->clone() : nullptr;
+    TypeASTPtr cloneType = this->type? this->type->clone() : nullptr;
 
-    return new CompositeLiteral(cloneType, cloneElements);
+    return std::make_unique<CompositeLiteral>(std::move(cloneType), std::move(cloneElements));
 }
 
 
-BlockStatement* BlockStatement::clone() const noexcept {
+NodeASTPtr BlockStatement::cloneImpl() const {
     StatementList cloneStatements;
 
-    for (auto stmt : this->body) {
+    for (const auto& stmt : this->body) {
         cloneStatements.push_back(stmt->clone());
     }
 
-    return new BlockStatement(cloneStatements);
+    return std::make_unique<BlockStatement>(std::move(cloneStatements));
 }
 
 
-KeywordStatement* KeywordStatement::clone() const noexcept {
-    return new KeywordStatement(this->type);
+NodeASTPtr KeywordStatement::cloneImpl() const {
+    return std::make_unique<KeywordStatement>(this->type);
 }
 
-ExpressionStatement* ExpressionStatement::clone() const noexcept {
-    ExpressionAST* cloneExpression = this->expression? this->expression->clone() : nullptr;
-    return new ExpressionStatement(cloneExpression);
+NodeASTPtr ExpressionStatement::cloneImpl() const {
+    ExpressionASTPtr cloneExpression = this->expression? this->expression->clone() : nullptr;
+    return std::make_unique<ExpressionStatement>(std::move(cloneExpression));
 }
 
-AssignmentStatement* AssignmentStatement::clone() const noexcept {
+NodeASTPtr AssignmentStatement::cloneImpl() const {
     ExpressionList cloneLhs;
 
-    for (auto expr : this->lhs) {
+    for (const auto& expr : this->lhs) {
         cloneLhs.push_back(expr->clone());
     }
 
     ExpressionList cloneRhs;
 
-    for (auto expr : this->rhs) {
+    for (const auto& expr : this->rhs) {
         cloneRhs.push_back(expr->clone());
     }
 
-    return new AssignmentStatement(this->type, cloneLhs, cloneRhs);
+    auto copy = std::make_unique<AssignmentStatement>(this->type, ExpressionList{}, ExpressionList{});
+    copy->lhs = std::move(cloneLhs);
+    copy->rhs = std::move(cloneRhs);
+    for (const auto& index : indexes) {
+        copy->indexes.push_back(index ? index->clone() : nullptr);
+    }
+    return copy;
 }
 
-ForStatement* ForStatement::clone() const noexcept {
-    StatementAST* cloneInitStatement = this->initStatement? this->initStatement->clone() : nullptr;
-    ExpressionAST* cloneCondition = this->conditionExpression? this->conditionExpression->clone() : nullptr;
-    BlockStatement* cloneBlock = this->block? this->block->clone() : nullptr;
-    StatementAST* cloneIterationStatement = this->iterationStatement? this->iterationStatement->clone() : nullptr;
+NodeASTPtr ForStatement::cloneImpl() const {
+    StatementASTPtr cloneInitStatement = this->initStatement? this->initStatement->clone() : nullptr;
+    ExpressionASTPtr cloneCondition = this->conditionExpression? this->conditionExpression->clone() : nullptr;
+    BlockStatementPtr cloneBlock = this->block? this->block->clone() : nullptr;
+    StatementASTPtr cloneIterationStatement = this->iterationStatement? this->iterationStatement->clone() : nullptr;
 
-    return new ForStatement(cloneInitStatement, cloneCondition, cloneIterationStatement, cloneBlock);
+    return std::make_unique<ForStatement>(std::move(cloneInitStatement), std::move(cloneCondition), std::move(cloneIterationStatement), std::move(cloneBlock));
 }
 
-WhileStatement* WhileStatement::clone() const noexcept {
-    ExpressionAST* cloneConditionExpression = this->conditionExpression? this->conditionExpression->clone() : nullptr;
-    BlockStatement* cloneBlock = this->block? this->block->clone() : nullptr;
-    return new WhileStatement(cloneConditionExpression, cloneBlock);
+NodeASTPtr WhileStatement::cloneImpl() const {
+    ExpressionASTPtr cloneConditionExpression = this->conditionExpression? this->conditionExpression->clone() : nullptr;
+    BlockStatementPtr cloneBlock = this->block? this->block->clone() : nullptr;
+    return std::make_unique<WhileStatement>(std::move(cloneConditionExpression), std::move(cloneBlock));
 }
 
-ForRangeStatement* ForRangeStatement::clone() const noexcept {
+NodeASTPtr ForRangeStatement::cloneImpl() const {
     ExpressionList cloneInits;
 
-    for (auto expr : this->initStatement) {
+    for (const auto& expr : this->initStatement) {
         cloneInits.push_back(expr->clone());
     }
 
-    ExpressionAST* cloneExpressionValue = this->expressionValue? this->expressionValue->clone() : nullptr;
-    BlockStatement* cloneBlock = this->block? this->block->clone() : nullptr;
+    ExpressionASTPtr cloneExpressionValue = this->expressionValue? this->expressionValue->clone() : nullptr;
+    BlockStatementPtr cloneBlock = this->block? this->block->clone() : nullptr;
 
-    return new ForRangeStatement(cloneInits, cloneExpressionValue, cloneBlock, this->hasShortDeclaration);
+    return std::make_unique<ForRangeStatement>(std::move(cloneInits), std::move(cloneExpressionValue), std::move(cloneBlock), this->hasShortDeclaration);
 }
 
-ReturnStatement* ReturnStatement::clone() const noexcept {
+NodeASTPtr ReturnStatement::cloneImpl() const {
     ExpressionList cloneReturns;
 
-    for (auto expr : this->returnValues) {
+    for (const auto& expr : this->returnValues) {
         cloneReturns.push_back(expr->clone());
     }
 
-    return new ReturnStatement(cloneReturns);
+    return std::make_unique<ReturnStatement>(std::move(cloneReturns));
 }
 
-IfStatement* IfStatement::clone() const noexcept {
-    StatementAST* clonePreStatement = this->preStatement? this->preStatement->clone() : nullptr;
-    ExpressionAST* cloneCondition = this->condition? this->condition->clone() : nullptr;
-    BlockStatement* cloneThenStatement = this->thenStatement? this->thenStatement->clone() : nullptr;
-    StatementAST* cloneElseStatement = this->elseStatement? this->elseStatement->clone() : nullptr;
+NodeASTPtr IfStatement::cloneImpl() const {
+    StatementASTPtr clonePreStatement = this->preStatement? this->preStatement->clone() : nullptr;
+    ExpressionASTPtr cloneCondition = this->condition? this->condition->clone() : nullptr;
+    BlockStatementPtr cloneThenStatement = this->thenStatement? this->thenStatement->clone() : nullptr;
+    StatementASTPtr cloneElseStatement = this->elseStatement? this->elseStatement->clone() : nullptr;
 
-    return new IfStatement(clonePreStatement, cloneCondition, cloneThenStatement, cloneElseStatement);
+    return std::make_unique<IfStatement>(std::move(clonePreStatement), std::move(cloneCondition), std::move(cloneThenStatement), std::move(cloneElseStatement));
 }
 
 
-SwitchCaseClause* SwitchCaseClause::clone() const noexcept {
+NodeASTPtr SwitchCaseClause::cloneImpl() const {
     StatementList cloneStatements;
 
-    for (auto stms : this->block->body) {
+    for (const auto& stms : this->block->body) {
         cloneStatements.push_back(stms->clone());
     }
 
-    ExpressionAST* cloneExpressionCase = this->expressionCase? this->expressionCase->clone() : nullptr;
+    ExpressionASTPtr cloneExpressionCase = this->expressionCase? this->expressionCase->clone() : nullptr;
 
-    return new SwitchCaseClause(cloneExpressionCase, new BlockStatement(cloneStatements));
+    auto copy = std::make_unique<SwitchCaseClause>(std::move(cloneExpressionCase), std::make_unique<BlockStatement>(std::move(cloneStatements)));
+    copy->fallthrowEnds = fallthrowEnds;
+    return copy;
 }
 
 
-SwitchStatement* SwitchStatement::clone() const noexcept {
-    std::list<SwitchCaseClause *> cloneClauseList;
+NodeASTPtr SwitchStatement::cloneImpl() const {
+    SwitchCaseList cloneClauseList;
 
-    for (auto clause : this->clauseList) {
+    for (const auto& clause : this->clauseList) {
         cloneClauseList.push_back(clause->clone());
     }
 
-    StatementAST* cloneStatement = this->statement? this->statement->clone() : nullptr;
-    ExpressionAST* cloneExpression = this->expression? this->expression->clone() : nullptr;
+    StatementASTPtr cloneStatement = this->statement? this->statement->clone() : nullptr;
+    ExpressionASTPtr cloneExpression = this->expression? this->expression->clone() : nullptr;
 
-    return new SwitchStatement(cloneStatement, cloneExpression, cloneClauseList);
+    return std::make_unique<SwitchStatement>(std::move(cloneStatement), std::move(cloneExpression), std::move(cloneClauseList));
 }
 
-DeclarationStatement* DeclarationStatement::clone() const noexcept {
+NodeASTPtr DeclarationStatement::cloneImpl() const {
     DeclarationList cloneDecls;
 
-    for (auto stms : this->declarations) {
+    for (const auto& stms : this->declarations) {
         cloneDecls.push_back(stms->clone());
     }
 
-    return new DeclarationStatement(cloneDecls);
+    return std::make_unique<DeclarationStatement>(std::move(cloneDecls));
 }
 
-IdentifiersWithType* IdentifiersWithType::clone() const noexcept {
+NodeASTPtr IdentifiersWithType::cloneImpl() const {
     IdentifiersList cloneIdentifiers;
 
-    for (auto id : this->identifiers) {
+    for (const auto& id : this->identifiers) {
         cloneIdentifiers.push_back(id);
     }
-    TypeAST *cloneType = this->type? this->type->clone() : nullptr;
+    TypeASTPtr cloneType = this->type? this->type->clone() : nullptr;
 
-    return new IdentifiersWithType(cloneIdentifiers, cloneType);
+    return std::make_unique<IdentifiersWithType>(std::move(cloneIdentifiers), std::move(cloneType));
 }
 
 
-FunctionSignature* FunctionSignature::clone() const noexcept {
-    std::list<IdentifiersWithType *> cloneIdsAndTypesArgs;
-    std::list<IdentifiersWithType *> cloneIdsAndTypesResults;
+NodeASTPtr FunctionSignature::cloneImpl() const {
+    IdentifiersWithTypeList cloneIdsAndTypesArgs;
+    IdentifiersWithTypeList cloneIdsAndTypesResults;
 
-    for (auto id : this->idsAndTypesArgs) {
+    for (const auto& id : this->idsAndTypesArgs) {
         cloneIdsAndTypesArgs.push_back(id->clone());
     }
 
-    for (auto id : this->idsAndTypesResults) {
+    for (const auto& id : this->idsAndTypesResults) {
         cloneIdsAndTypesResults.push_back(id->clone());
     }
 
-    return new FunctionSignature(cloneIdsAndTypesArgs, cloneIdsAndTypesResults);
+    return std::make_unique<FunctionSignature>(std::move(cloneIdsAndTypesArgs), std::move(cloneIdsAndTypesResults));
 }
 
-ArraySignature* ArraySignature::clone() const noexcept {
-    TypeAST *cloneArrayElementType = this->arrayElementType? this->arrayElementType->clone() : nullptr;
-    return new ArraySignature(cloneArrayElementType, this->dimensions);
+NodeASTPtr ArraySignature::cloneImpl() const {
+    TypeASTPtr cloneArrayElementType = this->arrayElementType? this->arrayElementType->clone() : nullptr;
+    return std::make_unique<ArraySignature>(std::move(cloneArrayElementType), this->dimensions);
 }
 
-IdentifierAsType* IdentifierAsType::clone() const noexcept {
-    return new IdentifierAsType(this->identifier);
+NodeASTPtr IdentifierAsType::cloneImpl() const {
+    return std::make_unique<IdentifierAsType>(this->identifier);
 }
 
-StructSignature* StructSignature::clone() const noexcept {
-    std::list<IdentifiersWithType *> cloneMembers;
+NodeASTPtr StructSignature::cloneImpl() const {
+    IdentifiersWithTypeList cloneMembers;
 
-    for (auto typedId : this->structMembers) {
+    for (const auto& typedId : this->structMembers) {
         cloneMembers.push_back(typedId->clone());
     }
 
-    return new StructSignature(cloneMembers);
+    return std::make_unique<StructSignature>(std::move(cloneMembers));
 }
 
-InterfaceType* InterfaceType::clone() const noexcept {
+NodeASTPtr InterfaceType::cloneImpl() const {
     FunctionList cloneFunctions;
 
-    for (auto function : this->functions) {
+    for (const auto& function : this->functions) {
         cloneFunctions.push_back(function->clone());
     }
 
-    return new InterfaceType(cloneFunctions);
+    return std::make_unique<InterfaceType>(std::move(cloneFunctions));
 }
 
 
-void ShortVarDeclarationStatement::acceptVisitor(Visitor* visitor) noexcept {
+void ShortVarDeclarationStatement::acceptVisitor(Visitor* visitor) {
     visitor->onStartVisit(this);
 
-    for (auto expr : this->values) {
+    for (const auto& expr : this->values) {
         expr->acceptVisitor(visitor);
     }
 
     visitor->onFinishVisit(this);
 };
 
-ShortVarDeclarationStatement* ShortVarDeclarationStatement::clone() const noexcept {
+NodeASTPtr ShortVarDeclarationStatement::cloneImpl() const {
     ExpressionList cloneValues;
 
-    for (auto expr : this->values) {
+    for (const auto& expr : this->values) {
         cloneValues.push_back(expr->clone());
     }
 
     IdentifiersList cloneIdentifiers;
 
-    for (auto id : this->identifiers) {
+    for (const auto& id : this->identifiers) {
         cloneIdentifiers.push_back(id);
     }
 
-    return new ShortVarDeclarationStatement(cloneIdentifiers, cloneValues);
+    return std::make_unique<ShortVarDeclarationStatement>(std::move(cloneIdentifiers), std::move(cloneValues));
 };

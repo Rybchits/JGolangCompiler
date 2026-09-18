@@ -18,8 +18,8 @@ ParseResult Driver::parse(std::istream& input, const std::string& filename) {
     return std::move(result_);
 }
 
-void Driver::setRoot(PackageAST* root) {
-    result_.root.reset(root);
+void Driver::setRoot(PackageASTPtr root) {
+    result_.root = std::move(root);
 }
 
 void Driver::reportError(int line, int column, const std::string& message) {

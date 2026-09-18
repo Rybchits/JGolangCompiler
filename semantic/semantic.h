@@ -34,7 +34,5 @@ public:
 
     std::unique_ptr<ClassEntity> packageClass;
 
-    void addError(std::string message);
-
     bool analyze();
 };
