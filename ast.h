@@ -9,7 +9,6 @@
 #include <variant>
 #include <algorithm>
 #include <memory>
-#include <optional>
 #include <utility>
 
 class TypeEntity;
@@ -118,10 +117,6 @@ List MakeList(Values&&... values) {
     return result;
 }
 
-IdentifiersWithTypeList AttachIdentifiersToListTypes(TypeList listTypes);
-TypeList ListIdentifiersToListTypes(const IdentifiersList& identifiers);
-std::optional<IdentifiersList> IdentifiersListFromExpressions(const ExpressionList& expressions);
-
 class NodeAST {
 private:
     inline static int64_t LastNodeId = 1;
@@ -131,23 +126,12 @@ public:
 
     virtual ~NodeAST() = default;
     virtual void acceptVisitor(Visitor* visitor) = 0;
-    NodeASTPtr clone() const { return cloneAs<NodeAST>(); }
+    [[nodiscard]] virtual std::string name() const noexcept = 0;
+
 protected:
     NodeAST() : nodeId(LastNodeId++) {}
     NodeAST(const NodeAST&) = delete;
     NodeAST& operator=(const NodeAST&) = delete;
-
-    virtual NodeASTPtr cloneImpl() const = 0;
-    virtual void copyMetadataTo(NodeAST&) const {}
-
-    template<typename T>
-    std::unique_ptr<T> cloneAs() const {
-        auto copy = cloneImpl();
-        copyMetadataTo(*copy);
-        return std::unique_ptr<T>(static_cast<T*>(copy.release()));
-    }
-public:
-    [[nodiscard]] virtual std::string name() const noexcept = 0;
 };
 
 
@@ -155,23 +139,17 @@ class PackageAST : public NodeAST {
 public:
     explicit PackageAST(const std::string_view package, DeclarationList decls) : packageName(package),
                                                                                               topDeclarations(std::move(decls)) {}
-    
-    PackageASTPtr clone() const { return cloneAs<PackageAST>(); }
 
     const std::string packageName;
     DeclarationList topDeclarations;
 
     void acceptVisitor(Visitor* visitor) override;
     [[nodiscard]] std::string name() const noexcept override { return "Package"; }
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
 class DeclarationAST : public NodeAST {
 public:
-    DeclarationASTPtr clone() const { return cloneAs<DeclarationAST>(); }
     void acceptVisitor(Visitor* visitor) override = 0;
     [[nodiscard]] std::string name() const noexcept override = 0;
 };
@@ -187,12 +165,8 @@ public:
     VariableDeclaration(IdentifiersWithTypePtr typedIds, ExpressionList values, bool isConst = false)
             : identifiersWithType(std::move(typedIds)), values(std::move(values)), isConst(isConst) {};
         
-    VariableDeclarationPtr clone() const { return cloneAs<VariableDeclaration>(); }
     void acceptVisitor(Visitor* visitor) override;
     [[nodiscard]] std::string name() const noexcept override { return "VarDecl"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -204,11 +178,7 @@ public:
     TypeDeclaration(const std::string_view id, TypeASTPtr type) : alias(id), declType(std::move(type)) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    TypeDeclarationPtr clone() const { return cloneAs<TypeDeclaration>(); }
     [[nodiscard]] std::string name() const noexcept override { return "TypeDecl"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -222,11 +192,7 @@ public:
             : identifier(id), signature(std::move(signature)), block(std::move(stmt)) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    FunctionDeclarationPtr clone() const { return cloneAs<FunctionDeclaration>(); }
     [[nodiscard]] std::string name() const noexcept override { return "FuncDecl"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -240,11 +206,7 @@ public:
             FunctionDeclaration(id, std::move(signature), std::move(stmt)), receiverType(std::move(recType)), receiverIdentifier(recId) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    MethodDeclarationPtr clone() const { return cloneAs<MethodDeclaration>(); }
     [[nodiscard]] std::string name() const noexcept override { return "MethodDecl"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -254,15 +216,7 @@ class ExpressionAST : public NodeAST {
 public:
     TypePtr typeExpression;
 
-protected:
-    void copyMetadataTo(NodeAST& copy) const override {
-        static_cast<ExpressionAST&>(copy).typeExpression = typeExpression;
-    }
-
-public:
-
     void acceptVisitor(Visitor* visitor) override = 0;
-    ExpressionASTPtr clone() const { return cloneAs<ExpressionAST>(); }
     [[nodiscard]] std::string name() const noexcept override = 0;
 };
 
@@ -273,13 +227,9 @@ public:
     bool isDestination = false;
 
     explicit IdentifierAsExpression(const std::string_view id) : identifier(id) {};
-    IdentifierAsExpressionPtr clone() const { return cloneAs<IdentifierAsExpression>(); }
     void acceptVisitor(Visitor* visitor) override;
     
     [[nodiscard]] std::string name() const noexcept override { return "IdExpr"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -290,11 +240,7 @@ public:
     explicit IntegerExpression(long long i) : intLit(i) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    IntegerExpressionPtr clone() const { return cloneAs<IntegerExpression>(); }
     [[nodiscard]] std::string name() const noexcept override { return "IntegerLit"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -305,11 +251,7 @@ public:
     explicit BooleanExpression(long long boolean) : boolLit(boolean) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    BooleanExpressionPtr clone() const { return cloneAs<BooleanExpression>(); }
     [[nodiscard]] std::string name() const noexcept override { return "BooleanLit"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -318,12 +260,8 @@ public:
     double floatLit;
 
     explicit FloatExpression(double floating) : floatLit(floating) {};
-    FloatExpressionPtr clone() const { return cloneAs<FloatExpression>(); }
     void acceptVisitor(Visitor* visitor) override;
     [[nodiscard]] std::string name() const noexcept override { return "FloatLit"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -332,12 +270,8 @@ public:
     std::string stringLit;
 
     explicit StringExpression(const std::string_view string) : stringLit(string) {};
-    StringExpressionPtr clone() const { return cloneAs<StringExpression>(); }
     void acceptVisitor(Visitor* visitor) override;
     [[nodiscard]] std::string name() const noexcept override { return "StringLit"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -346,11 +280,7 @@ public:
     NilExpression() = default;
 
     void acceptVisitor(Visitor* visitor) override;
-    NilExpressionPtr clone() const { return cloneAs<NilExpression>(); }
     [[nodiscard]] std::string name() const noexcept override { return "NilLit"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -360,12 +290,8 @@ public:
     BlockStatementPtr block;
 
     FunctionLitExpression(FunctionSignaturePtr signature, BlockStatementPtr block) : signature(std::move(signature)), block(std::move(block)) {};
-    FunctionLitExpressionPtr clone() const { return cloneAs<FunctionLitExpression>(); }
     void acceptVisitor(Visitor* visitor) override;
     [[nodiscard]] std::string name() const noexcept override { return "FunctionLit"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -383,12 +309,8 @@ public:
     ExpressionASTPtr expression;
 
     explicit UnaryExpression(UnaryExpressionEnum type, ExpressionASTPtr expr) : type(type), expression(std::move(expr)) {};
-    UnaryExpressionPtr clone() const { return cloneAs<UnaryExpression>(); }
     [[nodiscard]] std::string name() const noexcept override;
     void acceptVisitor(Visitor* visitor) override;
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -419,12 +341,8 @@ public:
     BinaryExpression(BinaryExpressionEnum type, ExpressionASTPtr lhs, ExpressionASTPtr rhs)
             : type(type), lhs(std::move(lhs)), rhs(std::move(rhs)) {};
 
-    BinaryExpressionPtr clone() const { return cloneAs<BinaryExpression>(); }
     [[nodiscard]] std::string name() const noexcept override;
     void acceptVisitor(Visitor* visitor) override;
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -437,11 +355,7 @@ public:
     CallableExpression(ExpressionASTPtr base, ExpressionList args) : base(std::move(base)), arguments(std::move(args)) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    CallableExpressionPtr clone() const { return cloneAs<CallableExpression>(); }
     [[nodiscard]] std::string name() const noexcept override { return "CallableExpr"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -459,11 +373,7 @@ public:
             : type(type), base(std::move(base)), accessor(std::move(accessor)) {};
 
     [[nodiscard]] std::string name() const noexcept override;
-    AccessExpressionPtr clone() const { return cloneAs<AccessExpression>(); }
     void acceptVisitor(Visitor* visitor) override;
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -480,10 +390,6 @@ public:
 
     [[nodiscard]] std::string name() const noexcept override { return "ElementComposite"; };
     void acceptVisitor(Visitor* visitor) override;
-    ElementCompositeLiteralPtr clone() const { return cloneAs<ElementCompositeLiteral>(); }
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -495,11 +401,7 @@ public:
     CompositeLiteral(TypeASTPtr type, ElementCompositeLiteralList elems) : type(std::move(type)), elements(std::move(elems)) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    CompositeLiteralPtr clone() const { return cloneAs<CompositeLiteral>(); }
     [[nodiscard]] std::string name() const noexcept override { return "CompositeLit"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -508,7 +410,6 @@ private:
 class StatementAST : public NodeAST {
 public:
     void acceptVisitor(Visitor* visitor) override = 0;
-    StatementASTPtr clone() const { return cloneAs<StatementAST>(); }
     [[nodiscard]] std::string name() const noexcept override = 0;
 };
 
@@ -522,11 +423,7 @@ public:
     explicit BlockStatement(StatementList list) : body(std::move(list)) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    BlockStatementPtr clone() const { return cloneAs<BlockStatement>(); }
     [[nodiscard]] std::string name() const noexcept override { return "BlockStmt"; }
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -541,11 +438,7 @@ public:
     explicit KeywordStatement(KeywordEnum type) : type(type) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    KeywordStatementPtr clone() const { return cloneAs<KeywordStatement>(); }
     [[nodiscard]] std::string name() const noexcept override;
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -556,11 +449,7 @@ public:
     explicit ExpressionStatement(ExpressionASTPtr expr) : expression(std::move(expr)) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    ExpressionStatementPtr clone() const { return cloneAs<ExpressionStatement>(); }
     [[nodiscard]] std::string name() const noexcept override { return "ExprStmt"; }
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -572,11 +461,7 @@ public:
     ShortVarDeclarationStatement(IdentifiersList ids, ExpressionList values): values(std::move(values)), identifiers(std::move(ids)) {};
     
     void acceptVisitor(Visitor* visitor) override;
-    ShortVarDeclarationStatementPtr clone() const { return cloneAs<ShortVarDeclarationStatement>(); }
     [[nodiscard]] std::string name() const noexcept override { return "Op :="; }
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -602,10 +487,6 @@ public:
 
     [[nodiscard]] std::string name() const noexcept override;
     void acceptVisitor(Visitor* visitor) override;
-    AssignmentStatementPtr clone() const { return cloneAs<AssignmentStatement>(); }
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -621,10 +502,6 @@ public:
 
     void acceptVisitor(Visitor* visitor) override;
     [[nodiscard]] std::string name() const noexcept override { return "ForStmt"; }
-    ForStatementPtr clone() const { return cloneAs<ForStatement>(); }
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -636,11 +513,7 @@ public:
     WhileStatement(ExpressionASTPtr cond, BlockStatementPtr block) : conditionExpression(std::move(cond)), block(std::move(block)) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    WhileStatementPtr clone() const { return cloneAs<WhileStatement>(); }
     [[nodiscard]] std::string name() const noexcept override { return "WhileStmt"; }
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -656,10 +529,6 @@ public:
 
     void acceptVisitor(Visitor* visitor) override;
     [[nodiscard]] std::string name() const noexcept override { return "ForRangeStmt"; }
-    ForRangeStatementPtr clone() const { return cloneAs<ForRangeStatement>(); }
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -670,11 +539,7 @@ public:
     explicit ReturnStatement(ExpressionList values) : returnValues(std::move(values)) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    ReturnStatementPtr clone() const { return cloneAs<ReturnStatement>(); }
     [[nodiscard]] std::string name() const noexcept override { return "ReturnStmt"; }
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -689,11 +554,7 @@ public:
             : preStatement(std::move(pre)), condition(std::move(cond)), thenStatement(std::move(then)), elseStatement(std::move(elseStmt)) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    IfStatementPtr clone() const { return cloneAs<IfStatement>(); }
     [[nodiscard]] std::string name() const noexcept override { return "IfStmt"; }
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -706,11 +567,7 @@ public:
     SwitchCaseClause(ExpressionASTPtr key, BlockStatementPtr  stmts) : expressionCase(std::move(key)), block(std::move(stmts)) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    SwitchCaseClausePtr clone() const { return cloneAs<SwitchCaseClause>(); }
     [[nodiscard]] std::string name() const noexcept override { return "CaseStmt"; }
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -724,11 +581,7 @@ public:
             : statement(std::move(init)), expression(expr ? std::move(expr) : std::make_unique<BooleanExpression>(true)), clauseList(std::move(cases)) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    SwitchStatementPtr clone() const { return cloneAs<SwitchStatement>(); }
     [[nodiscard]] std::string name() const noexcept override { return "SwitchStmt"; }
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -739,11 +592,7 @@ public:
     explicit DeclarationStatement(DeclarationASTPtr  decl) : declarations(MakeList<DeclarationList>(std::move(decl))) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    DeclarationStatementPtr clone() const { return cloneAs<DeclarationStatement>(); }
     [[nodiscard]] std::string name() const noexcept override { return "DeclStmt"; }
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -755,16 +604,9 @@ public:
     bool isPointer;
 
     void acceptVisitor(Visitor* visitor) override = 0;
-    TypeASTPtr clone() const { return cloneAs<TypeAST>(); }
     [[nodiscard]] std::string name() const noexcept override = 0;
 
 protected:
-    void copyMetadataTo(NodeAST& copy) const override {
-        auto& typeCopy = static_cast<TypeAST&>(copy);
-        typeCopy.isVariadic = isVariadic;
-        typeCopy.isPointer = isPointer;
-    }
-
     explicit TypeAST(bool isVariadic = false, bool isPointer = false) : isPointer(isPointer), isVariadic(isVariadic) {}
 };
 
@@ -776,13 +618,9 @@ public:
 
     void acceptVisitor(Visitor* visitor) override;
     [[nodiscard]] std::string name() const noexcept override { return "TypedIds"; };
-    IdentifiersWithTypePtr clone() const { return cloneAs<IdentifiersWithType>(); }
 
     IdentifiersWithType(IdentifiersList ids, TypeASTPtr type) : identifiers(std::move(ids)), type(std::move(type)) {};
     IdentifiersWithType(std::string id, TypeASTPtr type): identifiers({std::move(id)}), type(std::move(type)) {};
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -795,11 +633,7 @@ public:
             : idsAndTypesArgs(std::move(args)), idsAndTypesResults(std::move(results)) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    FunctionSignaturePtr clone() const { return cloneAs<FunctionSignature>(); }
     [[nodiscard]] std::string name() const noexcept override { return "TypeFunction"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 class ArraySignature : public TypeAST {
@@ -812,11 +646,7 @@ public:
     explicit ArraySignature(TypeASTPtr type): arrayElementType(std::move(type)), dimensions(-1) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    ArraySignaturePtr clone() const { return cloneAs<ArraySignature>(); }
     [[nodiscard]] std::string name() const noexcept override { return "TypeArray"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -827,11 +657,7 @@ public:
     explicit StructSignature(IdentifiersWithTypeList members): structMembers(std::move(members)) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    StructSignaturePtr clone() const { return cloneAs<StructSignature>(); }
     [[nodiscard]] std::string name() const noexcept override { return "TypeStruct"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -842,11 +668,7 @@ public:
     explicit IdentifierAsType(const std::string_view id): identifier(id) {};
 
     void acceptVisitor(Visitor* visitor) override;
-    IdentifierAsTypePtr clone() const { return cloneAs<IdentifierAsType>(); }
     [[nodiscard]] std::string name() const noexcept override { return "TypeIdentifier"; };
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };
 
 
@@ -857,9 +679,5 @@ public:
     explicit InterfaceType(FunctionList list) : functions(std::move(list)) {};
 
     [[nodiscard]] std::string name() const noexcept override { return "InterfaceType"; };
-    InterfaceTypePtr clone() const { return cloneAs<InterfaceType>(); }
     void acceptVisitor(Visitor* visitor) override;
-
-private:
-    NodeASTPtr cloneImpl() const override;
 };

@@ -1,4 +1,5 @@
 #include "codegen.h"
+#include "../utils/clone_visitor.h"
 #include "../semantic/builtins.h"
 
 std::vector<char> Generator::generateInteger(int64_t number) {
@@ -1217,7 +1218,7 @@ std::vector<char> Generator::generate(SwitchStatement* stmt) {
 		// Сравниваем switch expression и case expression
 		auto conditionBytes = generate(
 			std::make_unique<BinaryExpression>(
-				BinaryExpression::Equal, stmt->expression->clone(), clause->expressionCase->clone()
+				BinaryExpression::Equal, cloneNode(*stmt->expression), cloneNode(*clause->expressionCase)
 			).get()
 		);
 

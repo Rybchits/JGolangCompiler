@@ -1,4 +1,5 @@
 #include "statements_visitor.h"
+#include "../utils/clone_visitor.h"
 
 const std::string StatementsVisitor::indexPrivateVariableName = "$index";
 
@@ -14,7 +15,7 @@ void StatementsVisitor::transformAssignment(AssignmentStatement* assignment) {
         case AssignmentStatement::ModAssign: operation = BinaryExpression::Mod; break;
         default: return;
     }
-    auto leftValue = assignment->lhs.front()->clone();
+    auto leftValue = cloneNode(*assignment->lhs.front());
     if (auto* identifier = dynamic_cast<IdentifierAsExpression*>(leftValue.get())) {
         identifier->isDestination = false;
     }
@@ -70,7 +71,7 @@ StatementList StatementsVisitor::transformKeywordStatements(StatementList body) 
                         addError("Continue keyword out of loop");
                         
                     } else if (nextIterationsLoops.top() != nullptr) {
-                        newBody.push_back(nextIterationsLoops.top()->clone());
+                        newBody.push_back(cloneNode(*nextIterationsLoops.top()));
                     }
                     break;
 
@@ -104,7 +105,7 @@ BlockStatementPtr StatementsVisitor::transformForRangeToWhile(ForRangeStatement 
     auto condition = std::make_unique<BinaryExpression>(
             BinaryExpression::Less,
             std::make_unique<IdentifierAsExpression>(indexPrivateVariableName),
-            std::make_unique<CallableExpression>(std::make_unique<IdentifierAsExpression>("len"), MakeList<ExpressionList>(forRangeStmt->expressionValue->clone()))
+            std::make_unique<CallableExpression>(std::make_unique<IdentifierAsExpression>("len"), MakeList<ExpressionList>(cloneNode(*forRangeStmt->expressionValue)))
     );
 
     if (forRangeStmt->initStatement.size() > 2) {
@@ -211,7 +212,7 @@ void StatementsVisitor::onStartVisit(BlockStatement& node) {
 }
 
 void StatementsVisitor::onStartVisit(ForStatement& node) {
-    nextIterationsLoops.push(node.iterationStatement ? node.iterationStatement->clone() : nullptr);
+    nextIterationsLoops.push(node.iterationStatement ? cloneNode(*node.iterationStatement) : nullptr);
 }
 
 void StatementsVisitor::onFinishVisit(ForStatement& node) {

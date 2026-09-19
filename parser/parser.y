@@ -27,6 +27,7 @@
 %code {
     #include "parser/driver.hpp"
     #include "lexer/scanner.hpp"
+    #include "utils/ast_utils.h"
 }
 
 %locations

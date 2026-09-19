@@ -38,6 +38,8 @@ add_library(compiler_core STATIC
     semantic/semantic.cpp
     semantic/statements_visitor.cpp
     semantic/types_visitor.cpp
+    utils/ast_utils.cpp
+    utils/clone_visitor.cpp
     utils/bytes.cpp
     utils/dot_visitor.cpp
     codegen/codegen.cpp
