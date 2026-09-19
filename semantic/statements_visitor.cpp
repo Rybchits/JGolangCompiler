@@ -196,37 +196,37 @@ StatementList StatementsVisitor::transformStatements(StatementList list) {
     return list;
 }
 
-void StatementsVisitor::onFinishVisit(BlockStatement *node) {
-    node->body = transformStatements(std::move(node->body));
+void StatementsVisitor::onFinishVisit(BlockStatement& node) {
+    node.body = transformStatements(std::move(node.body));
 }
 
-void StatementsVisitor::onFinishVisit(IfStatement* node) {
-    if (auto ifStatement = dynamic_cast<IfStatement*>(node->elseStatement.get())) {
-        node->elseStatement = transformIfStatement(std::move(node->elseStatement));
+void StatementsVisitor::onFinishVisit(IfStatement& node) {
+    if (auto ifStatement = dynamic_cast<IfStatement*>(node.elseStatement.get())) {
+        node.elseStatement = transformIfStatement(std::move(node.elseStatement));
     }
 }
 
-void StatementsVisitor::onStartVisit(BlockStatement *node) {
-    node->body = transformKeywordStatements(std::move(node->body));
+void StatementsVisitor::onStartVisit(BlockStatement& node) {
+    node.body = transformKeywordStatements(std::move(node.body));
 }
 
-void StatementsVisitor::onStartVisit(ForStatement* node) {
-    nextIterationsLoops.push(node->iterationStatement ? node->iterationStatement->clone() : nullptr);
+void StatementsVisitor::onStartVisit(ForStatement& node) {
+    nextIterationsLoops.push(node.iterationStatement ? node.iterationStatement->clone() : nullptr);
 }
 
-void StatementsVisitor::onFinishVisit(ForStatement* node) {
+void StatementsVisitor::onFinishVisit(ForStatement& node) {
     nextIterationsLoops.pop();
 }
 
-void StatementsVisitor::onStartVisit(WhileStatement* node) {
+void StatementsVisitor::onStartVisit(WhileStatement& node) {
     nextIterationsLoops.push(nullptr);
 }
 
-void StatementsVisitor::onFinishVisit(WhileStatement* node) {
+void StatementsVisitor::onFinishVisit(WhileStatement& node) {
     nextIterationsLoops.pop();
 }
 
-void StatementsVisitor::onStartVisit(ForRangeStatement* node) {
+void StatementsVisitor::onStartVisit(ForRangeStatement& node) {
     auto nextIteration = std::make_unique<ExpressionStatement>(
         std::make_unique<UnaryExpression>(
             UnaryExpression::Increment,
@@ -235,7 +235,7 @@ void StatementsVisitor::onStartVisit(ForRangeStatement* node) {
     nextIterationsLoops.push(std::move(nextIteration));
 }
 
-void StatementsVisitor::onFinishVisit(ForRangeStatement* node) {
+void StatementsVisitor::onFinishVisit(ForRangeStatement& node) {
     nextIterationsLoops.pop();
 }
 
@@ -293,37 +293,37 @@ bool StatementsVisitor::checkReturnStatements(SwitchStatement* switchStmt) {
     return casesHaveReturn && hasDefault;
 }
 
-void StatementsVisitor::onFinishVisit(FunctionDeclaration* node) {
-    if (node->signature->idsAndTypesResults.size() != 0 && !checkReturnStatements(node->block.get())) {
+void StatementsVisitor::onFinishVisit(FunctionDeclaration& node) {
+    if (node.signature->idsAndTypesResults.size() != 0 && !checkReturnStatements(node.block.get())) {
 
         addError("Missing the 'return' statement at the end of the function");
     }
 }
 
-void StatementsVisitor::onStartVisit(SwitchCaseClause* node) {
+void StatementsVisitor::onStartVisit(SwitchCaseClause& node) {
     insideSwitchCaseClause = true;
 
-    if (node->block->body.size() != 0) {
-        auto keyword = dynamic_cast<KeywordStatement*>(node->block->body.back().get());
+    if (node.block->body.size() != 0) {
+        auto keyword = dynamic_cast<KeywordStatement*>(node.block->body.back().get());
 
         if (keyword && keyword->type == KeywordStatement::Fallthrough) {
-            node->fallthrowEnds = true;
-            node->block->body.pop_back();
+            node.fallthrowEnds = true;
+            node.block->body.pop_back();
         }
     }
 }
 
-void StatementsVisitor::onFinishVisit(SwitchStatement* node) {
+void StatementsVisitor::onFinishVisit(SwitchStatement& node) {
     bool hasDefault = false;
 
     int index = 0;
-    for (const auto& caseClause : node->clauseList) {
+    for (const auto& caseClause : node.clauseList) {
 
         if (hasDefault && caseClause->expressionCase == nullptr) {
             addError("Switch has multiple defaults");
         }
 
-        if (index == node->clauseList.size() - 1 && caseClause->fallthrowEnds) {
+        if (index == node.clauseList.size() - 1 && caseClause->fallthrowEnds) {
             addError("Last case can't end with fallthrough");
         }
 
@@ -332,6 +332,6 @@ void StatementsVisitor::onFinishVisit(SwitchStatement* node) {
     }
 }
 
-void StatementsVisitor::onFinishVisit(SwitchCaseClause* node) {
+void StatementsVisitor::onFinishVisit(SwitchCaseClause& node) {
     insideSwitchCaseClause = false;
 }

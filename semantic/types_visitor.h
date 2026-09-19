@@ -27,10 +27,10 @@ private:
     TypesVisitor* typesVisitor;
     bool constValid = true;
 
-    void onFinishVisit(IdentifierAsExpression* node);
-    void onFinishVisit(CallableExpression* node);
-    void onFinishVisit(AccessExpression* node);
-    void onFinishVisit(CompositeLiteral* node);
+    void onFinishVisit(IdentifierAsExpression& node) override;
+    void onFinishVisit(CallableExpression& node) override;
+    void onFinishVisit(AccessExpression& node) override;
+    void onFinishVisit(CompositeLiteral& node) override;
 
 public:
     bool isConstExpression(ExpressionAST* expr);
@@ -57,32 +57,32 @@ private:
     TypePtr typeCurrentArray;
     int indexCurrentAxisArray;
 
-    void onStartVisit(CompositeLiteral* node);
-    void onStartVisit(ElementCompositeLiteral* node);
-    void onStartVisit(BlockStatement* node);
-    void onStartVisit(ExpressionStatement* node);
+    void onStartVisit(CompositeLiteral& node) override;
+    void onStartVisit(ElementCompositeLiteral& node) override;
+    void onStartVisit(BlockStatement& node) override;
+    void onStartVisit(ExpressionStatement& node) override;
 
-    void onFinishVisit(BlockStatement* node);
-    void onFinishVisit(VariableDeclaration* node);
-    void onFinishVisit(ShortVarDeclarationStatement* node);
-    void onFinishVisit(AssignmentStatement* node);
-    void onFinishVisit(ReturnStatement* node);
-    void onFinishVisit(WhileStatement* node);
-    void onFinishVisit(IfStatement* node);
-    void onFinishVisit(SwitchStatement* node);
+    void onFinishVisit(BlockStatement& node) override;
+    void onFinishVisit(VariableDeclaration& node) override;
+    void onFinishVisit(ShortVarDeclarationStatement& node) override;
+    void onFinishVisit(AssignmentStatement& node) override;
+    void onFinishVisit(ReturnStatement& node) override;
+    void onFinishVisit(WhileStatement& node) override;
+    void onFinishVisit(IfStatement& node) override;
+    void onFinishVisit(SwitchStatement& node) override;
 
-    void onFinishVisit(IdentifierAsExpression* node);
-    void onFinishVisit(IntegerExpression* node);
-    void onFinishVisit(BooleanExpression* node);
-    void onFinishVisit(FloatExpression* node);
-    void onFinishVisit(StringExpression* node);
-    void onFinishVisit(NilExpression* node);
-    void onFinishVisit(UnaryExpression* node);
-    void onFinishVisit(BinaryExpression* node);
-    void onFinishVisit(CallableExpression* node);
-    void onFinishVisit(AccessExpression* node);
-    void onFinishVisit(CompositeLiteral* node);
-    void onFinishVisit(ElementCompositeLiteral* node);
+    void onFinishVisit(IdentifierAsExpression& node) override;
+    void onFinishVisit(IntegerExpression& node) override;
+    void onFinishVisit(BooleanExpression& node) override;
+    void onFinishVisit(FloatExpression& node) override;
+    void onFinishVisit(StringExpression& node) override;
+    void onFinishVisit(NilExpression& node) override;
+    void onFinishVisit(UnaryExpression& node) override;
+    void onFinishVisit(BinaryExpression& node) override;
+    void onFinishVisit(CallableExpression& node) override;
+    void onFinishVisit(AccessExpression& node) override;
+    void onFinishVisit(CompositeLiteral& node) override;
+    void onFinishVisit(ElementCompositeLiteral& node) override;
 
     bool defineTypeBuiltInFunction(CallableExpression* function);
     bool definePrintsFunctions(CallableExpression* function);

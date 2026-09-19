@@ -34,26 +34,26 @@ private:
 
 public:
 
-    void onStartVisit(ForStatement* node) override;
-    void onFinishVisit(ForStatement* node) override;
+    void onStartVisit(ForStatement& node) override;
+    void onFinishVisit(ForStatement& node) override;
 
-    void onStartVisit(WhileStatement* node) override;
-    void onFinishVisit(WhileStatement* node) override;
+    void onStartVisit(WhileStatement& node) override;
+    void onFinishVisit(WhileStatement& node) override;
 
-    void onStartVisit(ForRangeStatement* node) override;
-    void onFinishVisit(ForRangeStatement* node) override;
+    void onStartVisit(ForRangeStatement& node) override;
+    void onFinishVisit(ForRangeStatement& node) override;
 
-    void onStartVisit(BlockStatement* node) override;
-    void onFinishVisit(BlockStatement* node) override;
+    void onStartVisit(BlockStatement& node) override;
+    void onFinishVisit(BlockStatement& node) override;
 
-    void onFinishVisit(IfStatement* node) override;
+    void onFinishVisit(IfStatement& node) override;
 
-    void onFinishVisit(FunctionDeclaration* node) override;
+    void onFinishVisit(FunctionDeclaration& node) override;
 
-    void onStartVisit(SwitchCaseClause* node) override;
-    void onFinishVisit(SwitchCaseClause* node) override;
+    void onStartVisit(SwitchCaseClause& node) override;
+    void onFinishVisit(SwitchCaseClause& node) override;
 
-    void onFinishVisit(SwitchStatement* node) override;
+    void onFinishVisit(SwitchStatement& node) override;
 
     const std::vector<std::string>& getErrors() const { return errors; }
     void transform(PackageAST* packageAst);

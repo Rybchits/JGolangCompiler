@@ -148,17 +148,17 @@ AssignmentStatement::AssignmentStatement(AssignmentEnum type, ExpressionList lef
 
 /* -------------------------------- Visitors -------------------------------- */
 void PackageAST::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     for (const auto& decl : topDeclarations) {
         decl->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void VariableDeclaration::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     identifiersWithType->acceptVisitor(visitor);
 
@@ -166,19 +166,19 @@ void VariableDeclaration::acceptVisitor(Visitor* visitor) {
         expr->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void TypeDeclaration::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     declType->acceptVisitor(visitor);
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void FunctionDeclaration::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     if (block != nullptr) {
         block->acceptVisitor(visitor);
@@ -186,11 +186,11 @@ void FunctionDeclaration::acceptVisitor(Visitor* visitor) {
 
     signature->acceptVisitor(visitor);
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void MethodDeclaration::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     signature->acceptVisitor(visitor);
 
@@ -202,67 +202,67 @@ void MethodDeclaration::acceptVisitor(Visitor* visitor) {
         block->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void IdentifierAsExpression::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
-    visitor->onFinishVisit(this);
+    visitor->onStartVisit(*this);
+    visitor->onFinishVisit(*this);
 }
 
 void IntegerExpression::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
-    visitor->onFinishVisit(this);
+    visitor->onStartVisit(*this);
+    visitor->onFinishVisit(*this);
 }
 
 void BooleanExpression::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
-    visitor->onFinishVisit(this);
+    visitor->onStartVisit(*this);
+    visitor->onFinishVisit(*this);
 }
 
 void FloatExpression::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
-    visitor->onFinishVisit(this);
+    visitor->onStartVisit(*this);
+    visitor->onFinishVisit(*this);
 }
 
 void StringExpression::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
-    visitor->onFinishVisit(this);
+    visitor->onStartVisit(*this);
+    visitor->onFinishVisit(*this);
 }
 
 void NilExpression::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
-    visitor->onFinishVisit(this);
+    visitor->onStartVisit(*this);
+    visitor->onFinishVisit(*this);
 }
 
 void FunctionLitExpression::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     signature->acceptVisitor(visitor);
     block->acceptVisitor(visitor);
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void UnaryExpression::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     expression->acceptVisitor(visitor);
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void BinaryExpression::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     lhs->acceptVisitor(visitor);
     rhs->acceptVisitor(visitor);
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void CallableExpression::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     base->acceptVisitor(visitor);
 
@@ -270,20 +270,20 @@ void CallableExpression::acceptVisitor(Visitor* visitor) {
         arg->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void AccessExpression::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     base->acceptVisitor(visitor);
     accessor->acceptVisitor(visitor);
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void ElementCompositeLiteral::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     if (key != nullptr) {
         key->acceptVisitor(visitor);
@@ -298,11 +298,11 @@ void ElementCompositeLiteral::acceptVisitor(Visitor* visitor) {
         }
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void CompositeLiteral::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     if (type != nullptr) {
         type->acceptVisitor(visitor);
@@ -312,34 +312,34 @@ void CompositeLiteral::acceptVisitor(Visitor* visitor) {
         el->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void BlockStatement::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     for (const auto& stmt : body) {
         stmt->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void KeywordStatement::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
-    visitor->onFinishVisit(this);
+    visitor->onStartVisit(*this);
+    visitor->onFinishVisit(*this);
 }
 
 void ExpressionStatement::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     expression->acceptVisitor(visitor);
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void AssignmentStatement::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     for (const auto& expr : lhs) {
         expr->acceptVisitor(visitor);
@@ -355,12 +355,12 @@ void AssignmentStatement::acceptVisitor(Visitor* visitor) {
         }
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 
 void ForStatement::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     if (initStatement != nullptr) {
         initStatement->acceptVisitor(visitor);
@@ -376,20 +376,20 @@ void ForStatement::acceptVisitor(Visitor* visitor) {
 
     block->acceptVisitor(visitor);
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void WhileStatement::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     conditionExpression->acceptVisitor(visitor);
     block->acceptVisitor(visitor);
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void ForRangeStatement::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     expressionValue->acceptVisitor(visitor);
     block->acceptVisitor(visitor);
@@ -398,22 +398,22 @@ void ForRangeStatement::acceptVisitor(Visitor* visitor) {
         expr->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void ReturnStatement::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     for (const auto& expr : returnValues) {
         expr->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void IfStatement::acceptVisitor(Visitor* visitor) {
     
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     condition->acceptVisitor(visitor);
     thenStatement->acceptVisitor(visitor);
@@ -426,11 +426,11 @@ void IfStatement::acceptVisitor(Visitor* visitor) {
         elseStatement->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void SwitchCaseClause::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     if (expressionCase != nullptr) {
         expressionCase->acceptVisitor(visitor);
@@ -438,11 +438,11 @@ void SwitchCaseClause::acceptVisitor(Visitor* visitor) {
 
     block->acceptVisitor(visitor);
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void SwitchStatement::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     if (statement != nullptr) {
         statement->acceptVisitor(visitor);
@@ -454,31 +454,31 @@ void SwitchStatement::acceptVisitor(Visitor* visitor) {
         caseClause->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void DeclarationStatement::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     for (const auto& decl : declarations) {
         decl->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void IdentifiersWithType::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     if (type != nullptr) {
         type->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void FunctionSignature::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     for (const auto& arg : idsAndTypesArgs) {
         arg->acceptVisitor(visitor);
@@ -488,40 +488,40 @@ void FunctionSignature::acceptVisitor(Visitor* visitor) {
         result->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void ArraySignature::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     arrayElementType->acceptVisitor(visitor);
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void StructSignature::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     for (const auto& member : structMembers) {
         member->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 void IdentifierAsType::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
-    visitor->onFinishVisit(this);
+    visitor->onStartVisit(*this);
+    visitor->onFinishVisit(*this);
 }
 
 void InterfaceType::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     for (const auto& fn : this->functions) {
         fn->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 }
 
 
@@ -851,13 +851,13 @@ NodeASTPtr InterfaceType::cloneImpl() const {
 
 
 void ShortVarDeclarationStatement::acceptVisitor(Visitor* visitor) {
-    visitor->onStartVisit(this);
+    visitor->onStartVisit(*this);
 
     for (const auto& expr : this->values) {
         expr->acceptVisitor(visitor);
     }
 
-    visitor->onFinishVisit(this);
+    visitor->onFinishVisit(*this);
 };
 
 NodeASTPtr ShortVarDeclarationStatement::cloneImpl() const {

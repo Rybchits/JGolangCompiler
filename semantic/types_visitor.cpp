@@ -60,14 +60,14 @@ void TypesVisitor::analyzePackageClass(ClassEntity* packageClass, std::vector<st
 }
 
 
-void TypesVisitor::onStartVisit(BlockStatement* node) {
+void TypesVisitor::onStartVisit(BlockStatement& node) {
     if (!lastAddedScopeInFuncDecl) {
         scopesDeclarations.pushScope();
     }
     lastAddedScopeInFuncDecl = false;
 }
 
-void TypesVisitor::onFinishVisit(BlockStatement* node) {
+void TypesVisitor::onFinishVisit(BlockStatement& node) {
     for (auto & [id, var] : scopesDeclarations.getLastScope()) {
 
         if (var.numberUsage == 0 && !var.isArgument && !var.isConst) {
@@ -78,14 +78,14 @@ void TypesVisitor::onFinishVisit(BlockStatement* node) {
     scopesDeclarations.popScope();
 }
 
-void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
+void TypesVisitor::onFinishVisit(VariableDeclaration& node) {
 
-    if (node->identifiersWithType->identifiers.size() != node->values.size() && node->values.size() != 0) {
+    if (node.identifiersWithType->identifiers.size() != node.values.size() && node.values.size() != 0) {
         addError("Assignment count mismatch");
 
     } else {
-        auto currentValue = node->values.begin();
-        for (const auto& id : node->identifiersWithType->identifiers) {
+        auto currentValue = node.values.begin();
+        for (const auto& id : node.identifiersWithType->identifiers) {
             if (id != "_") numberLocalVariables++;
 
             if (scopesDeclarations.findAtLastScope(id) != nullptr) {
@@ -99,38 +99,38 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
             }
 
             // Const checking
-            if (node->isConst && (*currentValue)->typeExpression->type == TypeEntity::Array) {
+            if (node.isConst && (*currentValue)->typeExpression->type == TypeEntity::Array) {
                 addError("Go does not support constant arrays, maps or slices");
 
-            } else if (node->isConst && !constCheckVisitor.isConstExpression(currentValue->get())) {
+            } else if (node.isConst && !constCheckVisitor.isConstExpression(currentValue->get())) {
                 addError("Cannot assignment not const expression for " + id);
             }
             
-            if (node->identifiersWithType->type != nullptr) {
-                auto generalType = std::make_shared<const TypeEntity>(node->identifiersWithType->type.get());
+            if (node.identifiersWithType->type != nullptr) {
+                auto generalType = std::make_shared<const TypeEntity>(node.identifiersWithType->type.get());
 
                 // Compare types expressions with the declared type
-                if (node->values.size() != 0 ) {
+                if (node.values.size() != 0 ) {
                     if ((*currentValue)->typeExpression->equal(generalType)) {
                         (*currentValue)->typeExpression = determinePriorityType((*currentValue)->typeExpression, generalType);
-                        scopesDeclarations.add(id, VariableEntity(generalType, node->isConst));
+                        scopesDeclarations.add(id, VariableEntity(generalType, node.isConst));
 
                     } else {
                         addError("Assignment variable " + id + " must have equals types");
                     }
                 } else {
-                    scopesDeclarations.add(id, VariableEntity(generalType, node->isConst));
+                    scopesDeclarations.add(id, VariableEntity(generalType, node.isConst));
                 }
                 
             } else {
                 if ((*currentValue)->typeExpression->type == TypeEntity::UntypedFloat) {
-                    scopesDeclarations.add(id, VariableEntity(std::make_shared<const TypeEntity>(TypeEntity::Float), node->isConst));
+                    scopesDeclarations.add(id, VariableEntity(std::make_shared<const TypeEntity>(TypeEntity::Float), node.isConst));
 
                 } else if ((*currentValue)->typeExpression->type == TypeEntity::UntypedInt) {
-                    scopesDeclarations.add(id, VariableEntity(std::make_shared<const TypeEntity>(TypeEntity::Int), node->isConst));
+                    scopesDeclarations.add(id, VariableEntity(std::make_shared<const TypeEntity>(TypeEntity::Int), node.isConst));
 
                 } else {
-                    scopesDeclarations.add(id, VariableEntity((*currentValue)->typeExpression, node->isConst));
+                    scopesDeclarations.add(id, VariableEntity((*currentValue)->typeExpression, node.isConst));
                 }
             }
 
@@ -139,15 +139,15 @@ void TypesVisitor::onFinishVisit(VariableDeclaration* node) {
     }
 }
 
-void TypesVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
+void TypesVisitor::onFinishVisit(ShortVarDeclarationStatement& node) {
     
-    if (node->identifiers.size() != node->values.size() && node->values.size() != 0) {
+    if (node.identifiers.size() != node.values.size() && node.values.size() != 0) {
         addError("Short variable declaration: assignment count mismatch");
 
     } else {
-        auto currentValue = node->values.begin();
+        auto currentValue = node.values.begin();
 
-        for (const auto& id : node->identifiers) {
+        for (const auto& id : node.identifiers) {
             if (id != "_") numberLocalVariables++;
 
             if (TypeEntity::IsBuiltInType(id)) {
@@ -169,168 +169,168 @@ void TypesVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
     }
 }
 
-void TypesVisitor::onFinishVisit(IdentifierAsExpression* node) {
+void TypesVisitor::onFinishVisit(IdentifierAsExpression& node) {
 
-    VariableEntity* variable = scopesDeclarations.find(node->identifier);
+    VariableEntity* variable = scopesDeclarations.find(node.identifier);
 
     if (variable != nullptr) {
-        node->typeExpression = variable->type;
-        if (!node->isDestination) variable->use();
+        node.typeExpression = variable->type;
+        if (!node.isDestination) variable->use();
         return ;
 
-    } else if (IsBuiltInFunction(node->identifier)) {
-        node->typeExpression = std::make_shared<const TypeEntity>(TypeEntity::BuiltInFunction, node->identifier);
+    } else if (IsBuiltInFunction(node.identifier)) {
+        node.typeExpression = std::make_shared<const TypeEntity>(TypeEntity::BuiltInFunction, node.identifier);
         return;
 
-    } else if (node->identifier == "_" && node->isDestination) {
-        node->typeExpression = std::make_shared<const TypeEntity>(TypeEntity::Any);
+    } else if (node.identifier == "_" && node.isDestination) {
+        node.typeExpression = std::make_shared<const TypeEntity>(TypeEntity::Any);
         return;
     }
     
-    std::string errorMessage = "Undefined: " + node->identifier;
+    std::string errorMessage = "Undefined: " + node.identifier;
 
-    if (node->identifier == "_" && !node->isDestination) {
+    if (node.identifier == "_" && !node.isDestination) {
         errorMessage = "Cannot use _ as value";
     }
 
     addError(errorMessage);
-    node->typeExpression = std::make_shared<const TypeEntity>();
+    node.typeExpression = std::make_shared<const TypeEntity>();
 }
 
 
-void TypesVisitor::onFinishVisit(IntegerExpression* node) {
-    node->typeExpression = std::make_shared<const TypeEntity>(TypeEntity::UntypedInt);
+void TypesVisitor::onFinishVisit(IntegerExpression& node) {
+    node.typeExpression = std::make_shared<const TypeEntity>(TypeEntity::UntypedInt);
 }
 
 
-void TypesVisitor::onFinishVisit(BooleanExpression* node) {
-    node->typeExpression = std::make_shared<const TypeEntity>(TypeEntity::Boolean);
+void TypesVisitor::onFinishVisit(BooleanExpression& node) {
+    node.typeExpression = std::make_shared<const TypeEntity>(TypeEntity::Boolean);
 }
 
 
-void TypesVisitor::onFinishVisit(FloatExpression* node) {
-    node->typeExpression = std::make_shared<const TypeEntity>(TypeEntity::UntypedFloat);
+void TypesVisitor::onFinishVisit(FloatExpression& node) {
+    node.typeExpression = std::make_shared<const TypeEntity>(TypeEntity::UntypedFloat);
 }
 
 
-void TypesVisitor::onFinishVisit(StringExpression* node) {
-    node->typeExpression = std::make_shared<const TypeEntity>(TypeEntity::String);
+void TypesVisitor::onFinishVisit(StringExpression& node) {
+    node.typeExpression = std::make_shared<const TypeEntity>(TypeEntity::String);
 }
 
 
-void TypesVisitor::onFinishVisit(NilExpression* node) {
-    node->typeExpression = std::make_shared<const TypeEntity>();
+void TypesVisitor::onFinishVisit(NilExpression& node) {
+    node.typeExpression = std::make_shared<const TypeEntity>();
 }
 
 
-void TypesVisitor::onFinishVisit(UnaryExpression* node) {
-    if (node->expression->typeExpression->type == TypeEntity::Invalid) {
-        node->typeExpression = node->expression->typeExpression;
+void TypesVisitor::onFinishVisit(UnaryExpression& node) {
+    if (node.expression->typeExpression->type == TypeEntity::Invalid) {
+        node.typeExpression = node.expression->typeExpression;
         return ;
     }
 
-    if (node->type == UnaryExpression::UnaryNot) {
-        if (node->expression->typeExpression->type == TypeEntity::Boolean) {
-            node->typeExpression = node->expression->typeExpression;
+    if (node.type == UnaryExpression::UnaryNot) {
+        if (node.expression->typeExpression->type == TypeEntity::Boolean) {
+            node.typeExpression = node.expression->typeExpression;
         } else {
-            node->typeExpression = std::make_shared<const TypeEntity>();
-            addError(node->name() + " must have boolean expression");
+            node.typeExpression = std::make_shared<const TypeEntity>();
+            addError(node.name() + " must have boolean expression");
         }
 
-    } else if (node->type == UnaryExpression::Variadic) {
-        if (node->expression->typeExpression->type == TypeEntity::Array) {
-            node->typeExpression = node->expression->typeExpression;
+    } else if (node.type == UnaryExpression::Variadic) {
+        if (node.expression->typeExpression->type == TypeEntity::Array) {
+            node.typeExpression = node.expression->typeExpression;
         } else {
-            node->typeExpression = std::make_shared<const TypeEntity>();
-            addError(node->name() + " must have array expression");
+            node.typeExpression = std::make_shared<const TypeEntity>();
+            addError(node.name() + " must have array expression");
         }
 
     } else {
-        if (node->expression->typeExpression->isNumeric()) {
-            node->typeExpression = node->expression->typeExpression;
+        if (node.expression->typeExpression->isNumeric()) {
+            node.typeExpression = node.expression->typeExpression;
         } else {
-            node->typeExpression = std::make_shared<const TypeEntity>();
-            addError(node->name() + " must have numeric expression");
+            node.typeExpression = std::make_shared<const TypeEntity>();
+            addError(node.name() + " must have numeric expression");
         }
     }
 }
 
 
-void TypesVisitor::onFinishVisit(BinaryExpression* node) {
-    auto leftExprType = node->lhs->typeExpression;
-    auto rightExprType = node->rhs->typeExpression;
+void TypesVisitor::onFinishVisit(BinaryExpression& node) {
+    auto leftExprType = node.lhs->typeExpression;
+    auto rightExprType = node.rhs->typeExpression;
 
     if (leftExprType->type == TypeEntity::Invalid) {
-        node->typeExpression = leftExprType;
+        node.typeExpression = leftExprType;
         return ;
 
     } else if (rightExprType->type == TypeEntity::Invalid) {
-        node->typeExpression = rightExprType;
+        node.typeExpression = rightExprType;
         return ;
     }
 
-    if (leftExprType->type == TypeEntity::String && rightExprType->type == TypeEntity::String && node->type == BinaryExpression::Addition) {
-        node->typeExpression = std::make_shared<const TypeEntity>(TypeEntity::String);
+    if (leftExprType->type == TypeEntity::String && rightExprType->type == TypeEntity::String && node.type == BinaryExpression::Addition) {
+        node.typeExpression = std::make_shared<const TypeEntity>(TypeEntity::String);
 
-    } else if (node->type == BinaryExpression::Addition || node->type == BinaryExpression::Subtraction 
-    || node->type == BinaryExpression::Multiplication || node->type == BinaryExpression::Division || node->type == BinaryExpression::Mod) {
+    } else if (node.type == BinaryExpression::Addition || node.type == BinaryExpression::Subtraction
+    || node.type == BinaryExpression::Multiplication || node.type == BinaryExpression::Division || node.type == BinaryExpression::Mod) {
 
         if (leftExprType->isNumeric() && rightExprType->isNumeric() && leftExprType->equal(rightExprType)) {
             auto resultTypeExression = determinePriorityType(leftExprType, rightExprType);
 
-            node->typeExpression = resultTypeExression;
-            node->lhs->typeExpression = resultTypeExression;
-            node->rhs->typeExpression = resultTypeExression;
+            node.typeExpression = resultTypeExression;
+            node.lhs->typeExpression = resultTypeExression;
+            node.rhs->typeExpression = resultTypeExression;
 
         } else {
-            node->typeExpression = std::make_shared<const TypeEntity>();
-            addError(node->name() + " must have same numeric types expressions");
+            node.typeExpression = std::make_shared<const TypeEntity>();
+            addError(node.name() + " must have same numeric types expressions");
         }
 
-    } else if (node->type == BinaryExpression::Or || node->type == BinaryExpression::And) {
+    } else if (node.type == BinaryExpression::Or || node.type == BinaryExpression::And) {
         if (leftExprType->type == TypeEntity::Boolean && rightExprType->type == TypeEntity::Boolean) {
-            node->typeExpression = std::make_shared<const TypeEntity>(TypeEntity::Boolean);
+            node.typeExpression = std::make_shared<const TypeEntity>(TypeEntity::Boolean);
         } else {
-            node->typeExpression = std::make_shared<const TypeEntity>();
-            addError(node->name() + " must have boolean expressions");
+            node.typeExpression = std::make_shared<const TypeEntity>();
+            addError(node.name() + " must have boolean expressions");
         }
     } else {
         if (leftExprType->equal(rightExprType) && (leftExprType->isFloat()
             || leftExprType->isInteger()
             || leftExprType->type == TypeEntity::String
             || ((leftExprType->type == TypeEntity::Boolean || leftExprType->type == TypeEntity::Array) 
-            && (node->type == BinaryExpression::Equal || node->type == BinaryExpression::NotEqual)))
+            && (node.type == BinaryExpression::Equal || node.type == BinaryExpression::NotEqual)))
         ) {
-            node->typeExpression = std::make_shared<const TypeEntity>(TypeEntity::Boolean);
+            node.typeExpression = std::make_shared<const TypeEntity>(TypeEntity::Boolean);
 
         } else {
-            node->typeExpression = std::make_shared<const TypeEntity>();
-            addError(node->name() + " must have equal types of expressions. Comparison of booleans, arrays and functions are'nt supported");
+            node.typeExpression = std::make_shared<const TypeEntity>();
+            addError(node.name() + " must have equal types of expressions. Comparison of booleans, arrays and functions are'nt supported");
         }
     }
 }
 
 
-void TypesVisitor::onFinishVisit(CallableExpression* node) {
+void TypesVisitor::onFinishVisit(CallableExpression& node) {
 
     // Call declarated function
-    TypePtr baseType = node->base->typeExpression;
+    TypePtr baseType = node.base->typeExpression;
 
     if (baseType->type == TypeEntity::Function) {
 
-        ExpressionList::const_iterator argExprType = node->arguments.begin();
+        ExpressionList::const_iterator argExprType = node.arguments.begin();
         const auto& signature = std::get<FunctionSignatureEntity>(baseType->value);
 
-        if (signature.argsTypes.size() != node->arguments.size()) {
+        if (signature.argsTypes.size() != node.arguments.size()) {
             addError("Invalid number of arguments");
-            node->typeExpression = std::make_shared<const TypeEntity>();
+            node.typeExpression = std::make_shared<const TypeEntity>();
             return;
         }
 
         int index = 0;
         for (const auto& argType : signature.argsTypes) {
             if (!argType->equal((*argExprType)->typeExpression)) {
-                node->typeExpression = std::make_shared<const TypeEntity>();
+                node.typeExpression = std::make_shared<const TypeEntity>();
                 addError("Cannot use expression index " + std::to_string(index) + " in argument");
                 return;
 
@@ -341,38 +341,38 @@ void TypesVisitor::onFinishVisit(CallableExpression* node) {
             argExprType++;
         }
         
-        node->typeExpression = signature.returnType;
+        node.typeExpression = signature.returnType;
         return ;
     
     } else if (baseType->type == TypeEntity::BuiltInFunction) {
-        bool isCheckBuiltInFunctionSuccess = defineTypeBuiltInFunction(node);
+        bool isCheckBuiltInFunctionSuccess = defineTypeBuiltInFunction(&node);
 
         if (!isCheckBuiltInFunctionSuccess) {
-            node->typeExpression = std::make_shared<const TypeEntity>();
+            node.typeExpression = std::make_shared<const TypeEntity>();
         }
         return ;
     }
 
     addError("Cannot call non-function");
-    node->typeExpression = std::make_shared<const TypeEntity>();
+    node.typeExpression = std::make_shared<const TypeEntity>();
 }
 
 
-void TypesVisitor::onFinishVisit(AccessExpression* node) {
-    switch (node->type)
+void TypesVisitor::onFinishVisit(AccessExpression& node) {
+    switch (node.type)
     {
     case AccessExpression::Indexing:
-        if (node->base->typeExpression->type != TypeEntity::Array) {
+        if (node.base->typeExpression->type != TypeEntity::Array) {
             addError("Base for indexing must be array");
 
-        } else if (!node->accessor->typeExpression->isInteger()) {
+        } else if (!node.accessor->typeExpression->isInteger()) {
             addError("Index must be integer value");
 
         } else {
-            node->typeExpression = std::get<ArraySignatureEntity>(node->base->typeExpression->value).elementType;
+            node.typeExpression = std::get<ArraySignatureEntity>(node.base->typeExpression->value).elementType;
             return ;
         }
-        node->typeExpression = std::make_shared<const TypeEntity>();
+        node.typeExpression = std::make_shared<const TypeEntity>();
         break;
 
     case AccessExpression::FieldSelect:
@@ -382,43 +382,43 @@ void TypesVisitor::onFinishVisit(AccessExpression* node) {
         break;
     }
 
-    node->typeExpression = std::make_shared<const TypeEntity>();
+    node.typeExpression = std::make_shared<const TypeEntity>();
 }
 
-void TypesVisitor::onStartVisit(CompositeLiteral* node) {
+void TypesVisitor::onStartVisit(CompositeLiteral& node) {
 
     // Если это массив, нам нужно записать его тип и запомнить id узла для проверки элементов
-    if (auto arrayType = dynamic_cast<ArraySignature*>(node->type.get())) {
-        node->typeExpression = std::make_shared<const TypeEntity>(arrayType);
-        typeCurrentArray = node->typeExpression;
+    if (auto arrayType = dynamic_cast<ArraySignature*>(node.type.get())) {
+        node.typeExpression = std::make_shared<const TypeEntity>(arrayType);
+        typeCurrentArray = node.typeExpression;
         indexCurrentAxisArray = 0;
     }
 }
 
-void TypesVisitor::onStartVisit(ElementCompositeLiteral* node) {
+void TypesVisitor::onStartVisit(ElementCompositeLiteral& node) {
     indexCurrentAxisArray++;
 }
 
 
-void TypesVisitor::onFinishVisit(CompositeLiteral* node) {
+void TypesVisitor::onFinishVisit(CompositeLiteral& node) {
 
-    if (auto arrayType = dynamic_cast<ArraySignature*>(node->type.get())) {
+    if (auto arrayType = dynamic_cast<ArraySignature*>(node.type.get())) {
 
-        if (arrayType->dimensions < node->elements.size()) {
+        if (arrayType->dimensions < node.elements.size()) {
             addError("Array has more elements than declarated");
-            node->typeExpression = std::make_shared<const TypeEntity>();
+            node.typeExpression = std::make_shared<const TypeEntity>();
             return;
         }
 
         // Тип текущего массива был вычислен при первом заходе в этот узел
-        auto declaredElementType = std::get<ArraySignatureEntity>(node->typeExpression->value).elementType;
+        auto declaredElementType = std::get<ArraySignatureEntity>(node.typeExpression->value).elementType;
 
         int index = 0;
-        for (const auto& element : node->elements) {
+        for (const auto& element : node.elements) {
             if (!element->typeExpression->equal(declaredElementType)) {
                 addError("Array declarated type mismatch " + std::string("index ") + std::to_string(index));
 
-                node->typeExpression = std::make_shared<const TypeEntity>();
+                node.typeExpression = std::make_shared<const TypeEntity>();
             }
             index++;
         }
@@ -429,38 +429,38 @@ void TypesVisitor::onFinishVisit(CompositeLiteral* node) {
 }
 
 
-void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
+void TypesVisitor::onFinishVisit(ElementCompositeLiteral& node) {
 
     TypePtr declaratedElementType =
         typeAxis(typeCurrentArray, indexCurrentAxisArray);
 
-    if (std::holds_alternative<ExpressionASTPtr>(node->value)) {
-        const auto& expression = std::get<ExpressionASTPtr>(node->value);
+    if (std::holds_alternative<ExpressionASTPtr>(node.value)) {
+        const auto& expression = std::get<ExpressionASTPtr>(node.value);
 
         if (declaratedElementType->equal(expression->typeExpression)) {
             expression->typeExpression = determinePriorityType(declaratedElementType, expression->typeExpression);
-            node->typeExpression = declaratedElementType;
+            node.typeExpression = declaratedElementType;
 
         } else {
             addError("Expression at " + std::to_string(indexCurrentAxisArray) + " axis has invalid type");
-            node->typeExpression = std::make_shared<const TypeEntity>();
+            node.typeExpression = std::make_shared<const TypeEntity>();
         }
 
-    } else if (std::holds_alternative<ElementCompositeLiteralList>(node->value)) {
+    } else if (std::holds_alternative<ElementCompositeLiteralList>(node.value)) {
 
         if (const auto* declaratedTypeAxis = std::get_if<ArraySignatureEntity>(&declaratedElementType->value)) {
 
-            if (declaratedTypeAxis->dims < std::get<ElementCompositeLiteralList>(node->value).size() ) {
+            if (declaratedTypeAxis->dims < std::get<ElementCompositeLiteralList>(node.value).size() ) {
                 addError("Array at " + std::to_string(indexCurrentAxisArray) + " axis has many values");
-                node->typeExpression = std::make_shared<const TypeEntity>();
+                node.typeExpression = std::make_shared<const TypeEntity>();
 
             } else {
-                node->typeExpression = declaratedElementType;
+                node.typeExpression = declaratedElementType;
             }
 
         } else {
             addError("Expression at " + std::to_string(indexCurrentAxisArray) + " axis has invalid type");
-            node->typeExpression = std::make_shared<const TypeEntity>();
+            node.typeExpression = std::make_shared<const TypeEntity>();
         }
     }
 
@@ -468,10 +468,10 @@ void TypesVisitor::onFinishVisit(ElementCompositeLiteral* node) {
 }
 
 
-void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
+void TypesVisitor::onFinishVisit(AssignmentStatement& node) {
     
     // Check const variables
-    for (const auto& var : node->lhs) {
+    for (const auto& var : node.lhs) {
         if (auto idVariable = dynamic_cast<IdentifierAsExpression*>(var.get())) {
                     
             VariableEntity* variable = scopesDeclarations.find(idVariable->identifier);
@@ -485,20 +485,20 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
         }
     }
 
-    if (node->type == AssignmentStatement::SimpleAssign) {
+    if (node.type == AssignmentStatement::SimpleAssign) {
 
-        if (node->lhs.size() != node->rhs.size()) {
+        if (node.lhs.size() != node.rhs.size()) {
             addError(
-                "Assignment count mismatch " + std::to_string(node->lhs.size()) + " and " + std::to_string(node->rhs.size()));
+                "Assignment count mismatch " + std::to_string(node.lhs.size()) + " and " + std::to_string(node.rhs.size()));
 
         } else {
             
             int index = 0;
-            ExpressionList::iterator indexIterator = node->indexes.begin();
-            ExpressionList::iterator valueIterator = node->rhs.begin();
-            ExpressionList::iterator idIterator = node->lhs.begin();
+            ExpressionList::iterator indexIterator = node.indexes.begin();
+            ExpressionList::iterator valueIterator = node.rhs.begin();
+            ExpressionList::iterator idIterator = node.lhs.begin();
 
-            while (indexIterator != node->indexes.end() && idIterator != node->lhs.end() && valueIterator != node->rhs.end()) {
+            while (indexIterator != node.indexes.end() && idIterator != node.lhs.end() && valueIterator != node.rhs.end()) {
 
                 // if right and left parts have same types ()
                 if ((*indexIterator) == nullptr) {
@@ -540,16 +540,16 @@ void TypesVisitor::onFinishVisit(AssignmentStatement* node) {
     }
 }
 
-void TypesVisitor::onFinishVisit(ReturnStatement* node) {
+void TypesVisitor::onFinishVisit(ReturnStatement& node) {
 
-    if (node->returnValues.size() > 1) {
+    if (node.returnValues.size() > 1) {
         addError("Return cannot take more than one value");
 
-    } else if (currentMethodEntity->getReturnType()->type != TypeEntity::Void && node->returnValues.empty()) {
+    } else if (currentMethodEntity->getReturnType()->type != TypeEntity::Void && node.returnValues.empty()) {
         addError("Missing return value");
     }
 
-    for (const auto& value : node->returnValues) {
+    for (const auto& value : node.returnValues) {
         if (!currentMethodEntity->getReturnType()->equal(value->typeExpression)) {
             addError("Cannot use this value for return");
         }
@@ -557,14 +557,14 @@ void TypesVisitor::onFinishVisit(ReturnStatement* node) {
 }
 
 
-void TypesVisitor::onStartVisit(ExpressionStatement* node) {
+void TypesVisitor::onStartVisit(ExpressionStatement& node) {
     // Increment and decrement can be statements
-    if (auto unaryExpression = dynamic_cast<UnaryExpression*>(node->expression.get())) {
+    if (auto unaryExpression = dynamic_cast<UnaryExpression*>(node.expression.get())) {
         if (unaryExpression->type == UnaryExpression::Decrement || unaryExpression->type == UnaryExpression::Increment) {
             return;
         }
         
-    } else if (auto functionCall = dynamic_cast<CallableExpression*>(node->expression.get())) {
+    } else if (auto functionCall = dynamic_cast<CallableExpression*>(node.expression.get())) {
         // With the exception of specific built-in functions and conversions, callable expressions can appear in statement context.
         if ( auto identifiedBase = dynamic_cast<IdentifierAsExpression*>(functionCall->base.get())) {
             if (identifiedBase->identifier != "append" && identifiedBase->identifier != "len" && !TypeEntity::IsBuiltInType(identifiedBase->identifier))
@@ -572,26 +572,26 @@ void TypesVisitor::onStartVisit(ExpressionStatement* node) {
         }
     }
     
-    addError(node->expression->name() + " expression not available for statement");
+    addError(node.expression->name() + " expression not available for statement");
 }
 
-void TypesVisitor::onFinishVisit(WhileStatement* node) {
-    if (node->conditionExpression->typeExpression->type != TypeEntity::Boolean) {
+void TypesVisitor::onFinishVisit(WhileStatement& node) {
+    if (node.conditionExpression->typeExpression->type != TypeEntity::Boolean) {
         addError("The non-bool value used as a condition in loop");
     }
 }
 
-void TypesVisitor::onFinishVisit(IfStatement* node) {
-    if (node->condition->typeExpression->type != TypeEntity::Boolean) {
+void TypesVisitor::onFinishVisit(IfStatement& node) {
+    if (node.condition->typeExpression->type != TypeEntity::Boolean) {
         addError("The non-bool value used as a condition in if statement");
     }
 }
 
-void TypesVisitor::onFinishVisit(SwitchStatement* node) {
-    TypePtr typeSwitchExpression = node->expression->typeExpression;
+void TypesVisitor::onFinishVisit(SwitchStatement& node) {
+    TypePtr typeSwitchExpression = node.expression->typeExpression;
 
     int index = 0;
-    for (const auto& caseClause : node->clauseList) {
+    for (const auto& caseClause : node.clauseList) {
 
         if (caseClause->expressionCase) {
             TypePtr caseExpressionType = caseClause->expressionCase->typeExpression;
@@ -614,23 +614,23 @@ bool ConstExpressionVisitor::isConstExpression(ExpressionAST* expr) {
     return constValid;
 }
 
-void ConstExpressionVisitor::onFinishVisit(IdentifierAsExpression* node) {
-    VariableEntity* variable = typesVisitor->scopesDeclarations.find(node->identifier);
+void ConstExpressionVisitor::onFinishVisit(IdentifierAsExpression& node) {
+    VariableEntity* variable = typesVisitor->scopesDeclarations.find(node.identifier);
 
     if (variable != nullptr) {
         constValid &= variable->isConst;
     }
 }
 
-void ConstExpressionVisitor::onFinishVisit(CallableExpression* node) {
+void ConstExpressionVisitor::onFinishVisit(CallableExpression& node) {
     constValid &= false;
 }
 
-void ConstExpressionVisitor::onFinishVisit(AccessExpression* node) {
+void ConstExpressionVisitor::onFinishVisit(AccessExpression& node) {
     constValid &= false;
 }
 
-void ConstExpressionVisitor::onFinishVisit(CompositeLiteral* node) {
+void ConstExpressionVisitor::onFinishVisit(CompositeLiteral& node) {
     constValid &= false;
 }
 

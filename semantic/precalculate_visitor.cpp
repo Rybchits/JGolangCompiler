@@ -271,71 +271,71 @@ void PrecalculateVisitor::transformExpressionList(ExpressionList& list) {
     }
 }
 
-void PrecalculateVisitor::onFinishVisit(VariableDeclaration* node) {
-    transformExpressionList(node->values);
+void PrecalculateVisitor::onFinishVisit(VariableDeclaration& node) {
+    transformExpressionList(node.values);
 }
 
-void PrecalculateVisitor::onFinishVisit(UnaryExpression* node) {
-    node->expression = transformExpression(std::move(node->expression));
+void PrecalculateVisitor::onFinishVisit(UnaryExpression& node) {
+    node.expression = transformExpression(std::move(node.expression));
 }
 
-void PrecalculateVisitor::onFinishVisit(BinaryExpression* node) {
-    node->lhs = transformExpression(std::move(node->lhs));
-    node->rhs = transformExpression(std::move(node->rhs));
+void PrecalculateVisitor::onFinishVisit(BinaryExpression& node) {
+    node.lhs = transformExpression(std::move(node.lhs));
+    node.rhs = transformExpression(std::move(node.rhs));
 }
 
-void PrecalculateVisitor::onFinishVisit(CallableExpression* node) {
-    node->base = transformExpression(std::move(node->base));
-    transformExpressionList(node->arguments);
+void PrecalculateVisitor::onFinishVisit(CallableExpression& node) {
+    node.base = transformExpression(std::move(node.base));
+    transformExpressionList(node.arguments);
 }
 
-void PrecalculateVisitor::onFinishVisit(AccessExpression* node) {
-    node->base = transformExpression(std::move(node->base));
-    node->accessor = transformExpression(std::move(node->accessor));
+void PrecalculateVisitor::onFinishVisit(AccessExpression& node) {
+    node.base = transformExpression(std::move(node.base));
+    node.accessor = transformExpression(std::move(node.accessor));
 }
 
-void PrecalculateVisitor::onFinishVisit(ElementCompositeLiteral* node) {
-    node->key = transformExpression(std::move(node->key));
+void PrecalculateVisitor::onFinishVisit(ElementCompositeLiteral& node) {
+    node.key = transformExpression(std::move(node.key));
 
-    if (std::holds_alternative<ExpressionASTPtr>(node->value)) {
-        node->value = transformExpression(std::move(std::get<ExpressionASTPtr>(node->value)));
+    if (std::holds_alternative<ExpressionASTPtr>(node.value)) {
+        node.value = transformExpression(std::move(std::get<ExpressionASTPtr>(node.value)));
     }
 }
 
-void PrecalculateVisitor::onFinishVisit(ExpressionStatement* node) {
-    node->expression = transformExpression(std::move(node->expression));
+void PrecalculateVisitor::onFinishVisit(ExpressionStatement& node) {
+    node.expression = transformExpression(std::move(node.expression));
 }
 
-void PrecalculateVisitor::onFinishVisit(ReturnStatement* node) {
-    transformExpressionList(node->returnValues);
+void PrecalculateVisitor::onFinishVisit(ReturnStatement& node) {
+    transformExpressionList(node.returnValues);
 }
 
-void PrecalculateVisitor::onFinishVisit(AssignmentStatement* node) {
-    transformExpressionList(node->indexes);
-    transformExpressionList(node->lhs);
-    transformExpressionList(node->rhs);
+void PrecalculateVisitor::onFinishVisit(AssignmentStatement& node) {
+    transformExpressionList(node.indexes);
+    transformExpressionList(node.lhs);
+    transformExpressionList(node.rhs);
 }
 
-void PrecalculateVisitor::onFinishVisit(ForStatement* node) {
-    node->conditionExpression = transformExpression(std::move(node->conditionExpression));
+void PrecalculateVisitor::onFinishVisit(ForStatement& node) {
+    node.conditionExpression = transformExpression(std::move(node.conditionExpression));
 }
 
-void PrecalculateVisitor::onFinishVisit(ShortVarDeclarationStatement* node) {
-    transformExpressionList(node->values);
+void PrecalculateVisitor::onFinishVisit(ShortVarDeclarationStatement& node) {
+    transformExpressionList(node.values);
 }
 
-void PrecalculateVisitor::onFinishVisit(WhileStatement* node) {
-    node->conditionExpression = transformExpression(std::move(node->conditionExpression));
+void PrecalculateVisitor::onFinishVisit(WhileStatement& node) {
+    node.conditionExpression = transformExpression(std::move(node.conditionExpression));
 }
 
-void PrecalculateVisitor::onFinishVisit(IfStatement* node) {
-    node->condition = transformExpression(std::move(node->condition));
+void PrecalculateVisitor::onFinishVisit(IfStatement& node) {
+    node.condition = transformExpression(std::move(node.condition));
 }
 
-void PrecalculateVisitor::onFinishVisit(SwitchStatement* node) {
-    node->expression = transformExpression(std::move(node->expression));
+void PrecalculateVisitor::onFinishVisit(SwitchStatement& node) {
+    node.expression = transformExpression(std::move(node.expression));
 }
 
-void PrecalculateVisitor::onFinishVisit(SwitchCaseClause* node) {
-    node->expressionCase = transformExpression(std::move(node->expressionCase));
+void PrecalculateVisitor::onFinishVisit(SwitchCaseClause& node) {
+    node.expressionCase = transformExpression(std::move(node.expressionCase));
 }
